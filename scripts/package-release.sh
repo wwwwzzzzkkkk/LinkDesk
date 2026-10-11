@@ -6,6 +6,7 @@ APP="${1:?Usage: package-release.sh /path/LinkDesk.app [driver-directory]}"
 DRIVERS="${2:-$ROOT/validation/volume/drivers}"
 OUT="${LINKDESK_RELEASE_DIR:-$ROOT/dist}"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" == "$VERSION" ]]
+xattr -cr "$APP"
 codesign --verify --deep --strict "$APP"
 [[ "$(codesign -dv "$APP" 2>&1)" != *Signature=adhoc* ]] || { echo 'Release requires a fixed certificate.' >&2; exit 1; }
 [[ ! -e "$APP/Contents/Resources/tools/hdc" ]] || { echo 'Public release must not bundle SDK binaries.' >&2; exit 1; }
