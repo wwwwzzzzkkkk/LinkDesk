@@ -8,6 +8,8 @@ LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchSe
 CHECK_ONLY="${LINKDESK_INSTALL_CHECK_ONLY:-0}"
 MIGRATE="${LINKDESK_ALLOW_SIGNER_MIGRATION:-0}"
 IDENTITY_MIGRATED=0
+STATE_DIR="${LINKDESK_STATE_DIR:-$HOME/Library/Application Support/LinkDesk}"
+REQUIREMENT_FILE="$STATE_DIR/InstalledRequirement.txt"
 
 [[ -d "$SOURCE" ]] || { echo '找不到待安装的 LinkDesk.app' >&2; exit 1; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$SOURCE/Contents/Info.plist")" == com.zhekuan.linkdesk.mac ]] || {
@@ -15,8 +17,12 @@ IDENTITY_MIGRATED=0
 }
 codesign --verify --deep "$SOURCE"
 SOURCE_INFO="$(codesign -d --verbose=2 "$SOURCE" 2>&1)"
-if [[ -d "$DEST" ]]; then
-  REQUIREMENT="$(codesign -d -r- "$DEST" 2>&1 | sed -n 's/^#\{0,1\} *designated => //p')"
+if [[ -d "$DEST" || -f "$REQUIREMENT_FILE" ]]; then
+  if [[ -d "$DEST" ]]; then
+    REQUIREMENT="$(codesign -d -r- "$DEST" 2>&1 | sed -n 's/^#\{0,1\} *designated => //p')"
+  else
+    REQUIREMENT="$(cat "$REQUIREMENT_FILE")"
+  fi
   [[ -n "$REQUIREMENT" ]] || { echo '无法确认现有签名身份，安装已停止。' >&2; exit 1; }
   if ! codesign --verify -R="$REQUIREMENT" "$SOURCE" >/dev/null 2>&1; then
     if [[ "$SOURCE_INFO" == *Signature=adhoc* || "$MIGRATE" != 1 ]]; then
@@ -61,4 +67,6 @@ if [[ "$IDENTITY_MIGRATED" == 1 ]]; then
     echo '应用已安装，但旧录屏授权清理失败。请在系统设置移除 LinkDesk 后重新添加当前应用。' >&2
   fi
 fi
+mkdir -p "$STATE_DIR"
+codesign -d -r- "$DEST" 2>&1 | sed -n 's/^#\{0,1\} *designated => //p' > "$REQUIREMENT_FILE"
 echo '安装完成，已刷新系统应用注册。'

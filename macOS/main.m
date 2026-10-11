@@ -698,7 +698,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, (__bridge CFNumberRef)@(keyframeSeconds));
             if(self->_useHEVC&&!lowLatency) {
                 if(@available(macOS 15.0,*)) {
-                    OSStatus look=VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_SuggestedLookAheadFrameCount,(__bridge CFNumberRef)@0);
+                    OSStatus look=VTSessionSetProperty(self->_encoder,CFSTR("SuggestedLookAheadFrameCount"),(__bridge CFNumberRef)@0);
                     NSLog(@"MOTION_ENCODER lookahead_zero=%d",(int)look);
                 }
             }
