@@ -23,7 +23,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>LinkDesk</string>
 <key>CFBundleIdentifier</key><string>com.zhekuan.linkdesk.mac</string>
-<key>CFBundleName</key><string>LinkDesk</string>
+<key>CFBundleName</key><string>连屏 LinkDesk</string>
 <key>CFBundleDisplayName</key><string>连屏 LinkDesk</string>
 <key>CFBundleIconFile</key><string>LinkDesk.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
