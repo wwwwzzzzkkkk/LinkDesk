@@ -1,0 +1,8 @@
+{
+  "name": "entry",
+  "version": "0.1.0",
+  "description": "连屏原生显示客户端",
+  "dependencies": {
+    "liblinkdesk.so": "file:./src/main/cpp/types/liblinkdesk"
+  }
+}

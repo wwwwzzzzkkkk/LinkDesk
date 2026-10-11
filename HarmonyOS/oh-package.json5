@@ -1,0 +1,8 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "linkdesk",
+  "version": "0.1.0",
+  "description": "独立 USB 扩展屏",
+  "dependencies": {},
+  "devDependencies": {}
+}
