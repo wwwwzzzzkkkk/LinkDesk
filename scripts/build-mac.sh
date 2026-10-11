@@ -11,11 +11,13 @@ if [[ -z "$SIGN_IDENTITY" ]]; then
     SIGN_IDENTITY=-
   fi
 fi
+VERSION="$(cat "$ROOT/VERSION")"
+BUILD="$(cat "$ROOT/BUILD_NUMBER")"
 mkdir -p "$APP/Contents/MacOS"
 xcrun clang -fobjc-arc -O2 -Wall -Wextra -Wno-unused-parameter -mmacosx-version-min=14.0 \
-  "$ROOT/macOS/main.m" "$ROOT/macOS/LDAudioBridge.m" "$ROOT/macOS/LDSystemVolume.m" "$ROOT/macOS/LDAudioSource.m" -framework CoreAudio -framework AudioToolbox -framework Cocoa -framework CoreGraphics -framework ScreenCaptureKit \
+  "$ROOT/macOS/main.m" "$ROOT/macOS/LDAudioBridge.m" "$ROOT/macOS/LDSystemVolume.m" "$ROOT/macOS/LDAudioSource.m" "$ROOT/macOS/LDMicrophoneBridge.m" -framework CoreAudio -framework AudioToolbox -framework Cocoa -framework CoreGraphics -framework ScreenCaptureKit \
   -framework VideoToolbox -framework CoreMedia -framework CoreVideo -framework QuartzCore -framework IOKit -o "$APP/Contents/MacOS/LinkDesk"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -23,15 +25,27 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.zhekuan.linkdesk.mac</string>
 <key>CFBundleName</key><string>LinkDesk</string>
 <key>CFBundleDisplayName</key><string>连屏 LinkDesk</string>
+<key>CFBundleIconFile</key><string>LinkDesk.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.5.2</string>
-<key>CFBundleVersion</key><string>9</string>
+<key>CFBundleShortVersionString</key><string>$VERSION</string>
+<key>CFBundleVersion</key><string>$BUILD</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
-<key>NSMicrophoneUsageDescription</key><string>读取 BlackHole 虚拟声卡中的电脑声音，通过 USB 发送到平板；不采集实体麦克风。</string>
+<key>NSMicrophoneUsageDescription</key><string>通过 USB 将 Mac 声音发送到平板，并将已授权的平板麦克风用作 Mac 输入。</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSScreenCaptureUsageDescription</key><string>将独立扩展桌面通过 USB 显示在你的 MatePad 上。</string>
 </dict></plist>
 PLIST
+mkdir -p "$APP/Contents/Resources"
+cp "$ROOT/assets/LinkDesk.icns" "$APP/Contents/Resources/LinkDesk.icns"
+# Public releases use the user's DevEco SDK; do not redistribute SDK binaries.
+if [[ "${LINKDESK_BUNDLE_HDC:-1}" == 1 ]]; then
+  mkdir -p "$APP/Contents/Resources/tools"
+  cp "${LINKDESK_TOOL_ROOT:-$ROOT/tools}/hdc" "$APP/Contents/Resources/tools/hdc"
+  cp "${LINKDESK_TOOL_ROOT:-$ROOT/tools}/libusb_shared.dylib" "$APP/Contents/Resources/tools/libusb_shared.dylib"
+  chmod 755 "$APP/Contents/Resources/tools/hdc"
+else
+  rm -rf "$APP/Contents/Resources/tools"
+fi
 for attempt in 1 2 3; do
   xattr -cr "$APP"
   if codesign --force --sign "$SIGN_IDENTITY" --identifier com.zhekuan.linkdesk.mac "$APP"; then

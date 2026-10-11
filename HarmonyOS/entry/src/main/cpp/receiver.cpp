@@ -1,4 +1,5 @@
 #include "audio_receiver.h"
+#include "microphone_sender.h"
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -42,6 +43,7 @@ class Receiver {
 public:
     static Receiver &Get() { static Receiver instance; return instance; }
     ~Receiver() { Stop(); }
+    void SetMicrophoneEnabled(bool enabled){if(enabled)microphone_.Start();else microphone_.Stop();}
     void Start(uint64_t surface, uint64_t windowId = 0) {
         Stop();
         for (const char *mime : {OH_AVCODEC_MIMETYPE_VIDEO_AVC, OH_AVCODEC_MIMETYPE_VIDEO_HEVC}) {
@@ -62,6 +64,7 @@ public:
     }
     void Stop() {
         active_ = false; cv_.notify_all(); hostCv_.notify_all();
+        microphone_.Stop();
         audio_.Stop();
         { std::lock_guard<std::mutex> lock(socketMutex_); if (fd_ >= 0) shutdown(fd_, SHUT_RDWR); }
         if (worker_.joinable()) worker_.join();
@@ -71,7 +74,7 @@ public:
     std::string Stats() {
         uint32_t refresh = 0;
         if (OH_NativeDisplayManager_GetDefaultDisplayRefreshRate(&refresh) == DISPLAY_MANAGER_OK) screenHz_ = refresh;
-        return "{\"hostRequestState\":" + std::to_string(hostRequestState_.load()) + ",\"audioState\":" + std::to_string(audio_.State()) + ",\"audioFrames\":" + std::to_string(audio_.Played()) + ",\"state\":" + std::to_string(state_.load()) + ",\"frames\":" + std::to_string(frames_.load()) +
+        return "{\"microphoneState\":" + std::to_string(microphone_.State()) + ",\"hostRequestState\":" + std::to_string(hostRequestState_.load()) + ",\"audioState\":" + std::to_string(audio_.State()) + ",\"audioFrames\":" + std::to_string(audio_.Played()) + ",\"state\":" + std::to_string(state_.load()) + ",\"frames\":" + std::to_string(frames_.load()) +
             ",\"bytes\":" + std::to_string(bytes_.load()) + ",\"error\":" + std::to_string(error_.load()) +
             ",\"width\":" + std::to_string(width_.load()) + ",\"height\":" + std::to_string(height_.load()) + ",\"targetFPS\":" + std::to_string(targetFPS_.load()) + ",\"vsyncHz\":" + std::to_string(vsyncHz_.load()) +
             ",\"latestMode\":" + (latestMode_.load() ? "true" : "false") + ",\"timedSupported\":" + (timedRenderRejected_.load() ? "false" : "true") +
@@ -101,6 +104,7 @@ private:
     OHNativeWindow *window_ = nullptr;
     bool codecStarted_ = false;
     AudioReceiver audio_;
+    MicrophoneSender microphone_;
     std::thread worker_, hostThread_;
     std::mutex socketMutex_, inputMutex_;
     std::condition_variable cv_;
@@ -383,14 +387,20 @@ napi_value SetLatest(napi_env env, napi_callback_info info) {
     if (argc != 1 || napi_get_value_bool(env, argv[0], &enabled) != napi_ok) { napi_throw_type_error(env, nullptr, "Expected a boolean"); return nullptr; }
     Receiver::Get().SetLatestMode(enabled); napi_value out; napi_get_undefined(env, &out); return out;
 }
+napi_value SetMicrophone(napi_env env,napi_callback_info info){
+    size_t argc=1;napi_value argv[1];napi_get_cb_info(env,info,&argc,argv,nullptr,nullptr);bool enabled=false;
+    if(argc!=1||napi_get_value_bool(env,argv[0],&enabled)!=napi_ok){napi_throw_type_error(env,nullptr,"Expected boolean");return nullptr;}
+    Receiver::Get().SetMicrophoneEnabled(enabled);napi_value out;napi_get_undefined(env,&out);return out;
+}
 napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor properties[] = {
         {"start", nullptr, Start, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"stats", nullptr, Stats, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"setLatestMode", nullptr, SetLatest, nullptr, nullptr, nullptr, napi_default, nullptr}
+        {"setLatestMode", nullptr, SetLatest, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setMicrophoneEnabled", nullptr, SetMicrophone, nullptr, nullptr, nullptr, napi_default, nullptr}
     };
-    napi_define_properties(env, exports, 4, properties); return exports;
+    napi_define_properties(env, exports, 5, properties); return exports;
 }
 napi_module module{1, 0, nullptr, Init, "linkdesk", nullptr, {0}};
 __attribute__((constructor)) void Register() { napi_module_register(&module); }

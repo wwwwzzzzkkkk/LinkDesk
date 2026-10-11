@@ -10,6 +10,8 @@
 #import <stdatomic.h>
 #import "LDPipelineBudget.h"
 #import "LDAudioBridge.h"
+#import "LDMicrophoneBridge.h"
+#import <CoreAudio/CoreAudio.h>
 
 // These private CoreGraphics declarations are isolated here. Resolve at runtime.
 @interface LDDisplayDescriptor : NSObject
@@ -63,6 +65,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     LDVirtualDisplay *_display;
     SCStream *_stream;
     LDAudioBridge *_audio;
+    LDMicrophoneBridge *_microphone;
+    NSButton *_microphoneToggle;
+    NSTextField *_microphoneHint;
     NSSlider *_audioSyncSlider;
     NSTextField *_audioSyncLabel;
     NSTextField *_audioHint;
@@ -144,6 +149,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         _baseline = [NSProcessInfo.processInfo.arguments containsObject:@"--baseline-encoder"];
         _pipelineBudget = [LDPipelineBudget new];
         _audio = [LDAudioBridge new];
+        _microphone = [LDMicrophoneBridge new];
 
         _phase = @"准备连接";
         id savedScale = [NSUserDefaults.standardUserDefaults objectForKey:@"LinkDeskScaleIndex"];
@@ -173,7 +179,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     [NSProcessInfo.processInfo disableAutomaticTermination:@"LinkDesk USB standby service"];
-    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 580, 690)
+    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 580, 810)
         styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
         backing:NSBackingStoreBuffered defer:NO];
     _window.title = @"连屏 LinkDesk";
@@ -232,6 +238,15 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     _audioSyncLabel.frame=NSMakeRect(20,20,230,20);[view addSubview:_audioSyncLabel];
     _audioSyncSlider=[NSSlider sliderWithValue:audioDelay minValue:0 maxValue:150 target:self action:@selector(changeAudioSync:)];
     _audioSyncSlider.frame=NSMakeRect(265,18,270,24);[view addSubview:_audioSyncSlider];
+    for (NSView *child in view.subviews) { NSRect f=child.frame;f.origin.y+=120;child.frame=f; }
+    NSButton *tabletSpeaker=[NSButton buttonWithTitle:@"使用平板扬声器" target:self action:@selector(useTabletSpeaker:)];
+    tabletSpeaker.frame=NSMakeRect(25,78,170,30);tabletSpeaker.bezelStyle=NSBezelStyleRounded;[view addSubview:tabletSpeaker];
+    NSButton *macSpeaker=[NSButton buttonWithTitle:@"恢复 Mac 扬声器" target:self action:@selector(useMacSpeaker:)];
+    macSpeaker.frame=NSMakeRect(205,78,170,30);macSpeaker.bezelStyle=NSBezelStyleRounded;[view addSubview:macSpeaker];
+    _microphoneToggle=[NSButton checkboxWithTitle:@"使用平板麦克风作为 Mac 输入" target:self action:@selector(changeMicrophone:)];
+    _microphoneToggle.frame=NSMakeRect(30,44,510,26);[view addSubview:_microphoneToggle];
+    _microphoneHint=[self label:@"请先在平板连屏中允许使用麦克风" size:12 weight:NSFontWeightRegular];
+    _microphoneHint.frame=NSMakeRect(25,10,530,26);_microphoneHint.textColor=NSColor.secondaryLabelColor;[view addSubview:_microphoneHint];
     if (!_backgroundAgent) {
         [_window makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
@@ -415,7 +430,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (NSString *)runHDC:(NSArray<NSString *> *)arguments success:(BOOL *)success {
     NSTask *task = [NSTask new];
-    task.executableURL = [NSURL fileURLWithPath:HDC]; task.arguments = arguments;
+    NSString *bundled=[NSBundle.mainBundle pathForResource:@"hdc" ofType:nil inDirectory:@"tools"];
+    task.executableURL = [NSURL fileURLWithPath:bundled ?: HDC]; task.arguments = arguments;
     NSPipe *pipe = [NSPipe pipe]; task.standardOutput = pipe; task.standardError = pipe;
     NSError *error = nil;
     if (![task launchAndReturnError:&error]) { *success = NO; return error.localizedDescription; }
@@ -525,6 +541,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         NSString *target = targets.count == 1 ? targets.firstObject : nil;
         if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24832", @"tcp:24832"] success:&ok];
         if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24833", @"tcp:24833"] success:&ok];
+        if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24835", @"tcp:24835"] success:&ok];
         NSString *forwards = target ? [self runHDC:@[@"-t", target, @"fport", @"ls"] success:&ok] : @"";
         BOOL ready = NO;
         for (NSString *line in [forwards componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
@@ -543,6 +560,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 return;
             }
             [self->_audio start];
+            [self->_microphone start];
+            [self->_microphone setEnabled:self->_microphoneToggle.state==NSControlStateValueOn];
             self->_active = YES; self->_starting = NO; self->_toggle.title = @"停止副屏";
             [self showStatus:@"副屏已创建，等待平板" detail:@"打开平板上的「连屏」，即可显示独立桌面。"];
             // Let WindowServer finish attaching the display before selecting its final mode.
@@ -844,6 +863,15 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         }
     });
 }
+- (void)useTabletSpeaker:(id)sender {
+    if(![_audio selectTabletOutput]) _audioHint.stringValue=@"请先启动副屏并连接平板";
+}
+- (void)useMacSpeaker:(id)sender { [_audio restoreOutput]; }
+- (void)changeMicrophone:(NSButton *)button {
+    if(!_active&&button.state==NSControlStateValueOn){button.state=NSControlStateValueOff;_microphoneHint.stringValue=@"请先启动副屏";return;}
+    [_microphone setEnabled:button.state==NSControlStateValueOn];
+    _microphoneHint.stringValue=_microphone.status;
+}
 - (void)changeAudioSync:(NSSlider *)slider {
     double delay=round(slider.doubleValue);[_audio setSyncDelay:delay];
     [NSUserDefaults.standardUserDefaults setDouble:delay forKey:@"LinkDeskAudioSyncDelay"];
@@ -852,6 +880,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)updateStats:(NSTimer *)timer {
     if (!_active) return;
     [_audio updateRoute]; _audioHint.stringValue = _audio.status;
+    _microphoneHint.stringValue = _microphone.status;
     [self syncSystemScale];
     if (![_networkLock tryLock]) return;
     BOOL connected = _clientFD >= 0; uint64_t frames = _framesSent;
@@ -881,6 +910,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [NSUserDefaults.standardUserDefaults setObject:@{@"x":@(bounds.origin.x), @"y":@(bounds.origin.y)} forKey:@"LinkDeskDisplayOrigin"];
     }
     [_testTimer invalidate]; _testTimer = nil; [_testWindow close]; _testWindow = nil; _testMarker = nil;
+    [_microphone stop];
     [_audio stop];
     _active = NO; _starting = NO;
     [_networkLock lock]; ++_generation;

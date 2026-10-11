@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc
+HDC="$ROOT/tools/hdc"
 HAP="$ROOT/HarmonyOS/entry/build/default/outputs/default/entry-default-signed.hap"
 if [[ ! -f "$HAP" ]]; then
   echo '尚无签名 HAP。请先在 DevEco Studio 为此独立工程启用自动调试签名，再运行 build-harmony.sh。' >&2

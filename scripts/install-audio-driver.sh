@@ -6,7 +6,7 @@ SOURCE="$ROOT/validation/volume/drivers"
 IDENTITY="$(tr -d '[:space:]' < "$ROOT/macOS/signing-identity.sha1")"
 ACTION="${1:---check}"
 [[ "$ACTION" == --check || "$ACTION" == --install ]] || { echo 'Usage: install-audio-driver.sh --check|--install' >&2;exit 1; }
-for MODE in Tablet MacVolume; do
+for MODE in Tablet MacVolume Microphone; do
   BUNDLE="$SOURCE/LinkDesk${MODE}.driver"
   [[ -d "$BUNDLE" ]] || { echo "Missing driver: $BUNDLE" >&2;exit 1; }
   [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$BUNDLE/Contents/Info.plist")" == "com.zhekuan.linkdesk.driver.$MODE" ]] || exit 1
@@ -14,11 +14,11 @@ for MODE in Tablet MacVolume; do
   codesign --verify -R="certificate leaf = H\"$IDENTITY\"" "$BUNDLE"
 done
 if [[ "$ACTION" == --check ]]; then echo 'Driver signatures and identifiers verified; no system changes.';exit 0;fi
-[[ "$EUID" == 0 ]] || { echo 'Administrator authorization is required to install the two LinkDesk audio plugins.' >&2;exit 1; }
+[[ "$EUID" == 0 ]] || { echo 'Administrator authorization is required to install the LinkDesk audio plugins.' >&2;exit 1; }
 DEST=/Library/Audio/Plug-Ins/HAL
 BACKUP="/Library/Audio/Plug-Ins/LinkDesk-Backups/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$DEST" "$BACKUP"
-for MODE in Tablet MacVolume; do
+for MODE in Tablet MacVolume Microphone; do
   BUNDLE="LinkDesk${MODE}.driver"
   if [[ -e "$DEST/$BUNDLE" ]]; then
     [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DEST/$BUNDLE/Contents/Info.plist")" == "com.zhekuan.linkdesk.driver.$MODE" ]] || { echo 'Unexpected existing bundle; stopped.' >&2;exit 1; }

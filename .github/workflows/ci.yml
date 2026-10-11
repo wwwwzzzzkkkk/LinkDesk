@@ -1,0 +1,28 @@
+name: Check source
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate versions and scripts
+        run: |
+          for script in scripts/*.sh; do bash -n "$script"; done
+          python3 - <<'PYTHON'
+          import json,pathlib
+          r=pathlib.Path('.')
+          assert (r/'VERSION').read_text().strip()==json.loads((r/'HarmonyOS/AppScope/app.json5').read_text())['app']['versionName']
+          PYTHON
+      - name: Build Mac without redistributing SDK tools
+        run: LINKDESK_SIGN_IDENTITY=- LINKDESK_BUNDLE_HDC=0 bash scripts/build-mac.sh
+      - name: Build Core Audio plugins
+        run: LINKDESK_SIGN_IDENTITY=- bash scripts/build-audio-driver.sh
+      - name: Microphone ring memory checks
+        run: |
+          xcrun clang -fobjc-arc -fsanitize=address,undefined -g tests/test-microphone-ring.m -framework Foundation -framework CoreAudio -framework AudioToolbox -o /tmp/linkdesk-mic-test
+          /tmp/linkdesk-mic-test

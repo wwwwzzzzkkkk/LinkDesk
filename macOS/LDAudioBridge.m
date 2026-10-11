@@ -56,6 +56,18 @@ static BOOL SendAll(int fd,const void *data,size_t size) {
 @implementation LDAudioBridge
 - (instancetype)init { if((self=[super init])) { _condition=[NSCondition new];_syncDelay=20;_systemVolume=[LDSystemVolume new];_workers=dispatch_group_create();_listener=_client=-1; } return self; }
 - (NSString *)status { [_condition lock]; NSString *s=_failure ?: (_client < 0 ? @"平板声音未连接" : (_routed ? @"声音正在发送到平板" : @"可在 Mac 声音输出中选择 MatePad")); [_condition unlock]; return s; }
+- (BOOL)selectTabletOutput {
+    [_condition lock];BOOL ready=_running&&_client>=0&&_tablet;AudioDeviceID d=_tablet;[_condition unlock];
+    if(!ready)return NO;
+    AudioObjectPropertyAddress a=Prop(kAudioHardwarePropertyDefaultOutputDevice);
+    BOOL ok=AudioObjectSetPropertyData(kAudioObjectSystemObject,&a,0,NULL,sizeof(d),&d)==noErr;
+    [self updateRoute];return ok;
+}
+- (void)restoreOutput {
+    AudioObjectPropertyAddress a=Prop(kAudioHardwarePropertyDefaultOutputDevice);
+    if(_fallback)AudioObjectSetPropertyData(kAudioObjectSystemObject,&a,0,NULL,sizeof(_fallback),&_fallback);
+    [self updateRoute];
+}
 - (BOOL)start {
     [self stop]; NSString *blackhole=nil,*builtIn=nil; AudioDeviceID builtInID=0,blackholeID=0;
     for(NSNumber *n in Devices()) {

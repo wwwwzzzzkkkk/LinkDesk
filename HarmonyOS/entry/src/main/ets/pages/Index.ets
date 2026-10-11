@@ -1,8 +1,11 @@
+import abilityAccessCtrl from '@ohos.abilityAccessCtrl';
+import common from '@ohos.app.ability.common';
 import linkdesk from 'liblinkdesk.so';
 import systemDateTime from '@ohos.systemDateTime';
 import { DisplayContext } from '../DisplayContext';
 
 interface ReceiverStats {
+  microphoneState: number;
   hostRequestState: number;
   audioState: number;
   audioFrames: number;
@@ -30,6 +33,9 @@ interface FrameSample {
 @Entry
 @Component
 struct Index {
+  @State private microphoneAllowed: boolean = false;
+  @State private microphoneState: number = 0;
+  @State private microphoneMessage: string = '平板麦克风：关闭';
   private surface: XComponentController = new XComponentController();
   private timer: number = -1;
   @State private state: number = 1;
@@ -73,12 +79,15 @@ struct Index {
     this.realtimeFPS = 0;
     linkdesk.setLatestMode(this.latestMode);
     linkdesk.start(this.surface.getXComponentSurfaceId(), DisplayContext.windowId);
+    if(this.microphoneAllowed) linkdesk.setMicrophoneEnabled(true);
     if (this.timer >= 0) clearInterval(this.timer);
     this.timer = setInterval(() => {
       const info = JSON.parse(linkdesk.stats()) as ReceiverStats;
       this.state = info.state;
       this.hostRequestState = info.hostRequestState;
       this.audioState = info.audioState;
+      this.microphoneState = info.microphoneState;
+      if(this.microphoneAllowed&&!DisplayContext.microphoneAllowed){this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;this.microphoneMessage='返回应用后请重新允许麦克风';}
       this.updateFPS(info);
       this.error = info.error;
       this.streamWidth = info.width;
@@ -90,9 +99,29 @@ struct Index {
     }, 500);
   }
 
+  private async toggleMicrophone(): Promise<void> {
+    if(this.microphoneAllowed){linkdesk.setMicrophoneEnabled(false);this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;this.microphoneMessage='平板麦克风：关闭';return;}
+    try {
+      const manager=abilityAccessCtrl.createAtManager();
+      const result=await manager.requestPermissionsFromUser(getContext(this) as common.UIAbilityContext,['ohos.permission.MICROPHONE']);
+      if(result.authResults.length>0 && result.authResults[0]===0){
+        linkdesk.setMicrophoneEnabled(true);this.microphoneAllowed=true;DisplayContext.microphoneAllowed=true;this.microphoneMessage='请在 Mac 连屏中开启平板麦克风';
+      }else this.microphoneMessage='未允许麦克风，可在设置中重新授权';
+    }catch(_error){this.microphoneMessage='无法开启麦克风，请检查权限';}
+  }
+  @Builder microphoneControl(){
+    Column({space:8}){
+      Button(this.microphoneAllowed ? '关闭平板麦克风' : '允许 Mac 使用平板麦克风')
+        .onClick(()=>{this.toggleMicrophone();})
+      Text(this.microphoneState===2 ? '麦克风正在通过 USB 发送到 Mac' : this.microphoneState===-1 ? '麦克风启动失败，请检查权限' : this.microphoneMessage)
+        .fontSize(12).fontColor('#C6CEE0')
+    }
+  }
   aboutToDisappear(): void {
     if (this.timer >= 0) clearInterval(this.timer);
     this.timer = -1;
+    linkdesk.setMicrophoneEnabled(false);
+    this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;
     linkdesk.stop();
   }
 
@@ -117,6 +146,7 @@ struct Index {
             Text('连接已中断，正在重试。诊断码：' + this.error.toString())
               .fontSize(14).fontColor('#A4ACC1')
           }
+          this.microphoneControl()
           Button('重新连接').onClick(() => { this.connect(); })
             .backgroundColor('#5978F4').fontColor(Color.White).margin({ top: 12 })
         }.padding(40).borderRadius(28).backgroundColor('#EE111622')
@@ -139,6 +169,7 @@ struct Index {
           Text('最近一帧平板处理 ' + this.processMs.toFixed(1) + ' ms')
             .fontSize(12).fontColor('#C6CEE0')
         }
+        this.microphoneControl()
         Text('近 1 秒统计，静止画面会减少出帧').fontSize(12).fontColor('#C6CEE0')
         Text(this.audioState === 2 ? '正在播放 Mac 声音' : '在 Mac 声音输出中选择 MatePad 扬声器')
           .fontSize(12).fontColor('#C6CEE0')
