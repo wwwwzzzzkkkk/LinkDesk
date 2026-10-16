@@ -431,7 +431,13 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (NSString *)runHDC:(NSArray<NSString *> *)arguments success:(BOOL *)success {
     NSTask *task = [NSTask new];
     NSString *bundled=[NSBundle.mainBundle pathForResource:@"hdc" ofType:nil inDirectory:@"tools"];
-    task.executableURL = [NSURL fileURLWithPath:bundled ?: HDC]; task.arguments = arguments;
+    NSString *localTool = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/LinkDesk/tools/hdc"];
+    NSString *tool = nil;
+    for (NSString *candidate in @[bundled ?: @"", localTool, HDC]) {
+        if ([NSFileManager.defaultManager isExecutableFileAtPath:candidate]) { tool = candidate; break; }
+    }
+    if (!tool) { *success = NO; return @"USB 连接工具缺失，请安装 DevEco Studio 或恢复 LinkDesk 本机 USB 工具。"; }
+    task.executableURL = [NSURL fileURLWithPath:tool]; task.arguments = arguments;
     NSPipe *pipe = [NSPipe pipe]; task.standardOutput = pipe; task.standardError = pipe;
     NSError *error = nil;
     if (![task launchAndReturnError:&error]) { *success = NO; return error.localizedDescription; }
@@ -936,6 +942,10 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         NSApplication *app = NSApplication.sharedApplication;
+        // Use the tablet artwork directly for the running application's Dock icon.
+        NSString *iconPath = [NSBundle.mainBundle pathForResource:@"linkdesk-icon" ofType:@"png"];
+        NSImage *icon = iconPath ? [[NSImage alloc] initWithContentsOfFile:iconPath] : nil;
+        if (icon) app.applicationIconImage = icon;
         LinkDesk *delegate = [LinkDesk new];
         if ([NSProcessInfo.processInfo.arguments containsObject:@"--self-test"]) {
             BOOL ok = [delegate createDisplay:nil];

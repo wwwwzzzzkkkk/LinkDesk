@@ -2,11 +2,11 @@
 
 # 连屏 LinkDesk
 
-通过 USB 将 MatePad 用作 Mac 的独立扩展屏幕，并使用平板扬声器和麦克风。当前版本 **0.6.3**，面向 Apple Silicon Mac；Mac mini 已实机确认画面、扬声器和麦克风可用。
+通过 USB 将 MatePad 用作 Mac 的独立扩展屏幕，并使用平板扬声器和麦克风。当前版本 **0.6.4**，面向 Apple Silicon Mac；Mac mini 已实机确认画面、扬声器和麦克风可用。
 
 | 版本 | 获取方式 | 说明 |
 | --- | --- | --- |
-| Mac mini 新版 0.6.3 | main / v0.6.3 | 平板麦克风回传、新图标、发行与 Homebrew 支持 |
+| Mac mini 新版 0.6.4 | main / v0.6.4 | 平板麦克风回传、新图标、发行与 Homebrew 支持 |
 | MacBook 原版 0.5.2 | legacy/macbook / macbook-v0.5.2 | 保留原始源码和原图标，无平板麦克风回传；不自动替换为新版 |
 
 两个版本使用相同应用标识，不应在同一台 Mac 同时运行。保留原 MacBook 应用和证书即可继续使用原版；GitHub 原版标签可用于恢复源码。MacBook 归档来自 2026-09-09 项目目录的本地快照，未重新验证原版二进制。
@@ -21,7 +21,7 @@
 
 ## 安装 Mac
 
-从 [Releases](https://github.com/wwwwzzzzkkkk/LinkDesk/releases) 下载 `LinkDesk-0.6.3-macos-arm64.zip`，解压后在该文件夹运行：
+从 [Releases](https://github.com/wwwwzzzzkkkk/LinkDesk/releases) 下载 `LinkDesk-0.6.4-macos-arm64.zip`，解压后在该文件夹运行：
 
 ```sh
 bash scripts/install-mac.sh LinkDesk.app
@@ -57,7 +57,7 @@ python3 scripts/authorize-audio-driver-install.py
 Homebrew 用户运行：
 
 ```sh
-python3 "$(brew --caskroom)/linkdesk/0.6.3/LinkDesk/scripts/authorize-audio-driver-install.py"
+python3 "$(brew --caskroom)/linkdesk/0.6.4/LinkDesk/scripts/authorize-audio-driver-install.py"
 ```
 
 系统会请求管理员授权，安装三个 LinkDesk 插件并短暂重启音频服务。请先结束通话。插件安装到 `/Library/Audio/Plug-Ins/HAL`，安装脚本保留旧插件备份。卸载应用时插件会保留，移除方法见 [安装说明](docs/INSTALL.md)。
@@ -98,3 +98,5 @@ Mac 测试包可用 `LINKDESK_SIGN_IDENTITY=-` 临时签名构建，但安装脚
 项目以 GPL-3.0 发布，见 [LICENSE](LICENSE)。音频驱动衍生自 [BlackHole](https://github.com/ExistentialAudio/BlackHole)，保留版权、许可证、固定上游版本及修改说明，见 `macOS/AudioDriver/vendor/`。华为 DevEco/HDC 由用户自行获取，受其许可条款约束；不包含在公开源码或发行包中。
 
 Homebrew 配置依据 [官方 Cask 文档](https://docs.brew.sh/Cask-Cookbook)。
+
+本机 USB 工具也可保留于 `~/Library/Application Support/LinkDesk/tools/`（hdc 与其 libusb_shared.dylib 配套），新版会在未捆绑工具时优先尝试此目录；这些 SDK 工具不进入公开发行包。运行中的 Dock 图标直接使用平板原图，Finder 仍可能按 macOS 系统样式添加光影。

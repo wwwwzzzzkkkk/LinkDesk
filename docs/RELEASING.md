@@ -2,7 +2,7 @@
 
 - `main`：Mac mini 版及后续开发。语义版本 `MAJOR.MINOR.PATCH`。
 - `legacy/macbook`：MacBook 0.5.2 源码归档；原标签 `macbook-v0.5.2` 不移动。
-- `v0.6.3` 等：正式版本标签，发布后不覆写；回退检出旧标签并保留相应签名。
+- `v0.6.4` 等：正式版本标签，发布后不覆写；回退检出旧标签并保留相应签名。
 - `VERSION`：Mac 营销版本；`BUILD_NUMBER`：Mac 构建号，递增。
 - HarmonyOS 的 `AppScope/app.json5` 同步 `versionName`，`versionCode` 必须递增。
 

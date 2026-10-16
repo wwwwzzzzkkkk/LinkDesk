@@ -37,6 +37,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 mkdir -p "$APP/Contents/Resources"
 cp "$ROOT/assets/LinkDesk.icns" "$APP/Contents/Resources/LinkDesk.icns"
+cp "$ROOT/assets/linkdesk-icon.png" "$APP/Contents/Resources/linkdesk-icon.png"
 # Public releases use the user's DevEco SDK; do not redistribute SDK binaries.
 if [[ "${LINKDESK_BUNDLE_HDC:-1}" == 1 ]]; then
   mkdir -p "$APP/Contents/Resources/tools"
