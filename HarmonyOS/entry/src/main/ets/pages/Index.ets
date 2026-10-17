@@ -13,6 +13,7 @@ struct Index {
   @StorageLink('LinkDeskDestination') @Watch('routeChanged') destination: string = 'home';
   @StorageLink('LinkDeskInkConnected') inkConnected: boolean = false;
   @StorageLink('LinkDeskRelayReachable') relayReachable: boolean = false;
+  @StorageLink('LinkDeskMirrorRunning') mirrorRunning: boolean = false;
   @StorageLink('LinkDeskReceiverWorking') receiverWorking: boolean = false;
   @StorageLink('LinkDeskPairingCode') pairingCode: string = '';
   @StorageLink('LinkDeskTransport') transport: string = 'usb';
@@ -22,6 +23,10 @@ struct Index {
   @State private wide: boolean = false;
   @State private contentWidth: number = DT.layoutPageMax;
 
+  onBackPress(): boolean {
+    if (this.selected === 'home') return false;
+    this.open('home'); return true;
+  }
   private routeChanged(): void {
     if (this.destination === 'home') this.selected = 'home';
     else if (this.destination === 'display') this.selected = 'display';
@@ -34,6 +39,7 @@ struct Index {
   }
   private state(): ConnectionState {
     if (this.receiverWorking) return ConnectionState.working;
+    if (this.selected === 'mirror') return this.mirrorRunning ? ConnectionState.working : this.relayReachable && this.transport === 'usb' ? ConnectionState.usbConnected : ConnectionState.disconnected;
     if (this.inkConnected) return this.selected === 'home' ? ConnectionState.waitingForMode : ConnectionState.working;
     if (this.relayReachable) return this.transport === 'usb' ? ConnectionState.usbConnected : ConnectionState.waitingForMode;
     return ConnectionState.disconnected;
@@ -150,6 +156,6 @@ struct Index {
       }.width('100%').layoutWeight(1)
       if (!this.wide && !this.receiverWorking) { this.bottomNavigation() }
     }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
-      .onAreaChange((_old: Area, current: Area) => { this.wide = Number(current.width) >= DT.layoutWideBreakpoint; })
+      .onAreaChange((_old: Area, current: Area) => { this.wide = Number(current.width) >= DT.layoutWideBreakpoint && Number(current.width) >= Number(current.height); })
   }
 }

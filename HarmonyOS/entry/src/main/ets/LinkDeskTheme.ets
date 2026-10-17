@@ -84,7 +84,7 @@ export class LinkDeskTheme {
     const dark = AppStorage.get<boolean>('LinkDeskDark') ?? false;
       void window.getLastWindow(LinkDeskTheme.context).then((main: window.Window) => {
         return main.setWindowSystemBarProperties({
-          statusBarColor: DT.clear(dark), navigationBarColor: DT.clear(dark),
+          statusBarColor: DT.canvas(dark), navigationBarColor: DT.canvas(dark),
           isStatusBarLightIcon: dark, isNavigationBarLightIcon: dark,
           statusBarContentColor: DT.text(dark),
           navigationBarContentColor: DT.text(dark)

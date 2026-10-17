@@ -6,6 +6,7 @@ import { LinkDeskTheme } from '../LinkDeskTheme';
 // Presentation only. No transport, decoder or theme persistence changes.
 export class PlatformUI {
   private static main: window.Window | undefined = undefined;
+  private static orientation: window.Orientation = window.Orientation.AUTO_ROTATION;
   private static receiver: boolean = false;
   private static barQueue: Promise<void> = Promise.resolve();
   private static motionChanged(enabled: boolean): void { AppStorage.setOrCreate('LinkDeskReduceMotion', enabled); }
@@ -19,6 +20,12 @@ export class PlatformUI {
   }
   static stop(): void {
     try { accessibility.offAnimationReduceStateChange(PlatformUI.motionChanged); } catch (_) {}
+  }
+  static preferredOrientation(): window.Orientation { return PlatformUI.orientation; }
+  static reviewOrientation(value: string): void {
+    if (value !== 'portrait' && value !== 'landscape' && value !== 'automatic') return;
+    PlatformUI.orientation = value === 'portrait' ? window.Orientation.PORTRAIT : value === 'landscape' ? window.Orientation.LANDSCAPE : window.Orientation.AUTO_ROTATION;
+    try { void PlatformUI.main?.setPreferredOrientation(PlatformUI.orientation).catch(() => {}); } catch (_) {}
   }
   static bind(main: window.Window): void { PlatformUI.main = main; }
   static setReceiver(active: boolean): void { PlatformUI.receiver = active; PlatformUI.applyBars(active); }

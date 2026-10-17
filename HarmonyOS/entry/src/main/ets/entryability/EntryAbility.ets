@@ -37,6 +37,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   private handleIncomingWant(want: Want): void {
+    const reviewOrientation = want.parameters?.linkdeskUIReviewOrientation;
+    if (typeof reviewOrientation === 'string') PlatformUI.reviewOrientation(reviewOrientation);
     this.handleSharedPDF(want);
     const action = want.parameters?.liveViewAction;
     if (typeof action === 'string') {
@@ -74,7 +76,7 @@ export default class EntryAbility extends UIAbility {
       PlatformUI.bind(mainWindow);
       Promise.all([
         mainWindow.setWindowLayoutFullScreen(false),
-        mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION),
+        mainWindow.setPreferredOrientation(PlatformUI.preferredOrientation()),
         mainWindow.setWindowKeepScreenOn(true),
         mainWindow.setWindowSystemBarProperties({
           statusBarColor: DT.clear(false),

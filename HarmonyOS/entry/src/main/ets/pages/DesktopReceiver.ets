@@ -176,7 +176,7 @@ export struct DesktopReceiver {
             }
             this.microphoneControl()
           }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
-        }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
+        }.width('100%').height('100%').align(Alignment.Top).backgroundColor(DT.canvas(this.darkMode))
       }
       if (this.state === 3 && this.controlsVisible) {
         Column({ space: DT.spacingS16 }) {

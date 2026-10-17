@@ -64,7 +64,7 @@ export struct InkWorkspace {
   private requestedModeDidChange(): void {
     if (this.activation === 0) return;
     if (this.requestedMode === 'mirror') {
-      this.pendingMirrorStart = true;
+      this.pendingMirrorStart = false;
     } else {
       this.pendingInitialMode = true;
       this.switchAppMode(this.requestedMode, this.showPad);
@@ -108,7 +108,7 @@ export struct InkWorkspace {
   @State headerLeftWidth: number = 0;
   @State headerRightWidth: number = 0;
   @StorageLink('LinkDeskReduceMotion') reduceMotion: boolean = false;
-  @State screenMirroring: boolean = false;
+  @State @Watch('publishConnection') screenMirroring: boolean = false;
   @State roundTripId: string = '';
   @State roundTripName: string = '';
   @State roundTripStatus: string = '';
@@ -196,7 +196,7 @@ export struct InkWorkspace {
     if (this.activation > 0) {
       this.appMode = this.requestedMode === 'whiteboard' ? 'whiteboard' : 'pdf';
       this.pendingInitialMode = this.requestedMode !== 'mirror';
-      this.pendingMirrorStart = this.requestedMode === 'mirror';
+      this.pendingMirrorStart = false;
     }
     this.startRelayDiscovery();
     if (/^[A-Z0-9]{6}$/.test(this.room)) this.scheduleReconnect(120);
@@ -237,6 +237,7 @@ export struct InkWorkspace {
   }
   private publishConnection(): void {
     AppStorage.setOrCreate('LinkDeskPairingCode', this.room);
+    AppStorage.setOrCreate('LinkDeskMirrorRunning', this.screenMirroring);
     AppStorage.setOrCreate('LinkDeskInkConnected', this.connected);
     AppStorage.setOrCreate('LinkDeskTransport', this.connectionMode);
   }
@@ -310,12 +311,12 @@ export struct InkWorkspace {
     Scroll() {
       Column({ space: DT.spacingS24 }) {
         PageHeader({ title: Strings.mirrorTitle, subtitle: Strings.mirrorSubtitle,
-          state: this.screenMirroring ? ConnectionState.working : this.connectionState() })
+          state: this.screenMirroring ? ConnectionState.working : this.connected && this.connectionMode === 'usb' ? ConnectionState.usbConnected : ConnectionState.disconnected })
         EmptyState({ icon: DT.iconMirror(this.darkMode), title: this.screenMirroring ? Strings.mirrorRunning : Strings.mirrorEmptyTitle,
           message: Strings.mirrorEmptyDescription, actionTitle: this.screenMirroring ? Strings.stopMirror : Strings.startMirror,
           action: () => this.toggleScreenMirror(), disabled: this.connectionMode !== 'usb' })
       }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
-    }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
+    }.width('100%').height('100%').align(Alignment.Top).backgroundColor(DT.canvas(this.darkMode))
   }
 
   // ==================== 连接面板 ====================
@@ -398,7 +399,7 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width('100%').height(DT.spacingS48)
           .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
-          .backgroundColor(DT.text(this.darkMode)).fontColor(DT.onAccent(this.darkMode))
+          .backgroundColor(DT.accent(this.darkMode)).fontColor(DT.onAccent(this.darkMode))
           .borderRadius(DT.radiusSmall)
           .onClick(() => this.connectToPad())
       }
@@ -417,7 +418,7 @@ export struct InkWorkspace {
     .width('100%')
     .padding({ left: DT.spacingS24, right: DT.spacingS24 })
     .backgroundColor(DT.canvas(this.darkMode))
-    }.width('100%').height('100%')
+    }.width('100%').height('100%').align(Alignment.Top)
   }
 
   // ==================== 顶部状态栏 ====================
