@@ -1,3 +1,4 @@
+import { PlatformUI } from '../design/PlatformUI';
 import { PageHeader, EmptyState, SettingRow } from '../design/Components';
 import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
@@ -111,7 +112,7 @@ export struct DesktopReceiver {
       const manager=abilityAccessCtrl.createAtManager();
       const result=await manager.requestPermissionsFromUser(getContext(this) as common.UIAbilityContext,['ohos.permission.MICROPHONE']);
       if(result.authResults.length>0 && result.authResults[0]===0){
-        linkdesk.setMicrophoneEnabled(true);this.microphoneAllowed=true;DisplayContext.microphoneAllowed=true;this.microphoneMessage='请在 Mac 连屏中开启平板麦克风';
+        linkdesk.setMicrophoneEnabled(true);this.microphoneAllowed=true;DisplayContext.microphoneAllowed=true;this.microphoneMessage=Strings.microphoneMacHint;
       }else this.microphoneMessage=Strings.microphoneDenied;
     }catch(_error){this.microphoneMessage=Strings.microphoneError;}
   }
@@ -125,7 +126,10 @@ export struct DesktopReceiver {
       detail: this.microphoneState === 2 ? Strings.microphoneSending : this.microphoneState === -1 ? Strings.microphoneError : this.microphoneMessage,
       control: this.microphoneAction })
   }
+  aboutToAppear(): void { PlatformUI.setReceiver(true); }
+
   aboutToDisappear(): void {
+    PlatformUI.setReceiver(false);
     if (this.timer >= 0) clearInterval(this.timer);
     this.timer = -1;
     linkdesk.setMicrophoneEnabled(false);
@@ -147,7 +151,8 @@ export struct DesktopReceiver {
     return Strings.displayEmptyDescription;
   }
   @Builder exitControl() {
-    Button(Strings.backHome).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+    Button(Strings.backHome)
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
       .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.radiusSmall)
       .onClick(() => this.onExit())
   }
@@ -164,7 +169,7 @@ export struct DesktopReceiver {
         Scroll() {
           Column({ space: DT.spacingS24 }) {
             PageHeader({ title: Strings.displayTitle, subtitle: Strings.displaySubtitle, state: this.connectionState() })
-            EmptyState({ icon: DT.iconDisplay, title: Strings.displayEmptyTitle, message: this.connectionHint(),
+            EmptyState({ icon: DT.iconDisplay(this.darkMode), title: Strings.displayEmptyTitle, message: this.connectionHint(),
               actionTitle: Strings.reconnect, action: () => this.connect() })
             if (this.error !== 0) {
               Text(Strings.get('diagnosticCode', [this.error.toString()])).fontSize(DT.fontCaption).fontColor(DT.error(this.darkMode))
@@ -182,8 +187,10 @@ export struct DesktopReceiver {
           this.microphoneControl()
           Row({ space: DT.spacingS12 }) {
             this.exitControl()
-            Button(Strings.reconnect).height(DT.layoutTouchTarget).onClick(() => this.connect())
-            Button(Strings.hide).height(DT.layoutTouchTarget).onClick(() => { this.controlsVisible = false; })
+            Button(Strings.reconnect)
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.connect())
+            Button(Strings.hide)
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => { this.controlsVisible = false; })
           }
         }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.spacingS24).borderRadius(DT.radiusMedium)
           .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })

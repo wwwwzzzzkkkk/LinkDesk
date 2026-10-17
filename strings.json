@@ -841,6 +841,218 @@
     "lowLatency": {
       "zh-Hans": "低延迟显示",
       "en": "Low Latency"
+    },
+    "versionInfo": {
+      "zh-Hans": "版本 {0} · 协议 v{1}",
+      "en": "Version {0} · Protocol v{1}"
+    },
+    "sensitivityValue": {
+      "zh-Hans": "灵敏度 {0}",
+      "en": "Sensitivity {0}"
+    },
+    "mirrorUSBFailure": {
+      "zh-Hans": "平板当前不是 USB 连接",
+      "en": "The tablet is not using USB"
+    },
+    "mirrorStartFailure": {
+      "zh-Hans": "投屏启动失败 ({0})",
+      "en": "Mirroring could not start ({0})"
+    },
+    "mirrorStartHint": {
+      "zh-Hans": "{0}，请确认 Mac 端LinkDesk已打开",
+      "en": "{0}. Check LinkDesk is open on your Mac"
+    },
+    "mirrorReturnHint": {
+      "zh-Hans": "{0}，可返回LinkDesk控制投屏",
+      "en": "{0}. Return to LinkDesk to control mirroring"
+    },
+    "externalAppError": {
+      "zh-Hans": "打开外部应用失败：{0}",
+      "en": "Could not open the external app: {0}"
+    },
+    "selectReturnError": {
+      "zh-Hans": "选择批注文件失败：{0}",
+      "en": "Could not select the annotated PDF: {0}"
+    },
+    "returnError": {
+      "zh-Hans": "回传失败：{0}",
+      "en": "Return failed: {0}"
+    },
+    "scanRecognized": {
+      "zh-Hans": "已识别配对码 {0}，正在自动选择 USB / Wi-Fi",
+      "en": "Pairing code {0} found; choosing USB / Wi-Fi"
+    },
+    "annotatedSuffix": {
+      "zh-Hans": "_已批注.pdf",
+      "en": "_annotated.pdf"
+    },
+    "failureMarker": {
+      "zh-Hans": "失败",
+      "en": "failed"
+    },
+    "unavailableMarker": {
+      "zh-Hans": "无法",
+      "en": "unable"
+    },
+    "insufficientMarker": {
+      "zh-Hans": "不足",
+      "en": "insufficient"
+    },
+    "glyphPen": {
+      "zh-Hans": "✎",
+      "en": "✎"
+    },
+    "glyphUndo": {
+      "zh-Hans": "↶",
+      "en": "↶"
+    },
+    "glyphRedo": {
+      "zh-Hans": "↷",
+      "en": "↷"
+    },
+    "glyphZoomOut": {
+      "zh-Hans": "−",
+      "en": "−"
+    },
+    "glyphZoomIn": {
+      "zh-Hans": "+",
+      "en": "+"
+    },
+    "glyphClear": {
+      "zh-Hans": "⌫",
+      "en": "⌫"
+    },
+    "glyphExpand": {
+      "zh-Hans": "⌄",
+      "en": "⌄"
+    },
+    "penReady": {
+      "zh-Hans": "手写笔待命",
+      "en": "Stylus ready"
+    },
+    "tabletCaptureFailure": {
+      "zh-Hans": "平板未能开始录屏",
+      "en": "The tablet could not start screen capture"
+    },
+    "sendPDFTitle": {
+      "zh-Hans": "发送 PDF 到平板批注",
+      "en": "Send PDF to Tablet"
+    },
+    "sendToTablet": {
+      "zh-Hans": "发送到平板",
+      "en": "Send to Tablet"
+    },
+    "sendingPDF": {
+      "zh-Hans": "正在发送到平板…",
+      "en": "Sending to tablet…"
+    },
+    "sentPDF": {
+      "zh-Hans": "已发送到平板，等待外部应用打开…",
+      "en": "Sent to tablet; waiting for the PDF app…"
+    },
+    "restorePDFHint": {
+      "zh-Hans": "自动恢复失败，可从“最近文档”重新打开",
+      "en": "Reopen the PDF from Recent Files"
+    },
+    "restoredInk": {
+      "zh-Hans": "已恢复上次完整笔划",
+      "en": "Previous strokes restored"
+    },
+    "receivingPDF": {
+      "zh-Hans": "正在接收平板批注版…",
+      "en": "Receiving annotated PDF…"
+    },
+    "returnPDFFailure": {
+      "zh-Hans": "批注文件回传失败，可在平板重试",
+      "en": "Retry returning the annotated PDF on the tablet"
+    },
+    "saveReturnPDF": {
+      "zh-Hans": "保存平板批注版",
+      "en": "Save Annotated PDF"
+    },
+    "saveToMac": {
+      "zh-Hans": "保存到 Mac",
+      "en": "Save to Mac"
+    },
+    "returnNotSaved": {
+      "zh-Hans": "批注版已接收，但尚未保存",
+      "en": "Annotated PDF received; not saved yet"
+    },
+    "exportPDFFailure": {
+      "zh-Hans": "导出失败，原 PDF 未被修改",
+      "en": "Export failed; the original PDF was preserved"
+    },
+    "openFileError": {
+      "zh-Hans": "无法打开 {0}",
+      "en": "Could not open {0}"
+    },
+    "saveSuccess": {
+      "zh-Hans": "已保存 {0}",
+      "en": "Saved {0}"
+    },
+    "saveError": {
+      "zh-Hans": "保存失败：{0}",
+      "en": "Save failed: {0}"
+    },
+    "saveAsSuccess": {
+      "zh-Hans": "已另存为 {0}",
+      "en": "Saved as {0}"
+    },
+    "exportSuffix": {
+      "zh-Hans": "-批注.pdf",
+      "en": "-annotated.pdf"
+    },
+    "exportDefaultName": {
+      "zh-Hans": "批注.pdf",
+      "en": "annotated.pdf"
+    },
+    "penSummary": {
+      "zh-Hans": "压感笔 {0}",
+      "en": "Pressure pen {0}"
+    },
+    "eraserSummary": {
+      "zh-Hans": "橡皮擦 {0}",
+      "en": "Eraser {0}"
+    },
+    "liveViewDisabled": {
+      "zh-Hans": "系统未启用实况窗",
+      "en": "Live View is disabled"
+    },
+    "liveViewEntitlement": {
+      "zh-Hans": "应用尚未获得实况窗权益",
+      "en": "Live View is not enabled for this app"
+    },
+    "liveViewStartError": {
+      "zh-Hans": "实况窗启动失败 ({0})",
+      "en": "Live View could not start ({0})"
+    },
+    "liveViewUpdateError": {
+      "zh-Hans": "实况窗更新失败 ({0})",
+      "en": "Live View could not update ({0})"
+    },
+    "liveViewUnavailable": {
+      "zh-Hans": "实况窗不可用 ({0})",
+      "en": "Live View unavailable ({0})"
+    },
+    "mirrorIdle": {
+      "zh-Hans": "当前未投屏",
+      "en": "Mirroring is off"
+    },
+    "returnToApp": {
+      "zh-Hans": "返回LinkDesk",
+      "en": "Return to LinkDesk"
+    },
+    "mirrorActiveShort": {
+      "zh-Hans": "投屏中",
+      "en": "Mirroring"
+    },
+    "mirrorIdleShort": {
+      "zh-Hans": "未投屏",
+      "en": "Not mirroring"
+    },
+    "speakerDescription": {
+      "zh-Hans": "将 Mac 的声音播放到平板。",
+      "en": "Play Mac audio through your tablet."
     }
   }
 }

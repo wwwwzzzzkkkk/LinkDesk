@@ -134,7 +134,9 @@
       "menuEnter": 240,
       "menuExit": 180,
       "collapse": 520,
-      "none": 0
+      "none": 0,
+      "notice": 2800,
+      "errorNotice": 4200
     },
     "curve": {
       "standard": [
@@ -171,23 +173,28 @@
   "icons": {
     "home": {
       "mac": "square.grid.2x2",
-      "harmony": "workspace_home"
+      "harmony": "workspace_home",
+      "svgBody": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/>"
     },
     "display": {
       "mac": "display.2",
-      "harmony": "workspace_display"
+      "harmony": "workspace_display",
+      "svgBody": "<rect x=\"2\" y=\"3\" width=\"15\" height=\"12\" rx=\"2\"/><path d=\"M9.5 15v4M6 19h7\"/><rect x=\"16\" y=\"9\" width=\"6\" height=\"12\" rx=\"1.5\"/>"
     },
     "pdf": {
       "mac": "doc.richtext",
-      "harmony": "workspace_pdf"
+      "harmony": "workspace_pdf",
+      "svgBody": "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 12h8M8 16h8M8 19h4\"/>"
     },
     "whiteboard": {
       "mac": "pencil.and.outline",
-      "harmony": "workspace_whiteboard"
+      "harmony": "workspace_whiteboard",
+      "svgBody": "<path d=\"m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14z\"/><path d=\"M3 21h18\"/>"
     },
     "mirror": {
       "mac": "ipad.and.arrow.forward",
-      "harmony": "workspace_mirror"
+      "harmony": "workspace_mirror",
+      "svgBody": "<rect x=\"3\" y=\"2\" width=\"14\" height=\"20\" rx=\"3\"/><path d=\"M8 18h4M12 8h10m-4-4 4 4-4 4\"/>"
     }
   },
   "connectionStates": [
@@ -227,7 +234,8 @@
     "white": "#ffffff",
     "color7": "#2269ef",
     "color8": "#e45a4f",
-    "color9": "#1b9a7e"
+    "color9": "#1b9a7e",
+    "highlight": "#ffe56f"
   },
   "dimensions": {
     "d120": 120,
@@ -242,6 +250,8 @@
     "d184": 184,
     "d360": 360,
     "d380": 380,
-    "d392": 392
+    "d392": 392,
+    "d1160": 1160,
+    "d800": 800
   }
 }

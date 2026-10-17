@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+python3 "$ROOT/scripts/generate-design.py" --check
 APP="${LINKDESK_BUILD_APP:-$ROOT/../LinkDesk.app}"
 SIGN_IDENTITY="${LINKDESK_SIGN_IDENTITY:-}"
 if [[ -z "$SIGN_IDENTITY" ]]; then

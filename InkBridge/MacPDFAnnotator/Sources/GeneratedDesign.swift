@@ -111,6 +111,8 @@ enum DT {
     static let d360: CGFloat = 360
     static let d380: CGFloat = 380
     static let d392: CGFloat = 392
+    static let d1160: CGFloat = 1160
+    static let d800: CGFloat = 800
   }
   enum motion {
     static let feedback: Double = 0.12
@@ -118,6 +120,8 @@ enum DT {
     static let menuExit: Double = 0.18
     static let collapse: Double = 0.52
     static let none: Double = 0.0
+    static let notice: Double = 2.8
+    static let errorNotice: Double = 4.2
     static let muted: Double = 0.6
     static let subtle: Double = 0.08
     static let border: Double = 0.16
@@ -147,6 +151,7 @@ enum DT {
     static let color7 = "#2269ef"
     static let color8 = "#e45a4f"
     static let color9 = "#1b9a7e"
+    static let highlight = "#ffe56f"
   }
 }
 
@@ -157,8 +162,8 @@ enum L10n {
     for (i, arg) in args.enumerated() { result = result.replacingOccurrences(of: "{\(i)}", with: arg.description) }
     return result
   }
-  static func value(_ key: String) -> String {
-    let english = language.hasPrefix("en")
+  static func source(_ key: String) -> String { value(key, english: false) }
+  static func value(_ key: String, english: Bool = language.hasPrefix("en")) -> String {
     switch key {
     case "productName": return english ? "LinkDesk" : "LinkDesk"
     case "productSubtitle": return english ? "Your workspace across screens" : "你的跨屏工作空间"
@@ -370,6 +375,59 @@ enum L10n {
     case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接"
     case "waitConnection": return english ? "Waiting for connection" : "等待连接"
     case "lowLatency": return english ? "Low Latency" : "低延迟显示"
+    case "versionInfo": return english ? "Version {0} · Protocol v{1}" : "版本 {0} · 协议 v{1}"
+    case "sensitivityValue": return english ? "Sensitivity {0}" : "灵敏度 {0}"
+    case "mirrorUSBFailure": return english ? "The tablet is not using USB" : "平板当前不是 USB 连接"
+    case "mirrorStartFailure": return english ? "Mirroring could not start ({0})" : "投屏启动失败 ({0})"
+    case "mirrorStartHint": return english ? "{0}. Check LinkDesk is open on your Mac" : "{0}，请确认 Mac 端LinkDesk已打开"
+    case "mirrorReturnHint": return english ? "{0}. Return to LinkDesk to control mirroring" : "{0}，可返回LinkDesk控制投屏"
+    case "externalAppError": return english ? "Could not open the external app: {0}" : "打开外部应用失败：{0}"
+    case "selectReturnError": return english ? "Could not select the annotated PDF: {0}" : "选择批注文件失败：{0}"
+    case "returnError": return english ? "Return failed: {0}" : "回传失败：{0}"
+    case "scanRecognized": return english ? "Pairing code {0} found; choosing USB / Wi-Fi" : "已识别配对码 {0}，正在自动选择 USB / Wi-Fi"
+    case "annotatedSuffix": return english ? "_annotated.pdf" : "_已批注.pdf"
+    case "failureMarker": return english ? "failed" : "失败"
+    case "unavailableMarker": return english ? "unable" : "无法"
+    case "insufficientMarker": return english ? "insufficient" : "不足"
+    case "glyphPen": return english ? "✎" : "✎"
+    case "glyphUndo": return english ? "↶" : "↶"
+    case "glyphRedo": return english ? "↷" : "↷"
+    case "glyphZoomOut": return english ? "−" : "−"
+    case "glyphZoomIn": return english ? "+" : "+"
+    case "glyphClear": return english ? "⌫" : "⌫"
+    case "glyphExpand": return english ? "⌄" : "⌄"
+    case "penReady": return english ? "Stylus ready" : "手写笔待命"
+    case "tabletCaptureFailure": return english ? "The tablet could not start screen capture" : "平板未能开始录屏"
+    case "sendPDFTitle": return english ? "Send PDF to Tablet" : "发送 PDF 到平板批注"
+    case "sendToTablet": return english ? "Send to Tablet" : "发送到平板"
+    case "sendingPDF": return english ? "Sending to tablet…" : "正在发送到平板…"
+    case "sentPDF": return english ? "Sent to tablet; waiting for the PDF app…" : "已发送到平板，等待外部应用打开…"
+    case "restorePDFHint": return english ? "Reopen the PDF from Recent Files" : "自动恢复失败，可从“最近文档”重新打开"
+    case "restoredInk": return english ? "Previous strokes restored" : "已恢复上次完整笔划"
+    case "receivingPDF": return english ? "Receiving annotated PDF…" : "正在接收平板批注版…"
+    case "returnPDFFailure": return english ? "Retry returning the annotated PDF on the tablet" : "批注文件回传失败，可在平板重试"
+    case "saveReturnPDF": return english ? "Save Annotated PDF" : "保存平板批注版"
+    case "saveToMac": return english ? "Save to Mac" : "保存到 Mac"
+    case "returnNotSaved": return english ? "Annotated PDF received; not saved yet" : "批注版已接收，但尚未保存"
+    case "exportPDFFailure": return english ? "Export failed; the original PDF was preserved" : "导出失败，原 PDF 未被修改"
+    case "openFileError": return english ? "Could not open {0}" : "无法打开 {0}"
+    case "saveSuccess": return english ? "Saved {0}" : "已保存 {0}"
+    case "saveError": return english ? "Save failed: {0}" : "保存失败：{0}"
+    case "saveAsSuccess": return english ? "Saved as {0}" : "已另存为 {0}"
+    case "exportSuffix": return english ? "-annotated.pdf" : "-批注.pdf"
+    case "exportDefaultName": return english ? "annotated.pdf" : "批注.pdf"
+    case "penSummary": return english ? "Pressure pen {0}" : "压感笔 {0}"
+    case "eraserSummary": return english ? "Eraser {0}" : "橡皮擦 {0}"
+    case "liveViewDisabled": return english ? "Live View is disabled" : "系统未启用实况窗"
+    case "liveViewEntitlement": return english ? "Live View is not enabled for this app" : "应用尚未获得实况窗权益"
+    case "liveViewStartError": return english ? "Live View could not start ({0})" : "实况窗启动失败 ({0})"
+    case "liveViewUpdateError": return english ? "Live View could not update ({0})" : "实况窗更新失败 ({0})"
+    case "liveViewUnavailable": return english ? "Live View unavailable ({0})" : "实况窗不可用 ({0})"
+    case "mirrorIdle": return english ? "Mirroring is off" : "当前未投屏"
+    case "returnToApp": return english ? "Return to LinkDesk" : "返回LinkDesk"
+    case "mirrorActiveShort": return english ? "Mirroring" : "投屏中"
+    case "mirrorIdleShort": return english ? "Not mirroring" : "未投屏"
+    case "speakerDescription": return english ? "Play Mac audio through your tablet." : "将 Mac 的声音播放到平板。"
     default: return key
     }
   }
@@ -583,6 +641,59 @@ enum L10n {
   static var switchUSBFirst: String { value("switchUSBFirst") }
   static var waitConnection: String { value("waitConnection") }
   static var lowLatency: String { value("lowLatency") }
+  static var versionInfo: String { value("versionInfo") }
+  static var sensitivityValue: String { value("sensitivityValue") }
+  static var mirrorUSBFailure: String { value("mirrorUSBFailure") }
+  static var mirrorStartFailure: String { value("mirrorStartFailure") }
+  static var mirrorStartHint: String { value("mirrorStartHint") }
+  static var mirrorReturnHint: String { value("mirrorReturnHint") }
+  static var externalAppError: String { value("externalAppError") }
+  static var selectReturnError: String { value("selectReturnError") }
+  static var returnError: String { value("returnError") }
+  static var scanRecognized: String { value("scanRecognized") }
+  static var annotatedSuffix: String { value("annotatedSuffix") }
+  static var failureMarker: String { value("failureMarker") }
+  static var unavailableMarker: String { value("unavailableMarker") }
+  static var insufficientMarker: String { value("insufficientMarker") }
+  static var glyphPen: String { value("glyphPen") }
+  static var glyphUndo: String { value("glyphUndo") }
+  static var glyphRedo: String { value("glyphRedo") }
+  static var glyphZoomOut: String { value("glyphZoomOut") }
+  static var glyphZoomIn: String { value("glyphZoomIn") }
+  static var glyphClear: String { value("glyphClear") }
+  static var glyphExpand: String { value("glyphExpand") }
+  static var penReady: String { value("penReady") }
+  static var tabletCaptureFailure: String { value("tabletCaptureFailure") }
+  static var sendPDFTitle: String { value("sendPDFTitle") }
+  static var sendToTablet: String { value("sendToTablet") }
+  static var sendingPDF: String { value("sendingPDF") }
+  static var sentPDF: String { value("sentPDF") }
+  static var restorePDFHint: String { value("restorePDFHint") }
+  static var restoredInk: String { value("restoredInk") }
+  static var receivingPDF: String { value("receivingPDF") }
+  static var returnPDFFailure: String { value("returnPDFFailure") }
+  static var saveReturnPDF: String { value("saveReturnPDF") }
+  static var saveToMac: String { value("saveToMac") }
+  static var returnNotSaved: String { value("returnNotSaved") }
+  static var exportPDFFailure: String { value("exportPDFFailure") }
+  static var openFileError: String { value("openFileError") }
+  static var saveSuccess: String { value("saveSuccess") }
+  static var saveError: String { value("saveError") }
+  static var saveAsSuccess: String { value("saveAsSuccess") }
+  static var exportSuffix: String { value("exportSuffix") }
+  static var exportDefaultName: String { value("exportDefaultName") }
+  static var penSummary: String { value("penSummary") }
+  static var eraserSummary: String { value("eraserSummary") }
+  static var liveViewDisabled: String { value("liveViewDisabled") }
+  static var liveViewEntitlement: String { value("liveViewEntitlement") }
+  static var liveViewStartError: String { value("liveViewStartError") }
+  static var liveViewUpdateError: String { value("liveViewUpdateError") }
+  static var liveViewUnavailable: String { value("liveViewUnavailable") }
+  static var mirrorIdle: String { value("mirrorIdle") }
+  static var returnToApp: String { value("returnToApp") }
+  static var mirrorActiveShort: String { value("mirrorActiveShort") }
+  static var mirrorIdleShort: String { value("mirrorIdleShort") }
+  static var speakerDescription: String { value("speakerDescription") }
 }
 
 enum ConnectionState: String, CaseIterable {

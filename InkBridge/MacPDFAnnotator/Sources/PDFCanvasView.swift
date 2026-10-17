@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import PDFKit
 
 fileprivate struct ActiveInk {
@@ -297,10 +298,16 @@ final class PDFCanvasView: NSView {
     }
   }
 
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    layer?.backgroundColor = NSColor(DT.canvas).cgColor
+    pdfView.backgroundColor = NSColor(DT.canvas)
+  }
+
   override init(frame frameRect: NSRect = .zero) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+    layer?.backgroundColor = NSColor(DT.canvas).cgColor
     layer?.masksToBounds = true
     overlay.wantsLayer = true
     overlay.layer?.masksToBounds = true
@@ -310,7 +317,7 @@ final class PDFCanvasView: NSView {
     pdfView.displayBox = .cropBox
     pdfView.displaysPageBreaks = true
     pdfView.pageBreakMargins = NSEdgeInsets(top: 9, left: 0, bottom: 9, right: 0)
-    pdfView.backgroundColor = .windowBackgroundColor
+    pdfView.backgroundColor = NSColor(DT.canvas)
     pdfView.onViewportChanged = { [weak self] in self?.viewportDidChange(userInitiated: true) }
     pdfView.onMagnify = { [weak self] event in self?.captureLocalMagnify(event) }
     addSubview(pdfView)
@@ -1456,7 +1463,7 @@ final class PDFCanvasView: NSView {
     bitmap.size = viewport.size
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = graphics
-    NSColor.windowBackgroundColor.setFill()
+    NSColor(DT.canvas).setFill()
     NSRect(origin: .zero, size: viewport.size).fill()
     let context = graphics.cgContext
     for page in pdfView.visiblePages {
@@ -1515,7 +1522,7 @@ final class PDFCanvasView: NSView {
       ), let graphics = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
       NSGraphicsContext.saveGraphicsState()
       NSGraphicsContext.current = graphics
-      NSColor.windowBackgroundColor.setFill()
+      NSColor(DT.canvas).setFill()
       NSRect(origin: .zero, size: size).fill()
       original.draw(in: NSRect(origin: .zero, size: size), from: NSRect(origin: .zero, size: originalSize), operation: .copy, fraction: 1)
       NSGraphicsContext.restoreGraphicsState()

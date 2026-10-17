@@ -1,3 +1,4 @@
+import { DT } from './design/GeneratedDesign';
 import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { http } from '@kit.NetworkKit';
@@ -83,10 +84,10 @@ export class LinkDeskTheme {
     const dark = AppStorage.get<boolean>('LinkDeskDark') ?? false;
       void window.getLastWindow(LinkDeskTheme.context).then((main: window.Window) => {
         return main.setWindowSystemBarProperties({
-          statusBarColor: '#00000000', navigationBarColor: '#00000000',
+          statusBarColor: DT.clear(dark), navigationBarColor: DT.clear(dark),
           isStatusBarLightIcon: dark, isNavigationBarLightIcon: dark,
-          statusBarContentColor: dark ? '#E8EEF8' : '#152441',
-          navigationBarContentColor: dark ? '#E8EEF8' : '#152441'
+          statusBarContentColor: DT.text(dark),
+          navigationBarContentColor: DT.text(dark)
         });
       }).catch(() => {});
   }

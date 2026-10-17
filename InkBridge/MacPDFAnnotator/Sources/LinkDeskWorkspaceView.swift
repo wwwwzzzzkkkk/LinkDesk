@@ -79,7 +79,9 @@ struct LinkDeskWorkspaceView: View {
         }.padding(DT.spacing.s16)
         List(selection: $navigation.selection) {
           ForEach(LinkDeskDestination.allCases) { item in
-            Label(item.title, systemImage: item.symbol).tag(item)
+            Label { Text(item.title) } icon: {
+              Image(systemName: item.symbol).foregroundStyle(selection == item ? DT.onAccent : DT.accent)
+            }.tag(item)
               .padding(.vertical, DT.spacing.s4)
           }
         }.listStyle(.sidebar)
@@ -150,8 +152,8 @@ struct LinkDeskWorkspaceView: View {
                 .background(DT.accentSoft, in: RoundedRectangle(cornerRadius: DT.radius.small))
               Text(item.title).font(.system(size: DT.font.label, weight: .semibold)).foregroundStyle(DT.text)
               Text(item.subtitle).font(.system(size: DT.font.body)).foregroundStyle(DT.secondary).fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, minHeight: DT.layout.cardMinHeight, alignment: .topLeading)
-              .padding(DT.spacing.s24).background(DT.surface, in: RoundedRectangle(cornerRadius: DT.radius.medium))
+            }.frame(maxWidth: .infinity, alignment: .topLeading)
+              .padding(DT.spacing.s24).frame(minHeight: DT.layout.cardMinHeight).background(DT.surface, in: RoundedRectangle(cornerRadius: DT.radius.medium))
               .overlay(RoundedRectangle(cornerRadius: DT.radius.medium).strokeBorder(DT.border, lineWidth: DT.layout.stroke))
               .contentShape(RoundedRectangle(cornerRadius: DT.radius.medium))
           }.buttonStyle(.plain).accessibilityLabel(item.title)
@@ -191,7 +193,7 @@ struct LinkDeskWorkspaceView: View {
       }
       SurfacePanel {
         VStack(spacing: DT.spacing.s16) {
-          SettingRow(title: L10n.tabletSpeaker, detail: desktop.engine.audioStatus) {
+          SettingRow(title: L10n.tabletSpeaker, detail: L10n.speakerDescription) {
             HStack {
               Button(L10n.useTablet) { desktop.perform { $0.selectTabletSpeaker() } }.disabled(!desktop.engine.active)
               Button(L10n.restoreMac) { desktop.perform { $0.restoreMacSpeaker() } }
@@ -236,19 +238,14 @@ struct LinkDeskWorkspaceView: View {
       workspace.openPDF(at: URL(fileURLWithPath: arguments[fixtureIndex + 1]))
       try? await Task.sleep(for: .seconds(1))
     }
-    for (name, item, dark, width) in [
-      ("mac-home", LinkDeskDestination.home, false, 1160.0),
-      ("mac-home-dark", .home, true, 1160.0),
-      ("mac-home-compact", .home, false, 1000.0),
-      ("mac-display", .display, false, 1160.0),
-      ("mac-pdf", .pdf, false, 1160.0),
-      ("mac-whiteboard", .whiteboard, false, 1160.0),
-      ("mac-mirror", .mirror, false, 1160.0)
-    ] {
+    for dark in [false, true] {
+      for item in LinkDeskDestination.allCases {
+      let name = "mac-" + item.rawValue + (dark ? "-dark" : "-light")
+      let width = DT.dimensions.d1160
       selection = item
       navigation.reviewColorScheme = dark ? .dark : .light
       window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-      window.setContentSize(NSSize(width: width, height: 800))
+      window.setContentSize(NSSize(width: width, height: DT.dimensions.d800))
       try? await Task.sleep(for: .milliseconds(650))
       guard let view = window.contentView else { continue }
       view.layoutSubtreeIfNeeded()
@@ -257,6 +254,7 @@ struct LinkDeskWorkspaceView: View {
       if let data = bitmap.representation(using: .png, properties: [:]) {
         try? data.write(to: directory.appendingPathComponent(name + ".png"))
       }
+    }
     }
     selection = .home
     window.appearance = nil
@@ -279,7 +277,8 @@ private struct MirrorControlPanel: View {
 extension PDFWorkspace {
   func connectionState(for destination: LinkDeskDestination, engine: LDDesktopController) -> ConnectionState {
     if destination == .display {
-      if engine.active && engine.status == "USB 已连接" { return .working }
+      if ["failureMarker", "unavailableMarker"].contains(where: { engine.status.contains(L10n.source($0)) }) { return .error }
+      if engine.active && engine.status == L10n.source("stateUSBConnected") { return .working }
       if engine.active || engine.starting { return .waitingForMode }
     }
     if destination == .mirror && tabletMirror.isConnected { return .working }

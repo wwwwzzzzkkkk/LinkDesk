@@ -26,7 +26,7 @@ export struct PageHeader {
     Column({ space: DT.spacingS8 }) {
       Text(this.title).fontSize(DT.fontTitle).fontWeight(FontWeight.Bold).fontColor(DT.text(this.dark)).width('100%')
       Text(this.subtitle).fontSize(DT.fontBody).fontColor(DT.secondary(this.dark)).width('100%')
-    }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+    }.alignItems(HorizontalAlign.Start).layoutWeight(this.narrow ? 0 : 1)
   }
   build() {
     Flex({ direction: this.narrow ? FlexDirection.Column : FlexDirection.Row, alignItems: ItemAlign.Start }) {
@@ -40,7 +40,7 @@ export struct PageHeader {
 @Component
 export struct EmptyState {
   @StorageLink('LinkDeskDark') dark: boolean = false;
-  @Prop icon: Resource = DT.iconPdf;
+  @Prop icon: Resource = DT.iconPdf(false);
   @Prop title: string = '';
   @Prop message: string = '';
   @Prop actionTitle: string = '';
@@ -48,7 +48,7 @@ export struct EmptyState {
   action: () => void = () => {};
   build() {
     Column({ space: DT.spacingS16 }) {
-      Stack() { Image(this.icon).width(DT.layoutIcon).height(DT.layoutIcon).fillColor(DT.accent(this.dark)) }
+      Stack() { Image(this.icon).width(DT.layoutIcon).height(DT.layoutIcon) }
         .width(DT.layoutIconTile).height(DT.layoutIconTile).backgroundColor(DT.accentSoft(this.dark)).borderRadius(DT.radiusSmall)
       Text(this.title).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.dark)).textAlign(TextAlign.Center)
       Text(this.message).fontSize(DT.fontBody).fontColor(DT.secondary(this.dark)).textAlign(TextAlign.Center)
@@ -67,13 +67,24 @@ export struct SettingRow {
   @Prop title: string = '';
   @Prop detail: string = '';
   @BuilderParam control: () => void = noControl;
+  @State private narrow: boolean = false;
+  @Builder labels() {
+    Column({ space: DT.spacingS4 }) {
+      Text(this.title).fontSize(DT.fontBody).fontWeight(FontWeight.Medium).fontColor(DT.text(this.dark)).width('100%')
+      Text(this.detail).fontSize(DT.fontCaption).fontColor(DT.secondary(this.dark)).width('100%')
+    }.alignItems(HorizontalAlign.Start)
+  }
   build() {
-    Row({ space: DT.spacingS16 }) {
-      Column({ space: DT.spacingS4 }) {
-        Text(this.title).fontSize(DT.fontBody).fontWeight(FontWeight.Medium).fontColor(DT.text(this.dark)).width('100%')
-        Text(this.detail).fontSize(DT.fontCaption).fontColor(DT.secondary(this.dark)).width('100%')
-      }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-      this.control()
+    Column() {
+      if (this.narrow) {
+        Column({ space: DT.spacingS12 }) { this.labels(); this.control() }.alignItems(HorizontalAlign.Start).width('100%')
+      } else {
+        Row({ space: DT.spacingS16 }) {
+          Column() { this.labels() }.layoutWeight(1)
+          this.control()
+        }.width('100%')
+      }
     }.width('100%').constraintSize({ minHeight: DT.layoutSettingRowTablet })
+      .onAreaChange((_old: Area, current: Area) => { this.narrow = Number(current.width) < DT.layoutSingleColumnBreakpoint; })
   }
 }

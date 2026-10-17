@@ -1,0 +1,57 @@
+/* 自动生成，勿手改。Source: design-tokens.json */
+:root[data-linkdesk-theme="light"] {
+  --ld-accent: #3979DE;
+  --ld-accentSoft: #E7EFFD;
+  --ld-creative: #19856E;
+  --ld-canvas: #F4F6FA;
+  --ld-surface: #FFFFFF;
+  --ld-control: #EDF1F8;
+  --ld-glass: #F8FAFFCC;
+  --ld-text: #152441;
+  --ld-secondary: #596B85;
+  --ld-tertiary: #73839A;
+  --ld-border: #DFE6F1;
+  --ld-success: #19856E;
+  --ld-warning: #986808;
+  --ld-error: #BD3949;
+  --ld-onAccent: #FFFFFF;
+  --ld-paper: #FFFFFF;
+  --ld-ink: #152441;
+  --ld-video: #000000;
+  --ld-clear: #00000000;
+  --ld-scrim: #19283C;
+  --ld-selection: #D7E7FF;
+}
+:root[data-linkdesk-theme="light"] .pdfpad-shell { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="light"] .pdf-scroll { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="light"] .pdfpad-stage { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="light"] .pdf-preview { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="light"] .pdf-loading { color: var(--ld-secondary); }
+:root[data-linkdesk-theme="dark"] {
+  --ld-accent: #78ACFF;
+  --ld-accentSoft: #203451;
+  --ld-creative: #58D3B7;
+  --ld-canvas: #0E1523;
+  --ld-surface: #182337;
+  --ld-control: #223149;
+  --ld-glass: #16243ACC;
+  --ld-text: #E8EEF8;
+  --ld-secondary: #A5B4CA;
+  --ld-tertiary: #8B9DB7;
+  --ld-border: #30425F;
+  --ld-success: #58D3B7;
+  --ld-warning: #F0C267;
+  --ld-error: #FF9FA9;
+  --ld-onAccent: #0E1523;
+  --ld-paper: #FFFFFF;
+  --ld-ink: #152441;
+  --ld-video: #000000;
+  --ld-clear: #00000000;
+  --ld-scrim: #000000;
+  --ld-selection: #2C4973;
+}
+:root[data-linkdesk-theme="dark"] .pdfpad-shell { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="dark"] .pdf-scroll { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="dark"] .pdfpad-stage { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="dark"] .pdf-preview { background: var(--ld-canvas); }
+:root[data-linkdesk-theme="dark"] .pdf-loading { color: var(--ld-secondary); }

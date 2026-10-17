@@ -1,3 +1,4 @@
+import { DT, Strings } from '../design/GeneratedDesign';
 import { wantAgent, WantAgent } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { liveViewManager } from '@kit.LiveViewKit';
@@ -8,7 +9,7 @@ const LIVE_VIEW_EVENT: string = 'QUEUE';
 export class RoundTripLiveViewController {
   private static active: boolean = false;
   private static sequence: number = 0;
-  private static documentName: string = 'PDF 批注';
+  private static documentName: string = Strings.pdfTitle;
   private static mirroring: boolean = false;
   private static failure: string = '';
 
@@ -22,7 +23,7 @@ export class RoundTripLiveViewController {
     try {
       const enabled = await liveViewManager.isLiveViewEnabled();
       if (!enabled) {
-        RoundTripLiveViewController.failure = '系统未启用实况窗';
+        RoundTripLiveViewController.failure = Strings.liveViewDisabled;
         return false;
       }
       RoundTripLiveViewController.sequence = 0;
@@ -30,7 +31,7 @@ export class RoundTripLiveViewController {
         await RoundTripLiveViewController.makeLiveView(RoundTripLiveViewController.sequence)
       );
       if (result.resultCode !== 0) {
-        RoundTripLiveViewController.failure = `实况窗启动失败 (${result.resultCode})`;
+        RoundTripLiveViewController.failure = Strings.get('liveViewStartError', [result.resultCode.toString()]);
         return false;
       }
       RoundTripLiveViewController.active = true;
@@ -62,7 +63,7 @@ export class RoundTripLiveViewController {
         await RoundTripLiveViewController.makeLiveView(RoundTripLiveViewController.sequence)
       );
       if (result.resultCode !== 0) {
-        RoundTripLiveViewController.failure = `实况窗更新失败 (${result.resultCode})`;
+        RoundTripLiveViewController.failure = Strings.get('liveViewUpdateError', [result.resultCode.toString()]);
         return false;
       }
       return true;
@@ -102,22 +103,22 @@ export class RoundTripLiveViewController {
     const mirrorAgent = await RoundTripLiveViewController.makeAgent(mirrorAction,
       RoundTripLiveViewController.mirroring ? 32122 : 32121);
     const openAgent = await RoundTripLiveViewController.makeAgent('openInkBridge', 32123);
-    const mirrorStatus = RoundTripLiveViewController.mirroring ? '正在投屏到 Mac' : '当前未投屏';
+    const mirrorStatus = RoundTripLiveViewController.mirroring ? Strings.mirrorRunning : Strings.mirrorIdle;
     const layout: liveViewManager.ProgressLayout = {
       layoutType: liveViewManager.LayoutType.LAYOUT_TYPE_PROGRESS,
       progress: RoundTripLiveViewController.mirroring ? 100 : 0,
-      color: '#FF317AF7',
-      backgroundColor: '#26317AF7',
+      color: DT.accent(false),
+      backgroundColor: DT.accentSoft(false),
       indicatorType: liveViewManager.IndicatorType.INDICATOR_TYPE_UNDISPLAYED,
       lineType: liveViewManager.LineType.LINE_TYPE_NORMAL_SOLID_LINE,
       nodeIcons: ['inkbridge_liveview_start.svg', 'inkbridge_liveview_finish.svg'],
       serviceButtons: [
         {
-          name: RoundTripLiveViewController.mirroring ? '停止投屏' : '开始投屏',
+          name: RoundTripLiveViewController.mirroring ? Strings.stopMirror : Strings.startMirror,
           clickAction: mirrorAgent
         },
         {
-          name: '返回LinkDesk',
+          name: Strings.returnToApp,
           clickAction: openAgent
         }
       ],
@@ -130,7 +131,7 @@ export class RoundTripLiveViewController {
       isMute: true,
       liveViewData: {
         primary: {
-          title: 'LinkDesk',
+          title: Strings.productName,
           content: [
             { text: RoundTripLiveViewController.documentName },
             { text: ` · ${mirrorStatus}` }
@@ -148,9 +149,9 @@ export class RoundTripLiveViewController {
           type: liveViewManager.CapsuleType.CAPSULE_TYPE_TEXT,
           status: 1,
           icon: 'inkbridge_liveview_capsule.svg',
-          backgroundColor: '#FF317AF7',
-          title: 'LinkDesk',
-          content: RoundTripLiveViewController.mirroring ? '投屏中' : '未投屏'
+          backgroundColor: DT.accent(false),
+          title: Strings.productName,
+          content: RoundTripLiveViewController.mirroring ? Strings.mirrorActiveShort : Strings.mirrorIdleShort
         }
       }
     };
@@ -171,13 +172,13 @@ export class RoundTripLiveViewController {
   }
 
   private static shortName(value: string): string {
-    const normalized = value.trim() || 'PDF 批注';
+    const normalized = value.trim() || Strings.pdfTitle;
     return normalized.length > 42 ? `${normalized.slice(0, 39)}…` : normalized;
   }
 
   private static describeFailure(failure: BusinessError): string {
-    if (failure.code === 1003500004) return '系统未启用实况窗';
-    if (failure.code === 1003500005) return '应用尚未获得实况窗权益';
-    return `实况窗不可用 (${failure.code})`;
+    if (failure.code === 1003500004) return Strings.liveViewDisabled;
+    if (failure.code === 1003500005) return Strings.liveViewEntitlement;
+    return Strings.get('liveViewUnavailable', [failure.code.toString()]);
   }
 }

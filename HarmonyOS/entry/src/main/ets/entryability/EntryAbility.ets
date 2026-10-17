@@ -1,3 +1,5 @@
+import { PlatformUI } from '../design/PlatformUI';
+import { DT, Strings } from '../design/GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import linkdesk from 'liblinkdesk.so';
 import screenMirror from 'libscreenmirror.so';
@@ -8,11 +10,15 @@ import { wantConstant } from '@kit.AbilityKit';
 import { RoundTripBridge } from '../roundtrip/RoundTripBridge';
 
 export default class EntryAbility extends UIAbility {
+  onForeground(): void { PlatformUI.foreground(); }
+
   onBackground(): void {
+    PlatformUI.background();
     DisplayContext.microphoneAllowed = false;
     linkdesk.setMicrophoneEnabled(false);
   }
   onDestroy(): void {
+    PlatformUI.stop();
     LinkDeskTheme.stop();
     linkdesk.setMicrophoneEnabled(false);
     linkdesk.stop();
@@ -20,6 +26,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    Strings.language = this.context.config.language ?? 'zh-Hans';
+    PlatformUI.start();
     LinkDeskTheme.start(this.context);
     this.handleIncomingWant(want);
   }
@@ -63,17 +71,18 @@ export default class EntryAbility extends UIAbility {
     try {
       const mainWindow = windowStage.getMainWindowSync();
       DisplayContext.windowId = mainWindow.getWindowProperties().id;
+      PlatformUI.bind(mainWindow);
       Promise.all([
-        mainWindow.setWindowLayoutFullScreen(true),
-        mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE),
+        mainWindow.setWindowLayoutFullScreen(false),
+        mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION),
         mainWindow.setWindowKeepScreenOn(true),
         mainWindow.setWindowSystemBarProperties({
-          statusBarColor: '#00000000',
-          navigationBarColor: '#00000000',
+          statusBarColor: DT.clear(false),
+          navigationBarColor: DT.clear(false),
           isStatusBarLightIcon: false,
           isNavigationBarLightIcon: false,
-          statusBarContentColor: '#1a2230',
-          navigationBarContentColor: '#384252'
+          statusBarContentColor: DT.text(false),
+          navigationBarContentColor: DT.secondary(false)
         })
       ]).finally(() => this.loadMainPage(windowStage));
     } catch (_) {

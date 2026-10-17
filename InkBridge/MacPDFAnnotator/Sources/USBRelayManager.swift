@@ -20,7 +20,7 @@ enum ConnectionTransport: String, Sendable {
   case wifi
   case usb
 
-  var title: String { self == .usb ? "USB 有线" : "Wi-Fi 无线" }
+  var title: String { self == .usb ? L10n.transportUSB : L10n.transportWireless }
 }
 
 struct DiscoveredTablet: Identifiable, Equatable, Sendable {

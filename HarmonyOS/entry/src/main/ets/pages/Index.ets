@@ -14,6 +14,7 @@ struct Index {
   @StorageLink('LinkDeskInkConnected') inkConnected: boolean = false;
   @StorageLink('LinkDeskRelayReachable') relayReachable: boolean = false;
   @StorageLink('LinkDeskReceiverWorking') receiverWorking: boolean = false;
+  @StorageLink('LinkDeskPairingCode') pairingCode: string = '';
   @StorageLink('LinkDeskTransport') transport: string = 'usb';
   @State private selected: string = 'home';
   @State private requestedMode: string = 'pdf';
@@ -52,15 +53,16 @@ struct Index {
   @Builder navigationItem(key: string, vertical: boolean) {
     Button({ type: ButtonType.Normal }) {
       Flex({ direction: vertical ? FlexDirection.Column : FlexDirection.Row, alignItems: ItemAlign.Center, justifyContent: FlexAlign.Center }) {
-        Image(WorkspaceSpec.icon(key)).width(DT.layoutIcon).height(DT.layoutIcon)
-          .fillColor(this.selected === key ? DT.accent(this.darkMode) : DT.secondary(this.darkMode))
+        Image(WorkspaceSpec.icon(key, this.darkMode)).width(DT.layoutIcon).height(DT.layoutIcon)
+          
         Text(WorkspaceSpec.title(key)).fontSize(vertical ? DT.fontCaption : DT.fontBody)
           .fontWeight(this.selected === key ? FontWeight.Bold : FontWeight.Regular)
           .fontColor(this.selected === key ? DT.accent(this.darkMode) : DT.text(this.darkMode))
           .margin(vertical ? { top: DT.spacingS4 } : { left: DT.spacingS12 })
           .maxLines(2).textAlign(vertical ? TextAlign.Center : TextAlign.Start)
       }.width('100%').padding(DT.spacingS8)
-    }.height(vertical ? DT.layoutBottomNavigation : DT.layoutTouchTarget)
+    }
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(vertical ? DT.layoutBottomNavigation : DT.layoutTouchTarget)
       .width('100%').backgroundColor(this.selected === key ? DT.accentSoft(this.darkMode) : DT.clear(this.darkMode))
       .borderRadius(DT.radiusSmall).accessibilityText(WorkspaceSpec.title(key)).onClick(() => this.open(key))
   }
@@ -73,7 +75,13 @@ struct Index {
       ForEach(WorkspaceSpec.order, (key: string) => { this.navigationItem(key, false) }, (key: string) => key)
       Blank()
       ConnectionPill({ state: this.state() })
+      if (this.pairingCode) {
+        Text(Strings.get('pairingCodeValue', [this.pairingCode])).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
+      }
       this.themeControl()
+      Button(Strings.pairingTitle)
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
+        .onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
     }.width(DT.layoutSidebar).height('100%').padding(DT.spacingS16)
       .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
   }
@@ -88,7 +96,7 @@ struct Index {
   @Builder workspaceCard(key: string) {
     Button({ type: ButtonType.Normal }) {
       Column({ space: DT.spacingS16 }) {
-        Stack() { Image(WorkspaceSpec.icon(key)).width(DT.layoutIcon).height(DT.layoutIcon).fillColor(DT.accent(this.darkMode)) }
+        Stack() { Image(WorkspaceSpec.icon(key, this.darkMode)).width(DT.layoutIcon).height(DT.layoutIcon) }
           .width(DT.layoutIconTile).height(DT.layoutIconTile).backgroundColor(DT.accentSoft(this.darkMode)).borderRadius(DT.radiusSmall)
         Text(WorkspaceSpec.title(key)).fontSize(DT.fontLabel).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode)).width('100%')
         Text(WorkspaceSpec.subtitle(key)).fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode)).width('100%')
@@ -105,7 +113,13 @@ struct Index {
           Text(Strings.macAndTablet).fontSize(DT.fontCaption).fontColor(DT.accent(this.darkMode)).width('100%')
           Text(Strings.heroTitle).fontSize(DT.fontTitle).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode)).width('100%')
           Text(Strings.heroSubtitle).fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode)).width('100%')
-          if (!this.wide) { this.themeControl() }
+          if (!this.wide) {
+            Row({ space: DT.spacingS8 }) {
+              this.themeControl()
+              Button(Strings.pairingTitle)
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
+            }
+          }
         }.width('100%').padding(DT.spacingS24).backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusMedium)
         GridRow({ columns: this.contentWidth < DT.layoutSingleColumnBreakpoint ? 1 : 2, gutter: DT.spacingS16 }) {
           ForEach(WorkspaceSpec.order.slice(1), (key: string) => { GridCol() { this.workspaceCard(key) } }, (key: string) => key)

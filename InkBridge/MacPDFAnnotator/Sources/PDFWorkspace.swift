@@ -7,7 +7,7 @@ enum AppMode: String, CaseIterable, Identifiable {
   case whiteboard
 
   var id: String { rawValue }
-  var title: String { self == .pdf ? "PDF 批注" : "实时白板" }
+  var title: String { self == .pdf ? L10n.pdfTitle : L10n.whiteboardTitle }
 }
 
 struct RecentPDF: Codable, Identifiable, Equatable {
@@ -19,14 +19,14 @@ struct RecentPDF: Codable, Identifiable, Equatable {
 
 @MainActor
 final class PDFWorkspace: ObservableObject {
-  @Published var documentName = "打开一个 PDF 开始批注"
+  @Published var documentName = L10n.waitPDFTitle
   @Published var room: String
   @Published var isShowingPairing = false
   @Published var isToolbarCollapsed = false
   @Published var isSearchPresented = false
   @Published private(set) var mode: AppMode = .pdf
   @Published private(set) var activePenColor = "#152441"
-  @Published private(set) var activePenSummary = "手写笔待命"
+  @Published private(set) var activePenSummary = L10n.penReady
   @Published private(set) var canUndo = false
   @Published private(set) var canRedo = false
   @Published private(set) var exportStatus = ""
@@ -135,7 +135,7 @@ final class PDFWorkspace: ObservableObject {
       switch status {
       case "started": self.tabletMirror.remoteStartWasAccepted()
       case "stopped": self.tabletMirror.stop()
-      case "failed": self.tabletMirror.remoteStartFailed(error ?? "平板未能开始录屏")
+      case "failed": self.tabletMirror.remoteStartFailed(error ?? L10n.tabletCaptureFailure)
       default: break
       }
     }
@@ -225,9 +225,9 @@ final class PDFWorkspace: ObservableObject {
     if message.type == "stroke:start" {
       if let color = message.color { activePenColor = color }
       if message.tool == "eraser" {
-        activePenSummary = "橡皮擦 \(Int((message.eraserSize ?? 48).rounded()))"
+        activePenSummary = L10n.format("eraserSummary", Int((message.eraserSize ?? 48).rounded()))
       } else {
-        activePenSummary = "压感笔 \(String(format: "%.1f", message.width ?? 3.5))"
+        activePenSummary = L10n.format("penSummary", String(format: "%.1f", message.width ?? 3.5))
       }
     }
     let targetMode: AppMode
@@ -263,8 +263,8 @@ final class PDFWorkspace: ObservableObject {
 
   func startPDFRoundTrip() {
     let panel = NSOpenPanel()
-    panel.title = "发送 PDF 到平板批注"
-    panel.prompt = "发送到平板"
+    panel.title = L10n.sendPDFTitle
+    panel.prompt = L10n.sendToTablet
     panel.allowedContentTypes = [.pdf]
     panel.allowsMultipleSelection = false
     guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -275,7 +275,7 @@ final class PDFWorkspace: ObservableObject {
   func openPDF(at url: URL, roundTripId: String? = nil) {
     guard let document = PDFDocument(url: url),
           let data = try? Data(contentsOf: url) else {
-      showExportStatus("无法打开 \(url.lastPathComponent)")
+      showExportStatus(L10n.format("openFileError", url.lastPathComponent))
       removeMissingRecent(path: url.path)
       return
     }
@@ -286,7 +286,7 @@ final class PDFWorkspace: ObservableObject {
     if let roundTripId {
       pendingRoundTrip = (roundTripId, transactionId, url)
       roundTripSourceURLs[roundTripId] = url
-      showExportStatus("正在发送到平板…")
+      showExportStatus(L10n.sendingPDF)
     } else {
       showExportStatus("")
     }
@@ -310,7 +310,7 @@ final class PDFWorkspace: ObservableObject {
       if let roundTrip {
         pendingRoundTrip = nil
         relay.sendRoundTripOpen(roundTripId: roundTrip.roundTripId, document: descriptor)
-        showExportStatus("已发送到平板，等待外部应用打开…")
+        showExportStatus(L10n.sentPDF)
       }
       return
     }
@@ -321,7 +321,7 @@ final class PDFWorkspace: ObservableObject {
       guard let self, self.restoringDocumentId == descriptor.documentId else { return }
       self.restoringDocumentId = nil
       guard let data, let restored = PDFDocument(data: data) else {
-        self.showExportStatus("自动恢复失败，可从“最近文档”重新打开")
+        self.showExportStatus(L10n.restorePDFHint)
         return
       }
       self.clearSearch()
@@ -330,7 +330,7 @@ final class PDFWorkspace: ObservableObject {
       self.documentName = descriptor.name
       self.currentDocumentId = descriptor.documentId
       self.canvas?.document = restored
-      self.showExportStatus(descriptor.restoreAvailable == true ? "已恢复上次完整笔划" : "")
+      self.showExportStatus(descriptor.restoreAvailable == true ? L10n.restoredInk : "")
       self.applyPendingHistoryIfReady()
     }
   }
@@ -338,32 +338,32 @@ final class PDFWorkspace: ObservableObject {
   private func handleRoundTripReturn(_ message: RelayMessage) {
     guard let roundTripId = message.roundTripId,
           let returnId = message.returnId else { return }
-    showExportStatus("正在接收平板批注版…")
+    showExportStatus(L10n.receivingPDF)
     relay.downloadRoundTripReturn(returnId: returnId) { [weak self] data in
       guard let self else { return }
       guard let data else {
-        self.showExportStatus("批注文件回传失败，可在平板重试")
+        self.showExportStatus(L10n.returnPDFFailure)
         return
       }
       let source = self.roundTripSourceURLs[roundTripId]
       let fallbackBase = source?.deletingPathExtension().lastPathComponent
         ?? URL(fileURLWithPath: message.name ?? "PDF").deletingPathExtension().lastPathComponent
       let panel = NSSavePanel()
-      panel.title = "保存平板批注版"
-      panel.prompt = "保存到 Mac"
+      panel.title = L10n.saveReturnPDF
+      panel.prompt = L10n.saveToMac
       panel.allowedContentTypes = [.pdf]
       panel.directoryURL = source?.deletingLastPathComponent()
-      panel.nameFieldStringValue = "\(fallbackBase)_已批注.pdf"
+      panel.nameFieldStringValue = fallbackBase + L10n.source("annotatedSuffix")
       guard panel.runModal() == .OK, let destination = panel.url else {
-        self.showExportStatus("批注版已接收，但尚未保存")
+        self.showExportStatus(L10n.returnNotSaved)
         return
       }
       do {
         try data.write(to: destination, options: .atomic)
         self.roundTripSourceURLs.removeValue(forKey: roundTripId)
-        self.showExportStatus("已保存 \(destination.lastPathComponent)")
+        self.showExportStatus(L10n.format("saveSuccess", destination.lastPathComponent))
       } catch {
-        self.showExportStatus("保存失败：\(error.localizedDescription)")
+        self.showExportStatus(L10n.format("saveError", error.localizedDescription))
       }
     }
   }
@@ -388,7 +388,7 @@ final class PDFWorkspace: ObservableObject {
         $0.type == "clear" || $0.type.hasPrefix("stroke:")
       }
       self.pendingHistorySnapshot = nil
-      if restoredDrawing { showExportStatus("已恢复上次完整笔划") }
+      if restoredDrawing { showExportStatus(L10n.restoredInk) }
     }
   }
 
@@ -400,11 +400,11 @@ final class PDFWorkspace: ObservableObject {
     guard document != nil else { return }
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.pdf]
-    panel.nameFieldStringValue = sourceURL?.deletingPathExtension().lastPathComponent.appending("-批注.pdf") ?? "批注.pdf"
+    panel.nameFieldStringValue = sourceURL?.deletingPathExtension().lastPathComponent.appending(L10n.source("exportSuffix")) ?? L10n.source("exportDefaultName")
     guard panel.runModal() == .OK, let url = panel.url else { return }
     showExportStatus(canvas?.export(to: url) == true
-      ? "已另存为 \(url.lastPathComponent)"
-      : "导出失败，原 PDF 未被修改")
+      ? L10n.format("saveAsSuccess", url.lastPathComponent)
+      : L10n.exportPDFFailure)
   }
 
   private func showExportStatus(_ status: String) {
@@ -412,7 +412,7 @@ final class PDFWorkspace: ObservableObject {
     exportStatusDismissWorkItem = nil
     exportStatus = status
     guard !status.isEmpty else { return }
-    let isFailure = status.contains("失败") || status.contains("无法") || status.contains("不足")
+    let isFailure = ["failureMarker", "unavailableMarker", "insufficientMarker"].contains { status.contains(L10n.value($0)) || status.contains(L10n.source($0)) }
     let workItem = DispatchWorkItem { [weak self] in
       guard let self, self.exportStatus == status else { return }
       self.exportStatus = ""
@@ -420,7 +420,7 @@ final class PDFWorkspace: ObservableObject {
     }
     exportStatusDismissWorkItem = workItem
     DispatchQueue.main.asyncAfter(
-      deadline: .now() + (isFailure ? 4.2 : 2.8),
+      deadline: .now() + (isFailure ? DT.motion.errorNotice : DT.motion.notice),
       execute: workItem
     )
   }

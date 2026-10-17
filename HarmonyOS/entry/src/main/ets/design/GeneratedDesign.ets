@@ -93,11 +93,15 @@ export class DT {
   static readonly dimensionsD360 = 360;
   static readonly dimensionsD380 = 380;
   static readonly dimensionsD392 = 392;
+  static readonly dimensionsD1160 = 1160;
+  static readonly dimensionsD800 = 800;
   static readonly durationFeedback: number = 120;
   static readonly durationMenuEnter: number = 240;
   static readonly durationMenuExit: number = 180;
   static readonly durationCollapse: number = 520;
   static readonly durationNone: number = 0;
+  static readonly durationNotice: number = 2800;
+  static readonly durationErrorNotice: number = 4200;
   static readonly opacityMuted: number = 0.6;
   static readonly opacitySubtle: number = 0.08;
   static readonly opacityBorder: number = 0.16;
@@ -108,11 +112,11 @@ export class DT {
   static curveStandard(): ICurve { return curves.cubicBezierCurve(0.42, 0, 0.58, 1); }
   static curveEnter(): ICurve { return curves.cubicBezierCurve(0.16, 1, 0.3, 1); }
   static curveExit(): ICurve { return curves.cubicBezierCurve(0.4, 0, 1, 1); }
-  static readonly iconHome: Resource = $r("app.media.workspace_home");
-  static readonly iconDisplay: Resource = $r("app.media.workspace_display");
-  static readonly iconPdf: Resource = $r("app.media.workspace_pdf");
-  static readonly iconWhiteboard: Resource = $r("app.media.workspace_whiteboard");
-  static readonly iconMirror: Resource = $r("app.media.workspace_mirror");
+  static iconHome(dark: boolean): Resource { return dark ? $r("app.media.workspace_home_dark") : $r("app.media.workspace_home"); }
+  static iconDisplay(dark: boolean): Resource { return dark ? $r("app.media.workspace_display_dark") : $r("app.media.workspace_display"); }
+  static iconPdf(dark: boolean): Resource { return dark ? $r("app.media.workspace_pdf_dark") : $r("app.media.workspace_pdf"); }
+  static iconWhiteboard(dark: boolean): Resource { return dark ? $r("app.media.workspace_whiteboard_dark") : $r("app.media.workspace_whiteboard"); }
+  static iconMirror(dark: boolean): Resource { return dark ? $r("app.media.workspace_mirror_dark") : $r("app.media.workspace_mirror"); }
   static readonly inkInk: string = "#152441";
   static readonly inkRed: string = "#e74c3c";
   static readonly inkBlue: string = "#2980b9";
@@ -123,6 +127,7 @@ export class DT {
   static readonly inkColor7: string = "#2269ef";
   static readonly inkColor8: string = "#e45a4f";
   static readonly inkColor9: string = "#1b9a7e";
+  static readonly inkHighlight: string = "#ffe56f";
 }
 
 export class Strings {
@@ -132,8 +137,8 @@ export class Strings {
     for (let i = 0; i < args.length; i++) value = value.split(`{${i}}`).join(args[i]);
     return value;
   }
-  private static value(key: string): string {
-    const english = Strings.language.startsWith("en");
+  static source(key: string): string { return Strings.value(key, false); }
+  private static value(key: string, english: boolean = Strings.language.startsWith("en")): string {
     switch (key) {
       case "productName": return english ? "LinkDesk" : "LinkDesk";
       case "productSubtitle": return english ? "Your workspace across screens" : "你的跨屏工作空间";
@@ -345,6 +350,59 @@ export class Strings {
       case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接";
       case "waitConnection": return english ? "Waiting for connection" : "等待连接";
       case "lowLatency": return english ? "Low Latency" : "低延迟显示";
+      case "versionInfo": return english ? "Version {0} · Protocol v{1}" : "版本 {0} · 协议 v{1}";
+      case "sensitivityValue": return english ? "Sensitivity {0}" : "灵敏度 {0}";
+      case "mirrorUSBFailure": return english ? "The tablet is not using USB" : "平板当前不是 USB 连接";
+      case "mirrorStartFailure": return english ? "Mirroring could not start ({0})" : "投屏启动失败 ({0})";
+      case "mirrorStartHint": return english ? "{0}. Check LinkDesk is open on your Mac" : "{0}，请确认 Mac 端LinkDesk已打开";
+      case "mirrorReturnHint": return english ? "{0}. Return to LinkDesk to control mirroring" : "{0}，可返回LinkDesk控制投屏";
+      case "externalAppError": return english ? "Could not open the external app: {0}" : "打开外部应用失败：{0}";
+      case "selectReturnError": return english ? "Could not select the annotated PDF: {0}" : "选择批注文件失败：{0}";
+      case "returnError": return english ? "Return failed: {0}" : "回传失败：{0}";
+      case "scanRecognized": return english ? "Pairing code {0} found; choosing USB / Wi-Fi" : "已识别配对码 {0}，正在自动选择 USB / Wi-Fi";
+      case "annotatedSuffix": return english ? "_annotated.pdf" : "_已批注.pdf";
+      case "failureMarker": return english ? "failed" : "失败";
+      case "unavailableMarker": return english ? "unable" : "无法";
+      case "insufficientMarker": return english ? "insufficient" : "不足";
+      case "glyphPen": return english ? "✎" : "✎";
+      case "glyphUndo": return english ? "↶" : "↶";
+      case "glyphRedo": return english ? "↷" : "↷";
+      case "glyphZoomOut": return english ? "−" : "−";
+      case "glyphZoomIn": return english ? "+" : "+";
+      case "glyphClear": return english ? "⌫" : "⌫";
+      case "glyphExpand": return english ? "⌄" : "⌄";
+      case "penReady": return english ? "Stylus ready" : "手写笔待命";
+      case "tabletCaptureFailure": return english ? "The tablet could not start screen capture" : "平板未能开始录屏";
+      case "sendPDFTitle": return english ? "Send PDF to Tablet" : "发送 PDF 到平板批注";
+      case "sendToTablet": return english ? "Send to Tablet" : "发送到平板";
+      case "sendingPDF": return english ? "Sending to tablet…" : "正在发送到平板…";
+      case "sentPDF": return english ? "Sent to tablet; waiting for the PDF app…" : "已发送到平板，等待外部应用打开…";
+      case "restorePDFHint": return english ? "Reopen the PDF from Recent Files" : "自动恢复失败，可从“最近文档”重新打开";
+      case "restoredInk": return english ? "Previous strokes restored" : "已恢复上次完整笔划";
+      case "receivingPDF": return english ? "Receiving annotated PDF…" : "正在接收平板批注版…";
+      case "returnPDFFailure": return english ? "Retry returning the annotated PDF on the tablet" : "批注文件回传失败，可在平板重试";
+      case "saveReturnPDF": return english ? "Save Annotated PDF" : "保存平板批注版";
+      case "saveToMac": return english ? "Save to Mac" : "保存到 Mac";
+      case "returnNotSaved": return english ? "Annotated PDF received; not saved yet" : "批注版已接收，但尚未保存";
+      case "exportPDFFailure": return english ? "Export failed; the original PDF was preserved" : "导出失败，原 PDF 未被修改";
+      case "openFileError": return english ? "Could not open {0}" : "无法打开 {0}";
+      case "saveSuccess": return english ? "Saved {0}" : "已保存 {0}";
+      case "saveError": return english ? "Save failed: {0}" : "保存失败：{0}";
+      case "saveAsSuccess": return english ? "Saved as {0}" : "已另存为 {0}";
+      case "exportSuffix": return english ? "-annotated.pdf" : "-批注.pdf";
+      case "exportDefaultName": return english ? "annotated.pdf" : "批注.pdf";
+      case "penSummary": return english ? "Pressure pen {0}" : "压感笔 {0}";
+      case "eraserSummary": return english ? "Eraser {0}" : "橡皮擦 {0}";
+      case "liveViewDisabled": return english ? "Live View is disabled" : "系统未启用实况窗";
+      case "liveViewEntitlement": return english ? "Live View is not enabled for this app" : "应用尚未获得实况窗权益";
+      case "liveViewStartError": return english ? "Live View could not start ({0})" : "实况窗启动失败 ({0})";
+      case "liveViewUpdateError": return english ? "Live View could not update ({0})" : "实况窗更新失败 ({0})";
+      case "liveViewUnavailable": return english ? "Live View unavailable ({0})" : "实况窗不可用 ({0})";
+      case "mirrorIdle": return english ? "Mirroring is off" : "当前未投屏";
+      case "returnToApp": return english ? "Return to LinkDesk" : "返回LinkDesk";
+      case "mirrorActiveShort": return english ? "Mirroring" : "投屏中";
+      case "mirrorIdleShort": return english ? "Not mirroring" : "未投屏";
+      case "speakerDescription": return english ? "Play Mac audio through your tablet." : "将 Mac 的声音播放到平板。";
       default: return key;
     }
   }
@@ -558,6 +616,59 @@ export class Strings {
   static get switchUSBFirst(): string { return Strings.value("switchUSBFirst"); }
   static get waitConnection(): string { return Strings.value("waitConnection"); }
   static get lowLatency(): string { return Strings.value("lowLatency"); }
+  static get versionInfo(): string { return Strings.value("versionInfo"); }
+  static get sensitivityValue(): string { return Strings.value("sensitivityValue"); }
+  static get mirrorUSBFailure(): string { return Strings.value("mirrorUSBFailure"); }
+  static get mirrorStartFailure(): string { return Strings.value("mirrorStartFailure"); }
+  static get mirrorStartHint(): string { return Strings.value("mirrorStartHint"); }
+  static get mirrorReturnHint(): string { return Strings.value("mirrorReturnHint"); }
+  static get externalAppError(): string { return Strings.value("externalAppError"); }
+  static get selectReturnError(): string { return Strings.value("selectReturnError"); }
+  static get returnError(): string { return Strings.value("returnError"); }
+  static get scanRecognized(): string { return Strings.value("scanRecognized"); }
+  static get annotatedSuffix(): string { return Strings.value("annotatedSuffix"); }
+  static get failureMarker(): string { return Strings.value("failureMarker"); }
+  static get unavailableMarker(): string { return Strings.value("unavailableMarker"); }
+  static get insufficientMarker(): string { return Strings.value("insufficientMarker"); }
+  static get glyphPen(): string { return Strings.value("glyphPen"); }
+  static get glyphUndo(): string { return Strings.value("glyphUndo"); }
+  static get glyphRedo(): string { return Strings.value("glyphRedo"); }
+  static get glyphZoomOut(): string { return Strings.value("glyphZoomOut"); }
+  static get glyphZoomIn(): string { return Strings.value("glyphZoomIn"); }
+  static get glyphClear(): string { return Strings.value("glyphClear"); }
+  static get glyphExpand(): string { return Strings.value("glyphExpand"); }
+  static get penReady(): string { return Strings.value("penReady"); }
+  static get tabletCaptureFailure(): string { return Strings.value("tabletCaptureFailure"); }
+  static get sendPDFTitle(): string { return Strings.value("sendPDFTitle"); }
+  static get sendToTablet(): string { return Strings.value("sendToTablet"); }
+  static get sendingPDF(): string { return Strings.value("sendingPDF"); }
+  static get sentPDF(): string { return Strings.value("sentPDF"); }
+  static get restorePDFHint(): string { return Strings.value("restorePDFHint"); }
+  static get restoredInk(): string { return Strings.value("restoredInk"); }
+  static get receivingPDF(): string { return Strings.value("receivingPDF"); }
+  static get returnPDFFailure(): string { return Strings.value("returnPDFFailure"); }
+  static get saveReturnPDF(): string { return Strings.value("saveReturnPDF"); }
+  static get saveToMac(): string { return Strings.value("saveToMac"); }
+  static get returnNotSaved(): string { return Strings.value("returnNotSaved"); }
+  static get exportPDFFailure(): string { return Strings.value("exportPDFFailure"); }
+  static get openFileError(): string { return Strings.value("openFileError"); }
+  static get saveSuccess(): string { return Strings.value("saveSuccess"); }
+  static get saveError(): string { return Strings.value("saveError"); }
+  static get saveAsSuccess(): string { return Strings.value("saveAsSuccess"); }
+  static get exportSuffix(): string { return Strings.value("exportSuffix"); }
+  static get exportDefaultName(): string { return Strings.value("exportDefaultName"); }
+  static get penSummary(): string { return Strings.value("penSummary"); }
+  static get eraserSummary(): string { return Strings.value("eraserSummary"); }
+  static get liveViewDisabled(): string { return Strings.value("liveViewDisabled"); }
+  static get liveViewEntitlement(): string { return Strings.value("liveViewEntitlement"); }
+  static get liveViewStartError(): string { return Strings.value("liveViewStartError"); }
+  static get liveViewUpdateError(): string { return Strings.value("liveViewUpdateError"); }
+  static get liveViewUnavailable(): string { return Strings.value("liveViewUnavailable"); }
+  static get mirrorIdle(): string { return Strings.value("mirrorIdle"); }
+  static get returnToApp(): string { return Strings.value("returnToApp"); }
+  static get mirrorActiveShort(): string { return Strings.value("mirrorActiveShort"); }
+  static get mirrorIdleShort(): string { return Strings.value("mirrorIdleShort"); }
+  static get speakerDescription(): string { return Strings.value("speakerDescription"); }
 }
 
 export enum ConnectionState {

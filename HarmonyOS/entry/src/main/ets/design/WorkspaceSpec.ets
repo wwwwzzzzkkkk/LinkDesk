@@ -20,13 +20,13 @@ export class WorkspaceSpec {
       default: return Strings.homeSubtitle;
     }
   }
-  static icon(key: string): Resource {
+  static icon(key: string, dark: boolean): Resource {
     switch (key) {
-      case 'display': return DT.iconDisplay;
-      case 'pdf': return DT.iconPdf;
-      case 'whiteboard': return DT.iconWhiteboard;
-      case 'mirror': return DT.iconMirror;
-      default: return DT.iconHome;
+      case 'display': return DT.iconDisplay(dark);
+      case 'pdf': return DT.iconPdf(dark);
+      case 'whiteboard': return DT.iconWhiteboard(dark);
+      case 'mirror': return DT.iconMirror(dark);
+      default: return DT.iconHome(dark);
     }
   }
 }

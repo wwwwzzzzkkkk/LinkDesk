@@ -224,7 +224,7 @@ private struct MacScreenMirrorToolbarButton: View {
 
   var body: some View {
     MacToolbarActionButton(
-      title: mirror.status,
+      title: mirror.isConnected ? L10n.stateWorking : L10n.mirrorEmptyDescription,
       accessibilityLabel: mirror.isReceiving ? L10n.stopMirror : L10n.startMirror,
       systemImage: mirror.isConnected ? "ipad.gen2.landscape" : "rectangle.inset.filled.and.person.filled",
       disabled: !usbRelay.isReady && !mirror.isReceiving,
@@ -286,9 +286,9 @@ private struct MacConnectionMenu: View {
 
       Divider()
 
-      Label(relay.status, systemImage: relay.isConnected ? "checkmark.circle" : "exclamationmark.circle")
+      Label(presentation.title, systemImage: relay.isConnected ? "checkmark.circle" : "exclamationmark.circle")
         .disabled(true)
-      Label(usbRelay.status, systemImage: transportSystemImage)
+      Label(usbRelay.activeTransport == .wifi ? L10n.transportWireless : L10n.transportUSB, systemImage: transportSystemImage)
         .disabled(true)
       Text(L10n.format("pairingCodeValue", workspace.room))
         .disabled(true)
@@ -320,8 +320,8 @@ private struct MacConnectionMenu: View {
       }
     }
     .menuIndicator(.visible)
-    .help("\(relay.status) · \(usbRelay.status)")
-    .accessibilityLabel(L10n.connectionStatus + ": " + relay.status + ", " + usbRelay.status)
+    .help(presentation.title)
+    .accessibilityLabel(L10n.connectionStatus + ": " + presentation.title)
   }
 
   private var presentation: ConnectionState {
@@ -345,7 +345,7 @@ private struct MacDocumentStatusToast: View {
   let status: String
 
   private var isFailure: Bool {
-    status.contains("失败") || status.contains("无法") || status.contains("不足")
+    ["failureMarker", "unavailableMarker", "insufficientMarker"].contains { status.contains(L10n.source($0)) || status.contains(L10n.value($0)) }
   }
 
   var body: some View {
@@ -357,7 +357,7 @@ private struct MacDocumentStatusToast: View {
       .frame(height: DT.spacing.s32)
       .background(.regularMaterial, in: Capsule())
       .overlay(Capsule().stroke(DT.text.opacity(DT.motion.border), lineWidth: DT.layout.stroke))
-      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: 3)
+      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: DT.spacing.s4)
       .accessibilityLabel(status)
   }
 }
@@ -374,12 +374,12 @@ private struct MacStatusToastMorphModifier: AnimatableModifier {
     let value = min(1, max(0, progress))
     content
       .scaleEffect(
-        x: 0.20 + 0.80 * value,
-        y: 0.72 + 0.28 * value,
+        x: DT.motion.menuScale + (1 - DT.motion.menuScale) * value,
+        y: DT.motion.menuScale + (1 - DT.motion.menuScale) * value,
         anchor: .center
       )
-      .opacity(0.28 + 0.72 * value)
-      .blur(radius: (1 - value) * 2.4)
+      .opacity(value)
+      .blur(radius: (1 - value) * DT.spacing.s4)
       .clipShape(Capsule())
   }
 }
@@ -397,7 +397,7 @@ private struct CollapsedMacToolbarButton: View {
           .buttonStyle(.plain)
           .background(.regularMaterial, in: Circle())
           .overlay(Circle().stroke(DT.text.opacity(DT.motion.border), lineWidth: DT.layout.stroke))
-          .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: 4)
+          .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: DT.spacing.s4)
       }
     }
   }
@@ -431,7 +431,7 @@ private struct MacSearchOverlay: View {
     searchContent
       .background(SearchOutsideClickMonitor(onOutsideClick: workspace.closeSearch))
       .modifier(NativeSearchGlassModifier())
-      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s12, y: 5)
+      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s12, y: DT.spacing.s4)
       .frame(maxWidth: .infinity, alignment: .center)
       .onAppear { isFocused = true }
       .onExitCommand(perform: workspace.closeSearch)
@@ -524,7 +524,7 @@ private final class SearchOutsideClickMonitorView: NSView {
       self?.isArmed = true
     }
     activationWorkItem = activation
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: activation)
+    DispatchQueue.main.asyncAfter(deadline: .now() + DT.motion.menuEnter, execute: activation)
     eventMonitor = NSEvent.addLocalMonitorForEvents(
       matching: [.leftMouseDown, .rightMouseDown]
     ) { [weak self] event in
@@ -532,7 +532,7 @@ private final class SearchOutsideClickMonitorView: NSView {
             self.isArmed,
             event.window === self.window else { return event }
       let localPoint = self.convert(event.locationInWindow, from: nil)
-      if !self.bounds.insetBy(dx: -6, dy: -6).contains(localPoint) {
+      if !self.bounds.insetBy(dx: -DT.spacing.s8, dy: -DT.spacing.s8).contains(localPoint) {
         DispatchQueue.main.async { [weak self] in
           self?.onOutsideClick?()
         }
@@ -636,7 +636,7 @@ private struct PairingView: View {
           Image(systemName: usbRelay.isReady ? "cable.connector" : "cable.connector.slash")
             .font(.system(size: DT.font.title, weight: .light))
             .foregroundStyle(usbRelay.isReady ? DT.success : DT.secondary)
-          Text(usbRelay.usbStatus)
+          Text(usbRelay.isReady ? L10n.stateUSBConnected : L10n.stateDisconnected)
             .font(.system(size: DT.font.label))
           Text(L10n.usbHint)
             .font(.system(size: DT.font.caption))
@@ -669,7 +669,7 @@ private struct PairingView: View {
         .padding(DT.spacing.s8)
         .background(DT.text.opacity(DT.motion.subtle), in: RoundedRectangle(cornerRadius: DT.radius.small))
       }
-      Text(usbRelay.status).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
+      Text(L10n.pairingSubtitle).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
       if usbRelay.preference != .usb {
         Text(link).font(.system(size: DT.font.caption)).textSelection(.enabled).multilineTextAlignment(.center)
       }

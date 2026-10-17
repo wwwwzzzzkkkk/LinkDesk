@@ -53,7 +53,7 @@ def generate(tokens, catalog):
     for key,value in tokens['icons'].items():
         swift.append(f'    static let {key} = {q(value["mac"])}')
         # Harmony media references remain static resource references, not dynamic asset lookups.
-        ark.append(f'  static readonly icon{key[0].upper()+key[1:]}: Resource = $r({q("app.media."+value["harmony"])});')
+        ark.append(f'  static icon{key[0].upper()+key[1:]}(dark: boolean): Resource {{ return dark ? $r({q("app.media."+value["harmony"]+"_dark")}) : $r({q("app.media."+value["harmony"])}); }}')
     swift += ['  }', '  enum inkPalette {']
     for key,value in tokens['inkPalette'].items():
         swift.append(f'    static let {key} = {q(value)}')
@@ -63,11 +63,11 @@ def generate(tokens, catalog):
     swift += ['', 'enum L10n {', '  static let language = Locale.preferredLanguages.first ?? "zh-Hans"',
               '  static func format(_ key: String, _ args: CustomStringConvertible...) -> String {',
               '    var result = value(key)', '    for (i, arg) in args.enumerated() { result = result.replacingOccurrences(of: "{\\(i)}", with: arg.description) }',
-              '    return result', '  }', '  static func value(_ key: String) -> String {', '    let english = language.hasPrefix("en")', '    switch key {']
+              '    return result', '  }', '  static func source(_ key: String) -> String { value(key, english: false) }', '  static func value(_ key: String, english: Bool = language.hasPrefix("en")) -> String {', '    switch key {']
     ark += ['', 'export class Strings {', '  static language: string = "zh-Hans";',
             '  static get(key: string, args: string[] = []): string {', '    let value = Strings.value(key);',
             '    for (let i = 0; i < args.length; i++) value = value.split(`{${i}}`).join(args[i]);',
-            '    return value;', '  }', '  private static value(key: string): string {', '    const english = Strings.language.startsWith("en");', '    switch (key) {']
+            '    return value;', '  }', '  static source(key: string): string { return Strings.value(key, false); }', '  private static value(key: string, english: boolean = Strings.language.startsWith("en")): string {', '    switch (key) {']
     for key,translations in catalog['strings'].items():
         assert key.isidentifier(), f'Invalid identifier {key}'
         z,e = translations['zh-Hans'],translations['en']
@@ -94,8 +94,31 @@ def generate(tokens, catalog):
     ark += ['    }', '  }', '  static color(state: ConnectionState, dark: boolean): string {', '    switch (state) {']
     ark += [f'      case ConnectionState.{s["id"]}: return DT.{s["color"]}(dark);' for s in tokens['connectionStates']]
     ark += ['    }', '  }', '}']
-    return {'InkBridge/MacPDFAnnotator/Sources/GeneratedDesign.swift':'\n'.join(swift)+'\n',
+    output = {'InkBridge/MacPDFAnnotator/Sources/GeneratedDesign.swift':'\n'.join(swift)+'\n',
             'HarmonyOS/entry/src/main/ets/design/GeneratedDesign.ets':'\n'.join(ark)+'\n'}
+    for icon in tokens['icons'].values():
+        for mode in ('light', 'dark'):
+            name = icon['harmony'] + ('_dark' if mode == 'dark' else '')
+            accent = tokens['colors'][mode]['accent']
+            output['HarmonyOS/AppScope/resources/base/media/'+name+'.svg'] = (
+                '<!-- 自动生成，勿手改。Source: design-tokens.json -->\n'
+                f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{accent}" '
+                'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
+                + icon['svgBody'] + '</svg>\n')
+    css = ['/* 自动生成，勿手改。Source: design-tokens.json */']
+    for mode in ('light', 'dark'):
+        css.append(':root[data-linkdesk-theme="'+mode+'"] {')
+        for role, color in tokens['colors'][mode].items():
+            # Source alpha is AARRGGBB; CSS uses RRGGBBAA.
+            if len(color) == 9: color = '#'+color[3:]+color[1:3]
+            css.append('  --ld-'+role+': '+color+';')
+        css.append('}')
+        prefix = ':root[data-linkdesk-theme="'+mode+'"] '
+        for selector in ('.pdfpad-shell', '.pdf-scroll', '.pdfpad-stage', '.pdf-preview'):
+            css.append(prefix+selector+' { background: var(--ld-canvas); }')
+        css.append(prefix+'.pdf-loading { color: var(--ld-secondary); }')
+    output['InkBridge/public/generated-design.css'] = '\n'.join(css)+'\n'
+    return output
 
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument('--check',action='store_true'); args=parser.parse_args()
