@@ -103,6 +103,7 @@ export struct DesktopReceiver {
       this.latestMode = info.latestMode;
       this.timedSupported = info.timedSupported;
       this.processMs = info.receiveSubmitUs / 1000;
+      AppStorage.setOrCreate('LinkDeskReceiverState', this.connectionState());
     }, 500);
   }
 
@@ -118,6 +119,7 @@ export struct DesktopReceiver {
   }
   @Builder microphoneAction() {
     Button(this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minHeight: DT.layoutTouchTarget, minWidth: DT.layoutTouchTarget })
       .onClick(() => { void this.toggleMicrophone(); })
   }
@@ -136,6 +138,7 @@ export struct DesktopReceiver {
     this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;
     linkdesk.stop();
     AppStorage.setOrCreate('LinkDeskReceiverWorking', false);
+    AppStorage.setOrCreate('LinkDeskReceiverState', ConnectionState.disconnected);
   }
 
   private connectionState(): ConnectionState {
@@ -188,8 +191,10 @@ export struct DesktopReceiver {
           Row({ space: DT.spacingS12 }) {
             this.exitControl()
             Button(Strings.reconnect)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.connect())
             Button(Strings.hide)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => { this.controlsVisible = false; })
           }
         }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.spacingS24).borderRadius(DT.radiusMedium)

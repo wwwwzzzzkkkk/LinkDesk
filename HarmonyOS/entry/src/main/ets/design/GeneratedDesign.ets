@@ -80,6 +80,11 @@ export class DT {
   static readonly layoutToolbarHeight = 64;
   static readonly layoutFormMaxWidth = 480;
   static readonly layoutStroke = 1;
+  static readonly layoutMirrorWindowWidth = 1024;
+  static readonly layoutMirrorWindowHeight = 768;
+  static readonly layoutMirrorWindowFallbackHeight = 900;
+  static readonly layoutMirrorWindowMaxHeight = 720;
+  static readonly layoutMirrorWindowVisibleFraction = 0.78;
   static readonly dimensionsD120 = 120;
   static readonly dimensionsD112 = 112;
   static readonly dimensionsD144 = 144;

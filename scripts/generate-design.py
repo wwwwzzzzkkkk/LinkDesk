@@ -117,6 +117,7 @@ def generate(tokens, catalog):
         for selector in ('.pdfpad-shell', '.pdf-scroll', '.pdfpad-stage', '.pdf-preview'):
             css.append(prefix+selector+' { background: var(--ld-canvas); }')
         css.append(prefix+'.pdf-loading { color: var(--ld-secondary); }')
+    css.append('html.native-pad-mode .pad-guide { display: none; }')
     output['InkBridge/public/generated-design.css'] = '\n'.join(css)+'\n'
     return output
 

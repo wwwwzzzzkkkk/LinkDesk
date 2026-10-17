@@ -126,7 +126,12 @@
     "menuMaxWidth": 384,
     "toolbarHeight": 64,
     "formMaxWidth": 480,
-    "stroke": 1
+    "stroke": 1,
+    "mirrorWindowWidth": 1024,
+    "mirrorWindowHeight": 768,
+    "mirrorWindowFallbackHeight": 900,
+    "mirrorWindowMaxHeight": 720,
+    "mirrorWindowVisibleFraction": 0.78
   },
   "motion": {
     "duration": {

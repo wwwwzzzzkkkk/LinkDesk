@@ -14,6 +14,7 @@ struct Index {
   @StorageLink('LinkDeskInkConnected') inkConnected: boolean = false;
   @StorageLink('LinkDeskRelayReachable') relayReachable: boolean = false;
   @StorageLink('LinkDeskMirrorRunning') mirrorRunning: boolean = false;
+  @StorageLink('LinkDeskReceiverState') receiverState: ConnectionState = ConnectionState.disconnected;
   @StorageLink('LinkDeskReceiverWorking') receiverWorking: boolean = false;
   @StorageLink('LinkDeskPairingCode') pairingCode: string = '';
   @StorageLink('LinkDeskTransport') transport: string = 'usb';
@@ -38,6 +39,7 @@ struct Index {
     this.destination = mode === 'home' ? 'home' : mode === 'display' ? 'display' : 'ink';
   }
   private state(): ConnectionState {
+    if (this.selected === 'display') return this.receiverState;
     if (this.receiverWorking) return ConnectionState.working;
     if (this.selected === 'mirror') return this.mirrorRunning ? ConnectionState.working : this.relayReachable && this.transport === 'usb' ? ConnectionState.usbConnected : ConnectionState.disconnected;
     if (this.inkConnected) return this.selected === 'home' ? ConnectionState.waitingForMode : ConnectionState.working;
@@ -86,6 +88,7 @@ struct Index {
       }
       this.themeControl()
       Button(Strings.pairingTitle)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
         .onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
     }.width(DT.layoutSidebar).height('100%').padding(DT.spacingS16)
@@ -123,6 +126,7 @@ struct Index {
             Row({ space: DT.spacingS8 }) {
               this.themeControl()
               Button(Strings.pairingTitle)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
             }
           }

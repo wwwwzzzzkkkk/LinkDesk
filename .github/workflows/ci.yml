@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.14.1'
+      - name: Generated UI and native literal checks
+        run: python3 scripts/check-ui-parity.py
       - name: Relay and drawing regressions
         run: cd InkBridge && npm ci --ignore-scripts && npm test
       - name: Validate versions and scripts

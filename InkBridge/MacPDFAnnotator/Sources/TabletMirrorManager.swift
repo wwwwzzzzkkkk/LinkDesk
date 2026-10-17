@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import AppKit
+import SwiftUI
 @preconcurrency import CoreMedia
 import Darwin
 import Foundation
@@ -45,7 +46,7 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
           backing: .buffered,
           defer: false
         )
-        window.title = "平板有线投屏"
+        window.title = L10n.mirrorTitle
         window.contentView = view
         window.delegate = self
         window.isReleasedWhenClosed = false
@@ -106,8 +107,8 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
     guard width > 0, height > 0, let window = mirrorWindow else { return }
     let aspect = CGFloat(width) / CGFloat(height)
     window.contentAspectRatio = NSSize(width: CGFloat(width), height: CGFloat(height))
-    let visibleHeight = NSScreen.main?.visibleFrame.height ?? 900
-    let targetHeight = min(720, visibleHeight * 0.78)
+    let visibleHeight = NSScreen.main?.visibleFrame.height ?? DT.layout.mirrorWindowFallbackHeight
+    let targetHeight = min(DT.layout.mirrorWindowMaxHeight, visibleHeight * DT.layout.mirrorWindowVisibleFraction)
     window.setContentSize(NSSize(width: targetHeight * aspect, height: targetHeight))
     window.center()
   }
@@ -130,10 +131,10 @@ private final class TabletMirrorView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = NSColor.black.cgColor
+    layer?.backgroundColor = NSColor(DT.video).cgColor
     layer?.masksToBounds = true
     displayLayer.videoGravity = .resizeAspect
-    displayLayer.backgroundColor = NSColor.black.cgColor
+    displayLayer.backgroundColor = NSColor(DT.video).cgColor
     var timebase: CMTimebase?
     if CMTimebaseCreateWithSourceClock(
       allocator: kCFAllocatorDefault,

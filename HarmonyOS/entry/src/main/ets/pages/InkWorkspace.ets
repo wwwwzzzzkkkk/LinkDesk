@@ -431,12 +431,15 @@ export struct InkWorkspace {
           this.themeControl()
           if (this.roundTripId.length > 0) {
             Button(Strings.returnPDF)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.selectRoundTripReturnPDF())
           }
           Button(this.screenMirroring ? Strings.stopMirror : Strings.startMirror)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .height(DT.layoutTouchTarget).onClick(() => this.toggleScreenMirror())
           Button(Strings.collapseTools)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.setTopBarCollapsed(true))
         }.padding(DT.spacingS8)
       }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')

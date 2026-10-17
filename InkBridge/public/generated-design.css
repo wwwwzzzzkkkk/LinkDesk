@@ -55,3 +55,4 @@
 :root[data-linkdesk-theme="dark"] .pdfpad-stage { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="dark"] .pdf-preview { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="dark"] .pdf-loading { color: var(--ld-secondary); }
+html.native-pad-mode .pad-guide { display: none; }
