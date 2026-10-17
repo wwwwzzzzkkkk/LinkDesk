@@ -26,26 +26,22 @@ struct ContentView: View {
 
       if workspace.isSearchPresented, workspace.mode == .pdf {
         MacSearchOverlay(workspace: workspace)
-          .padding(.top, 12)
+          .padding(.top, DT.spacing.s12)
           .transition(searchTransition)
           .zIndex(3)
       }
     }
     .overlay {
       if workspace.mode == .pdf && !workspace.hasDocument {
-        VStack(spacing: 16) {
-          Image(systemName: "doc.richtext").font(.system(size: 52, weight: .ultraLight)).foregroundStyle(Color.accentColor)
-          Text("从一份 PDF 开始").font(.system(size: 23, weight: .semibold, design: .rounded))
-          Text("在 Mac 打开文档，在平板上自然书写。\n批注、滚动与缩放都会实时同步。")
-            .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).lineSpacing(5)
-          Button("打开 PDF…", action: workspace.openPDF).buttonStyle(.borderedProminent).controlSize(.large)
+        VStack(spacing: DT.spacing.s16) {
+          EmptyState(symbol: DT.icon.pdf, title: L10n.pdfEmptyTitle, message: L10n.pdfEmptyDescription,
+            actionTitle: L10n.openPDF, action: workspace.openPDF)
           if !workspace.recentPDFs.isEmpty {
-            Menu("最近使用") {
+            Menu(L10n.recentFiles) {
               ForEach(workspace.recentPDFs) { recent in Button(recent.name) { workspace.openRecent(recent) } }
-            }.menuStyle(.borderlessButton).frame(width: 120)
+            }.menuStyle(.borderlessButton).frame(width: DT.dimensions.d120)
           }
-        }.padding(36).frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color(nsColor: .windowBackgroundColor))
+        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(DT.canvas)
       }
     }
     .background(WindowLiquidGlassConfigurator())
@@ -67,22 +63,22 @@ struct ContentView: View {
             relay: workspace.relay,
             usbRelay: workspace.usbRelay
           )
-          .frame(width: 112)
+          .frame(width: DT.dimensions.d112)
           MacScreenMirrorToolbarButton(
             mirror: workspace.tabletMirror,
             usbRelay: workspace.usbRelay,
             action: workspace.toggleTabletMirror
           )
           MacToolbarActionButton(
-            title: workspace.hasDocument ? "搜索 PDF 文字（⌘F）" : "打开 PDF 后可搜索文字",
-            accessibilityLabel: "搜索 PDF",
+            title: workspace.hasDocument ? L10n.searchHelp : L10n.searchUnavailable,
+            accessibilityLabel: L10n.searchPDF,
             systemImage: "magnifyingglass",
             disabled: workspace.mode != .pdf || !workspace.hasDocument,
             action: workspace.presentSearch
           )
           MacToolbarActionButton(
-            title: "收起工具栏",
-            accessibilityLabel: "收起工具栏",
+            title: L10n.collapseTools,
+            accessibilityLabel: L10n.collapseTools,
             systemImage: "chevron.up"
           ) {
             workspace.isToolbarCollapsed = true
@@ -93,7 +89,7 @@ struct ContentView: View {
     .overlay(alignment: .bottom) {
       if !workspace.exportStatus.isEmpty {
         MacDocumentStatusToast(status: workspace.exportStatus)
-          .padding(.bottom, 12)
+          .padding(.bottom, DT.spacing.s12)
           .transition(statusTransition)
       }
     }
@@ -103,19 +99,19 @@ struct ContentView: View {
     .animation(
       accessibilityReduceMotion
         ? nil
-        : .timingCurve(0.42, 0.0, 0.58, 1.0, duration: 0.52),
+        : DT.motion.standard(DT.motion.collapse),
       value: workspace.isToolbarCollapsed
     )
     .animation(
       accessibilityReduceMotion
-        ? .easeOut(duration: 0.12)
-        : .spring(duration: 0.34, bounce: 0.18),
+        ? nil
+        : DT.motion.enter(DT.motion.menuEnter),
       value: workspace.isSearchPresented
     )
     .animation(
       accessibilityReduceMotion
-        ? .easeOut(duration: 0.14)
-        : .spring(duration: 0.38, bounce: 0.16),
+        ? nil
+        : DT.motion.enter(DT.motion.menuEnter),
       value: workspace.exportStatus.isEmpty
     )
   }
@@ -124,8 +120,8 @@ struct ContentView: View {
     if accessibilityReduceMotion {
       return .opacity
     }
-    return .scale(scale: 0.68, anchor: .top)
-      .combined(with: .offset(y: -14))
+    return .scale(scale: DT.motion.searchScale, anchor: .top)
+      .combined(with: .offset(y: -DT.spacing.s12))
       .combined(with: .opacity)
   }
 
@@ -165,7 +161,7 @@ private final class WindowLiquidGlassConfigurationView: NSView {
     window.toolbar?.showsBaselineSeparator = false
     window.isMovableByWindowBackground = false
     window.isOpaque = true
-    window.backgroundColor = NSColor.windowBackgroundColor
+    window.backgroundColor = NSColor(DT.canvas)
   }
 }
 
@@ -174,7 +170,7 @@ private struct MacModePicker: View {
 
   var body: some View {
     Picker(
-      "工作区模式",
+      L10n.modePicker,
       selection: Binding(
         get: { workspace.mode },
         set: workspace.selectMode
@@ -187,8 +183,8 @@ private struct MacModePicker: View {
     .pickerStyle(.segmented)
     .labelsHidden()
     .controlSize(.small)
-    .frame(width: 144)
-    .help("在 PDF 批注与实时白板之间切换")
+    .frame(width: DT.dimensions.d144)
+    .help(L10n.modePickerHelp)
   }
 }
 
@@ -212,8 +208,8 @@ private struct MacToolbarActionButton: View {
   private var button: some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .foregroundStyle(Color.primary.opacity(0.76))
-        .frame(width: 24, height: 24)
+        .foregroundStyle(DT.text.opacity(DT.motion.muted))
+        .frame(width: DT.spacing.s24, height: DT.spacing.s24)
     }
     .disabled(disabled)
     .help(title)
@@ -229,7 +225,7 @@ private struct MacScreenMirrorToolbarButton: View {
   var body: some View {
     MacToolbarActionButton(
       title: mirror.status,
-      accessibilityLabel: mirror.isReceiving ? "停止平板投屏" : "开始平板投屏",
+      accessibilityLabel: mirror.isReceiving ? L10n.stopMirror : L10n.startMirror,
       systemImage: mirror.isConnected ? "ipad.gen2.landscape" : "rectangle.inset.filled.and.person.filled",
       disabled: !usbRelay.isReady && !mirror.isReceiving,
       action: action
@@ -241,22 +237,22 @@ private struct MacToolbarTitle: View {
   @ObservedObject var workspace: PDFWorkspace
 
   var body: some View {
-    VStack(spacing: 1) {
-      Text(workspace.mode == .pdf ? workspace.documentName : "实时白板")
-        .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(Color.primary.opacity(0.80))
+    VStack(spacing: DT.spacing.s4) {
+      Text(workspace.mode == .pdf ? workspace.documentName : L10n.whiteboardTitle)
+        .font(.system(size: DT.font.caption, weight: .semibold))
+        .foregroundStyle(DT.text.opacity(DT.motion.muted))
         .lineLimit(1)
         .truncationMode(.middle)
-      Text("房间 \(workspace.room)")
-        .font(.system(size: 10, weight: .medium, design: .monospaced))
-        .foregroundStyle(Color.primary.opacity(0.60))
+      Text(L10n.format("pairingCodeValue", workspace.room))
+        .font(.system(size: DT.font.caption, weight: .medium, design: .monospaced))
+        .foregroundStyle(DT.text.opacity(DT.motion.muted))
         .lineLimit(1)
     }
-    .frame(minWidth: 110, idealWidth: 220, maxWidth: 320)
-    .help(workspace.mode == .pdf ? workspace.documentName : "实时白板")
+    .frame(minWidth: DT.dimensions.d112, idealWidth: DT.dimensions.d220, maxWidth: DT.dimensions.d320)
+    .help(workspace.mode == .pdf ? workspace.documentName : L10n.whiteboardTitle)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(
-      "当前\(workspace.mode == .pdf ? "文件 \(workspace.documentName)" : "实时白板")，房间 \(workspace.room)"
+      workspace.documentName + ", " + L10n.format("pairingCodeValue", workspace.room)
     )
   }
 }
@@ -271,7 +267,7 @@ private struct MacConnectionMenu: View {
       Button {
         workspace.isShowingPairing = true
       } label: {
-        Label("连接平板…", systemImage: "ipad.and.arrow.forward")
+        Label(L10n.connectTablet, systemImage: "ipad.and.arrow.forward")
       }
 
       Divider()
@@ -294,7 +290,7 @@ private struct MacConnectionMenu: View {
         .disabled(true)
       Label(usbRelay.status, systemImage: transportSystemImage)
         .disabled(true)
-      Text("房间 \(workspace.room)")
+      Text(L10n.format("pairingCodeValue", workspace.room))
         .disabled(true)
 
       if !relay.documentStatus.isEmpty {
@@ -304,39 +300,34 @@ private struct MacConnectionMenu: View {
       }
       if relay.canCancelPDFTransfer {
         Button(role: .cancel, action: relay.cancelPDFUpload) {
-          Label("取消 PDF 传送", systemImage: "xmark.circle")
+          Label(L10n.cancelTransfer, systemImage: "xmark.circle")
         }
       }
       if relay.canRetryPDFTransfer {
         Button(action: relay.retryPDFUpload) {
-          Label("重新发送 PDF", systemImage: "arrow.clockwise")
+          Label(L10n.retryTransfer, systemImage: "arrow.clockwise")
         }
       }
     } label: {
-      HStack(spacing: 5) {
+      HStack(spacing: DT.spacing.s4) {
         Circle()
           .fill(statusColor)
-          .frame(width: 7, height: 7)
+          .frame(width: DT.spacing.s8, height: DT.spacing.s8)
         Label(connectionLabel, systemImage: transportSystemImage)
           .labelStyle(.titleAndIcon)
-          .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(Color.primary.opacity(0.78))
+          .font(.system(size: DT.font.caption, weight: .medium))
+          .foregroundStyle(DT.text.opacity(DT.motion.muted))
       }
     }
     .menuIndicator(.visible)
     .help("\(relay.status) · \(usbRelay.status)")
-    .accessibilityLabel("连接状态：\(relay.status)，\(usbRelay.status)")
+    .accessibilityLabel(L10n.connectionStatus + ": " + relay.status + ", " + usbRelay.status)
   }
 
-  private var connectionLabel: String {
-    if usbRelay.isSwitching { return "切换中" }
-    guard relay.isConnected else { return "未连接" }
-    switch usbRelay.activeTransport ?? relay.tabletTransport {
-    case .usb: return "USB"
-    case .wifi: return "Wi-Fi"
-    case nil: return "已连接"
-    }
+  private var presentation: ConnectionState {
+    workspace.connectionState(for: workspace.mode == .pdf ? .pdf : .whiteboard, engine: DesktopSession.shared.engine)
   }
+  private var connectionLabel: String { presentation.title }
 
   private var transportSystemImage: String {
     switch usbRelay.activeTransport ?? relay.tabletTransport {
@@ -346,10 +337,7 @@ private struct MacConnectionMenu: View {
     }
   }
 
-  private var statusColor: Color {
-    if usbRelay.isSwitching { return .orange }
-    return relay.isConnected ? .green : .orange
-  }
+  private var statusColor: Color { presentation.color }
 
 }
 
@@ -362,14 +350,14 @@ private struct MacDocumentStatusToast: View {
 
   var body: some View {
     Label(status, systemImage: isFailure ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-      .font(.system(size: 11, weight: .medium))
-      .foregroundStyle(isFailure ? Color.red : Color.secondary)
+      .font(.system(size: DT.font.caption, weight: .medium))
+      .foregroundStyle(isFailure ? DT.error : DT.secondary)
       .lineLimit(1)
-      .padding(.horizontal, 11)
-      .frame(height: 30)
+      .padding(.horizontal, DT.spacing.s12)
+      .frame(height: DT.spacing.s32)
       .background(.regularMaterial, in: Capsule())
-      .overlay(Capsule().stroke(Color.primary.opacity(0.10), lineWidth: 1))
-      .shadow(color: Color.black.opacity(0.12), radius: 8, y: 3)
+      .overlay(Capsule().stroke(DT.text.opacity(DT.motion.border), lineWidth: DT.layout.stroke))
+      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: 3)
       .accessibilityLabel(status)
   }
 }
@@ -408,8 +396,8 @@ private struct CollapsedMacToolbarButton: View {
         expandButton
           .buttonStyle(.plain)
           .background(.regularMaterial, in: Circle())
-          .overlay(Circle().stroke(Color.primary.opacity(0.12), lineWidth: 1))
-          .shadow(color: Color.black.opacity(0.16), radius: 10, y: 4)
+          .overlay(Circle().stroke(DT.text.opacity(DT.motion.border), lineWidth: DT.layout.stroke))
+          .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s8, y: 4)
       }
     }
   }
@@ -419,19 +407,19 @@ private struct CollapsedMacToolbarButton: View {
       workspace.isToolbarCollapsed = false
     } label: {
       ZStack(alignment: .topTrailing) {
-        Text("桥")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundStyle(Color.primary.opacity(0.78))
-          .frame(width: 28, height: 28)
+        Text(L10n.productInitial)
+          .font(.system(size: DT.font.caption, weight: .bold))
+          .foregroundStyle(DT.text.opacity(DT.motion.muted))
+          .frame(width: DT.spacing.s28, height: DT.spacing.s28)
         Circle()
-          .fill(workspace.relay.isConnected ? Color.green : Color.orange)
-          .frame(width: 7, height: 7)
-          .overlay(Circle().stroke(.background, lineWidth: 1))
-          .padding(2)
+          .fill(workspace.relay.isConnected ? DT.success : DT.warning)
+          .frame(width: DT.spacing.s8, height: DT.spacing.s8)
+          .overlay(Circle().stroke(DT.surface, lineWidth: DT.layout.stroke))
+          .padding(DT.spacing.s4)
       }
     }
-    .help("展开工具栏")
-    .accessibilityLabel("展开工具栏")
+    .help(L10n.expandTools)
+    .accessibilityLabel(L10n.expandTools)
   }
 }
 
@@ -443,55 +431,55 @@ private struct MacSearchOverlay: View {
     searchContent
       .background(SearchOutsideClickMonitor(onOutsideClick: workspace.closeSearch))
       .modifier(NativeSearchGlassModifier())
-      .shadow(color: Color.black.opacity(0.16), radius: 12, y: 5)
+      .shadow(color: DT.scrim.opacity(DT.motion.border), radius: DT.spacing.s12, y: 5)
       .frame(maxWidth: .infinity, alignment: .center)
       .onAppear { isFocused = true }
       .onExitCommand(perform: workspace.closeSearch)
   }
 
   private var searchContent: some View {
-    HStack(spacing: 6) {
+    HStack(spacing: DT.spacing.s8) {
       Image(systemName: "magnifyingglass")
-        .foregroundStyle(.secondary)
+        .foregroundStyle(DT.secondary)
       TextField(
-        "搜索 PDF 文字",
+        L10n.searchPlaceholder,
         text: Binding(
           get: { workspace.searchQuery },
           set: workspace.updateSearchQuery
         )
       )
       .textFieldStyle(.plain)
-      .frame(width: 210)
+      .frame(width: DT.dimensions.d208)
       .focused($isFocused)
       .onSubmit(workspace.nextSearchResult)
 
       Text(workspace.searchTotal == 0
-        ? (workspace.searchQuery.isEmpty ? "" : "无结果")
+        ? (workspace.searchQuery.isEmpty ? "" : L10n.noResults)
         : "\(workspace.searchCurrent)/\(workspace.searchTotal)")
-        .font(.system(size: 9, weight: .medium, design: .monospaced))
-        .foregroundStyle(.secondary)
-        .frame(minWidth: 34)
+        .font(.system(size: DT.font.caption, weight: .medium, design: .monospaced))
+        .foregroundStyle(DT.secondary)
+        .frame(minWidth: DT.spacing.s32)
 
       SearchIconButton(
-        title: "上一个匹配",
+        title: L10n.previousMatch,
         systemImage: "chevron.up",
         disabled: workspace.searchTotal == 0,
         action: workspace.previousSearchResult
       )
       SearchIconButton(
-        title: "下一个匹配",
+        title: L10n.nextMatch,
         systemImage: "chevron.down",
         disabled: workspace.searchTotal == 0,
         action: workspace.nextSearchResult
       )
       SearchIconButton(
-        title: "关闭搜索",
+        title: L10n.closeSearch,
         systemImage: "xmark",
         action: workspace.closeSearch
       )
     }
-    .padding(.horizontal, 10)
-    .frame(height: 38)
+    .padding(.horizontal, DT.spacing.s8)
+    .frame(height: DT.spacing.s40)
   }
 }
 
@@ -573,7 +561,7 @@ private struct NativeSearchGlassModifier: ViewModifier {
     } else {
       content
         .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.primary.opacity(0.13), lineWidth: 1))
+        .overlay(Capsule().stroke(DT.text.opacity(DT.motion.border), lineWidth: DT.layout.stroke))
     }
   }
 }
@@ -587,8 +575,8 @@ private struct SearchIconButton: View {
   var body: some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .font(.system(size: 12, weight: .medium))
-        .frame(width: 24, height: 24)
+        .font(.system(size: DT.font.caption, weight: .medium))
+        .frame(width: DT.spacing.s24, height: DT.spacing.s24)
         .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
@@ -629,13 +617,13 @@ private struct PairingView: View {
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    VStack(spacing: 14) {
-      Text("连接平板")
-        .font(.title2.weight(.bold))
-      Text("选择连接方式后，Mac 会持续搜索并自动切换。")
-        .foregroundStyle(.secondary)
+    VStack(spacing: DT.spacing.s16) {
+      Text(L10n.connectTablet)
+        .font(.system(size: DT.font.section).weight(.bold))
+      Text(L10n.chooseConnection)
+        .foregroundStyle(DT.secondary)
 
-      Picker("连接方式", selection: $usbRelay.preference) {
+      Picker(L10n.connectionMethod, selection: $usbRelay.preference) {
         ForEach(ConnectionPreference.allCases) { option in
           Text(option.title).tag(option)
         }
@@ -644,51 +632,51 @@ private struct PairingView: View {
       .labelsHidden()
 
       if usbRelay.preference == .usb {
-        VStack(spacing: 12) {
+        VStack(spacing: DT.spacing.s12) {
           Image(systemName: usbRelay.isReady ? "cable.connector" : "cable.connector.slash")
-            .font(.system(size: 64, weight: .light))
-            .foregroundStyle(usbRelay.isReady ? Color.green : Color.secondary)
+            .font(.system(size: DT.font.title, weight: .light))
+            .foregroundStyle(usbRelay.isReady ? DT.success : DT.secondary)
           Text(usbRelay.usbStatus)
-            .font(.headline)
-          Text("使用数据线连接并解锁平板，LinkDesk会自动建立低延时通道。")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(.system(size: DT.font.label))
+          Text(L10n.usbHint)
+            .font(.system(size: DT.font.caption))
+            .foregroundStyle(DT.secondary)
             .multilineTextAlignment(.center)
         }
-        .frame(height: 220)
+        .frame(height: DT.dimensions.d220)
       } else {
         Image(nsImage: qrImage(for: link))
           .interpolation(.none)
           .resizable()
           .scaledToFit()
-          .frame(width: 220, height: 220)
-        Text("首次连接可扫码；已安装的平板客户端会自动加入房间。")
-          .font(.caption)
-          .foregroundStyle(.secondary)
+          .frame(width: DT.dimensions.d220, height: DT.dimensions.d220)
+        Text(L10n.scanHint)
+          .font(.system(size: DT.font.caption))
+          .foregroundStyle(DT.secondary)
       }
 
-      Text("房间 \(room)").font(.system(.body, design: .monospaced).weight(.semibold))
+      Text(L10n.format("pairingCodeValue", room)).font(.system(size: DT.font.body, design: .monospaced).weight(.semibold))
       if !usbRelay.discoveredDevices.isEmpty {
-        VStack(alignment: .leading, spacing: 6) {
-          Text("已发现设备").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: DT.spacing.s8) {
+          Text(L10n.discoveredDevices).font(.system(size: DT.font.caption).weight(.semibold)).foregroundStyle(DT.secondary)
           ForEach(usbRelay.discoveredDevices) { device in
             Label(device.displayName, systemImage: device.transport == .usb ? "cable.connector" : "wifi")
-              .font(.caption)
+              .font(.system(size: DT.font.caption))
               .foregroundStyle(device.isConnected ? .primary : .secondary)
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+        .padding(DT.spacing.s8)
+        .background(DT.text.opacity(DT.motion.subtle), in: RoundedRectangle(cornerRadius: DT.radius.small))
       }
-      Text(usbRelay.status).font(.caption).foregroundStyle(.secondary)
+      Text(usbRelay.status).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
       if usbRelay.preference != .usb {
-        Text(link).font(.caption2).textSelection(.enabled).multilineTextAlignment(.center)
+        Text(link).font(.system(size: DT.font.caption)).textSelection(.enabled).multilineTextAlignment(.center)
       }
-      Button("完成") { dismiss() }
+      Button(L10n.done) { dismiss() }
     }
-    .padding(28)
-    .frame(width: 420)
+    .padding(DT.spacing.s28)
+    .frame(width: DT.dimensions.d420)
   }
 
   private func qrImage(for text: String) -> NSImage {

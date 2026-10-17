@@ -16,7 +16,7 @@ final class InkBridgeAppDelegate: NSObject, NSApplicationDelegate {
   }
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     NSApp.setActivationPolicy(.regular)
-    if !flag { NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "LinkDesk" })?.makeKeyAndOrderFront(nil) }
+    if !flag { NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == L10n.productName })?.makeKeyAndOrderFront(nil) }
     return true
   }
 
@@ -52,10 +52,10 @@ struct MacPDFAnnotatorApp: App {
   }
 
   var body: some Scene {
-    Window("LinkDesk", id: "main") {
+    Window(L10n.productName, id: "main") {
       LinkDeskWorkspaceView()
         .environmentObject(workspace)
-        .frame(minWidth: 1000, minHeight: 680)
+        .frame(minWidth: DT.dimensions.d1000, minHeight: DT.dimensions.d680)
         .onAppear { workspace.start() }
         .onOpenURL { url in
           if url.isFileURL && url.pathExtension.lowercased() == "pdf" { workspace.openPDF(at: url) }
@@ -64,11 +64,11 @@ struct MacPDFAnnotatorApp: App {
     .windowToolbarStyle(.unified(showsTitle: false))
     .commands {
       CommandGroup(replacing: .newItem) {
-        Button("打开 PDF…", action: workspace.openPDF)
+        Button(L10n.openPDF, action: workspace.openPDF)
           .keyboardShortcut("o", modifiers: .command)
-        Menu("最近使用") {
+        Menu(L10n.recentFiles) {
           if workspace.recentPDFs.isEmpty {
-            Button("暂无历史记录") {}
+            Button(L10n.recentEmpty) {}
               .disabled(true)
           } else {
             ForEach(workspace.recentPDFs) { recent in
@@ -77,50 +77,50 @@ struct MacPDFAnnotatorApp: App {
           }
         }
         Divider()
-        Button("发送 PDF 到平板批注…", action: workspace.startPDFRoundTrip)
+        Button(L10n.sendPDF, action: workspace.startPDFRoundTrip)
       }
 
       CommandGroup(replacing: .saveItem) {
-        Button("另存为 PDF…", action: workspace.saveAs)
+        Button(L10n.savePDF, action: workspace.saveAs)
           .keyboardShortcut("s", modifiers: [.command, .shift])
           .disabled(!workspace.hasDocument)
       }
 
       CommandGroup(replacing: .undoRedo) {
-        Button("撤销", action: workspace.undo)
+        Button(L10n.undo, action: workspace.undo)
           .keyboardShortcut("z", modifiers: .command)
           .disabled(!workspace.canUndo)
-        Button("重做", action: workspace.redo)
+        Button(L10n.redo, action: workspace.redo)
           .keyboardShortcut("z", modifiers: [.command, .shift])
           .disabled(!workspace.canRedo)
       }
 
       CommandGroup(after: .pasteboard) {
         Divider()
-        Button("搜索 PDF…", action: workspace.presentSearch)
+        Button(L10n.searchMenu, action: workspace.presentSearch)
           .keyboardShortcut("f", modifiers: .command)
           .disabled(workspace.mode != .pdf || !workspace.hasDocument)
       }
 
       CommandGroup(after: .toolbar) {
         Divider()
-        Button("放大", action: workspace.zoomIn)
+        Button(L10n.zoomIn, action: workspace.zoomIn)
           .keyboardShortcut("+", modifiers: .command)
           .disabled(workspace.mode == .pdf && !workspace.hasDocument)
-        Button("缩小", action: workspace.zoomOut)
+        Button(L10n.zoomOut, action: workspace.zoomOut)
           .keyboardShortcut("-", modifiers: .command)
           .disabled(workspace.mode == .pdf && !workspace.hasDocument)
-        Button(workspace.mode == .whiteboard ? "回到白板原点" : "适合窗口", action: workspace.zoomToFit)
+        Button(workspace.mode == .whiteboard ? L10n.whiteboardOrigin : L10n.fitWindow, action: workspace.zoomToFit)
           .keyboardShortcut("0", modifiers: .command)
           .disabled(workspace.mode == .pdf && !workspace.hasDocument)
         Divider()
-        Button(workspace.isToolbarCollapsed ? "展开顶部栏" : "收起顶部栏") {
+        Button(workspace.isToolbarCollapsed ? L10n.expandTools : L10n.collapseTools) {
           workspace.isToolbarCollapsed.toggle()
         }
       }
 
-      CommandMenu("连接") {
-        Button("连接平板…") { workspace.isShowingPairing = true }
+      CommandMenu(L10n.connect) {
+        Button(L10n.connectTablet) { workspace.isShowingPairing = true }
         Divider()
         ForEach(ConnectionPreference.allCases) { preference in
           Button {
@@ -134,7 +134,7 @@ struct MacPDFAnnotatorApp: App {
           }
         }
         Divider()
-        Button(workspace.tabletMirror.isReceiving ? "停止平板投屏" : "开始平板投屏") {
+        Button(workspace.tabletMirror.isReceiving ? L10n.stopMirror : L10n.startMirror) {
           workspace.toggleTabletMirror()
         }
         .disabled(!workspace.usbRelay.isReady && !workspace.tabletMirror.isReceiving)

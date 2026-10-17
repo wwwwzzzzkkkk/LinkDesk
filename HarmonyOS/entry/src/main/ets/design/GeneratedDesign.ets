@@ -80,6 +80,15 @@ export class DT {
   static readonly layoutToolbarHeight = 64;
   static readonly layoutFormMaxWidth = 480;
   static readonly layoutStroke = 1;
+  static readonly dimensionsD120 = 120;
+  static readonly dimensionsD112 = 112;
+  static readonly dimensionsD144 = 144;
+  static readonly dimensionsD208 = 208;
+  static readonly dimensionsD220 = 220;
+  static readonly dimensionsD420 = 420;
+  static readonly dimensionsD320 = 320;
+  static readonly dimensionsD1000 = 1000;
+  static readonly dimensionsD680 = 680;
   static readonly durationFeedback: number = 120;
   static readonly durationMenuEnter: number = 240;
   static readonly durationMenuExit: number = 180;
@@ -254,6 +263,34 @@ export class Strings {
       case "receiverStatistics": return english ? "Last-second statistics; static content reduces frame output" : "近 1 秒统计，静止画面会减少出帧";
       case "audioPlaying": return english ? "Playing Mac audio" : "正在播放 Mac 声音";
       case "audioSelectHint": return english ? "Select MatePad Speaker in Mac audio output" : "在 Mac 声音输出中选择 MatePad 扬声器";
+      case "scaleLarger": return english ? "Larger Text" : "更大字体";
+      case "scaleLarge": return english ? "Large" : "较大";
+      case "scaleDefault": return english ? "Default" : "默认";
+      case "scaleMore": return english ? "More Space" : "较多空间";
+      case "scaleMost": return english ? "Most Space" : "更多空间";
+      case "roundTripTitle": return english ? "Huawei Notes Round Trip" : "华为笔记往返";
+      case "roundTripDescription": return english ? "Send a PDF to Huawei Notes, annotate, and share it back to LinkDesk." : "发送 PDF 到华为笔记，批注后通过分享菜单回传 LinkDesk。";
+      case "sendToNotes": return english ? "Send PDF to Huawei Notes…" : "发送 PDF 到华为笔记…";
+      case "searchHelp": return english ? "Search PDF text (⌘F)" : "搜索 PDF 文字（⌘F）";
+      case "searchUnavailable": return english ? "Open a PDF to search text" : "打开 PDF 后可搜索文字";
+      case "modePicker": return english ? "Workspace Mode" : "工作区模式";
+      case "modePickerHelp": return english ? "Switch between PDF Annotation and Live Whiteboard" : "在 PDF 批注与实时白板之间切换";
+      case "cancelTransfer": return english ? "Cancel PDF Transfer" : "取消 PDF 传送";
+      case "retryTransfer": return english ? "Resend PDF" : "重新发送 PDF";
+      case "switching": return english ? "Switching" : "切换中";
+      case "connected": return english ? "Connected" : "已连接";
+      case "chooseConnection": return english ? "Choose a connection; your Mac will keep searching and switch automatically." : "选择连接方式后，Mac 会持续搜索并自动切换。";
+      case "scanHint": return english ? "Scan to pair for the first time; paired tablets reconnect automatically." : "首次连接可扫码；已安装的平板客户端会自动加入房间。";
+      case "discoveredDevices": return english ? "Discovered Devices" : "已发现设备";
+      case "recentEmpty": return english ? "No Recent Files" : "暂无历史记录";
+      case "sendPDF": return english ? "Send PDF to Tablet…" : "发送 PDF 到平板批注…";
+      case "savePDF": return english ? "Save PDF As…" : "另存为 PDF…";
+      case "searchMenu": return english ? "Search PDF…" : "搜索 PDF…";
+      case "zoomIn": return english ? "Zoom In" : "放大";
+      case "zoomOut": return english ? "Zoom Out" : "缩小";
+      case "whiteboardOrigin": return english ? "Return to Canvas Origin" : "回到白板原点";
+      case "fitWindow": return english ? "Fit to Window" : "适合窗口";
+      case "productInitial": return english ? "L" : "L";
       default: return key;
     }
   }
@@ -392,6 +429,34 @@ export class Strings {
   static get receiverStatistics(): string { return Strings.value("receiverStatistics"); }
   static get audioPlaying(): string { return Strings.value("audioPlaying"); }
   static get audioSelectHint(): string { return Strings.value("audioSelectHint"); }
+  static get scaleLarger(): string { return Strings.value("scaleLarger"); }
+  static get scaleLarge(): string { return Strings.value("scaleLarge"); }
+  static get scaleDefault(): string { return Strings.value("scaleDefault"); }
+  static get scaleMore(): string { return Strings.value("scaleMore"); }
+  static get scaleMost(): string { return Strings.value("scaleMost"); }
+  static get roundTripTitle(): string { return Strings.value("roundTripTitle"); }
+  static get roundTripDescription(): string { return Strings.value("roundTripDescription"); }
+  static get sendToNotes(): string { return Strings.value("sendToNotes"); }
+  static get searchHelp(): string { return Strings.value("searchHelp"); }
+  static get searchUnavailable(): string { return Strings.value("searchUnavailable"); }
+  static get modePicker(): string { return Strings.value("modePicker"); }
+  static get modePickerHelp(): string { return Strings.value("modePickerHelp"); }
+  static get cancelTransfer(): string { return Strings.value("cancelTransfer"); }
+  static get retryTransfer(): string { return Strings.value("retryTransfer"); }
+  static get switching(): string { return Strings.value("switching"); }
+  static get connected(): string { return Strings.value("connected"); }
+  static get chooseConnection(): string { return Strings.value("chooseConnection"); }
+  static get scanHint(): string { return Strings.value("scanHint"); }
+  static get discoveredDevices(): string { return Strings.value("discoveredDevices"); }
+  static get recentEmpty(): string { return Strings.value("recentEmpty"); }
+  static get sendPDF(): string { return Strings.value("sendPDF"); }
+  static get savePDF(): string { return Strings.value("savePDF"); }
+  static get searchMenu(): string { return Strings.value("searchMenu"); }
+  static get zoomIn(): string { return Strings.value("zoomIn"); }
+  static get zoomOut(): string { return Strings.value("zoomOut"); }
+  static get whiteboardOrigin(): string { return Strings.value("whiteboardOrigin"); }
+  static get fitWindow(): string { return Strings.value("fitWindow"); }
+  static get productInitial(): string { return Strings.value("productInitial"); }
 }
 
 export enum ConnectionState {

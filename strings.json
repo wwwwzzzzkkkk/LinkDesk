@@ -541,6 +541,118 @@
     "audioSelectHint": {
       "zh-Hans": "在 Mac 声音输出中选择 MatePad 扬声器",
       "en": "Select MatePad Speaker in Mac audio output"
+    },
+    "scaleLarger": {
+      "zh-Hans": "更大字体",
+      "en": "Larger Text"
+    },
+    "scaleLarge": {
+      "zh-Hans": "较大",
+      "en": "Large"
+    },
+    "scaleDefault": {
+      "zh-Hans": "默认",
+      "en": "Default"
+    },
+    "scaleMore": {
+      "zh-Hans": "较多空间",
+      "en": "More Space"
+    },
+    "scaleMost": {
+      "zh-Hans": "更多空间",
+      "en": "Most Space"
+    },
+    "roundTripTitle": {
+      "zh-Hans": "华为笔记往返",
+      "en": "Huawei Notes Round Trip"
+    },
+    "roundTripDescription": {
+      "zh-Hans": "发送 PDF 到华为笔记，批注后通过分享菜单回传 LinkDesk。",
+      "en": "Send a PDF to Huawei Notes, annotate, and share it back to LinkDesk."
+    },
+    "sendToNotes": {
+      "zh-Hans": "发送 PDF 到华为笔记…",
+      "en": "Send PDF to Huawei Notes…"
+    },
+    "searchHelp": {
+      "zh-Hans": "搜索 PDF 文字（⌘F）",
+      "en": "Search PDF text (⌘F)"
+    },
+    "searchUnavailable": {
+      "zh-Hans": "打开 PDF 后可搜索文字",
+      "en": "Open a PDF to search text"
+    },
+    "modePicker": {
+      "zh-Hans": "工作区模式",
+      "en": "Workspace Mode"
+    },
+    "modePickerHelp": {
+      "zh-Hans": "在 PDF 批注与实时白板之间切换",
+      "en": "Switch between PDF Annotation and Live Whiteboard"
+    },
+    "cancelTransfer": {
+      "zh-Hans": "取消 PDF 传送",
+      "en": "Cancel PDF Transfer"
+    },
+    "retryTransfer": {
+      "zh-Hans": "重新发送 PDF",
+      "en": "Resend PDF"
+    },
+    "switching": {
+      "zh-Hans": "切换中",
+      "en": "Switching"
+    },
+    "connected": {
+      "zh-Hans": "已连接",
+      "en": "Connected"
+    },
+    "chooseConnection": {
+      "zh-Hans": "选择连接方式后，Mac 会持续搜索并自动切换。",
+      "en": "Choose a connection; your Mac will keep searching and switch automatically."
+    },
+    "scanHint": {
+      "zh-Hans": "首次连接可扫码；已安装的平板客户端会自动加入房间。",
+      "en": "Scan to pair for the first time; paired tablets reconnect automatically."
+    },
+    "discoveredDevices": {
+      "zh-Hans": "已发现设备",
+      "en": "Discovered Devices"
+    },
+    "recentEmpty": {
+      "zh-Hans": "暂无历史记录",
+      "en": "No Recent Files"
+    },
+    "sendPDF": {
+      "zh-Hans": "发送 PDF 到平板批注…",
+      "en": "Send PDF to Tablet…"
+    },
+    "savePDF": {
+      "zh-Hans": "另存为 PDF…",
+      "en": "Save PDF As…"
+    },
+    "searchMenu": {
+      "zh-Hans": "搜索 PDF…",
+      "en": "Search PDF…"
+    },
+    "zoomIn": {
+      "zh-Hans": "放大",
+      "en": "Zoom In"
+    },
+    "zoomOut": {
+      "zh-Hans": "缩小",
+      "en": "Zoom Out"
+    },
+    "whiteboardOrigin": {
+      "zh-Hans": "回到白板原点",
+      "en": "Return to Canvas Origin"
+    },
+    "fitWindow": {
+      "zh-Hans": "适合窗口",
+      "en": "Fit to Window"
+    },
+    "productInitial": {
+      "zh-Hans": "L",
+      "en": "L"
     }
   }
 }

@@ -4,7 +4,7 @@ import SwiftUI
 enum ThemePreference: String, CaseIterable, Identifiable, Codable {
   case automatic, light, dark
   var id: String { rawValue }
-  var title: String { switch self { case .automatic: "跟随系统"; case .light: "浅色"; case .dark: "深色" } }
+  var title: String { switch self { case .automatic: L10n.themeAutomatic; case .light: L10n.themeLight; case .dark: L10n.themeDark } }
 }
 private struct SharedTheme: Codable {
   var preference: ThemePreference

@@ -97,6 +97,17 @@ enum DT {
     static let formMaxWidth: CGFloat = 480
     static let stroke: CGFloat = 1
   }
+  enum dimensions {
+    static let d120: CGFloat = 120
+    static let d112: CGFloat = 112
+    static let d144: CGFloat = 144
+    static let d208: CGFloat = 208
+    static let d220: CGFloat = 220
+    static let d420: CGFloat = 420
+    static let d320: CGFloat = 320
+    static let d1000: CGFloat = 1000
+    static let d680: CGFloat = 680
+  }
   enum motion {
     static let feedback: Double = 0.12
     static let menuEnter: Double = 0.24
@@ -133,7 +144,7 @@ enum DT {
 }
 
 enum L10n {
-  static var language = Locale.preferredLanguages.first ?? "zh-Hans"
+  static let language = Locale.preferredLanguages.first ?? "zh-Hans"
   static func format(_ key: String, _ args: CustomStringConvertible...) -> String {
     var result = value(key)
     for (i, arg) in args.enumerated() { result = result.replacingOccurrences(of: "{\(i)}", with: arg.description) }
@@ -277,6 +288,34 @@ enum L10n {
     case "receiverStatistics": return english ? "Last-second statistics; static content reduces frame output" : "近 1 秒统计，静止画面会减少出帧"
     case "audioPlaying": return english ? "Playing Mac audio" : "正在播放 Mac 声音"
     case "audioSelectHint": return english ? "Select MatePad Speaker in Mac audio output" : "在 Mac 声音输出中选择 MatePad 扬声器"
+    case "scaleLarger": return english ? "Larger Text" : "更大字体"
+    case "scaleLarge": return english ? "Large" : "较大"
+    case "scaleDefault": return english ? "Default" : "默认"
+    case "scaleMore": return english ? "More Space" : "较多空间"
+    case "scaleMost": return english ? "Most Space" : "更多空间"
+    case "roundTripTitle": return english ? "Huawei Notes Round Trip" : "华为笔记往返"
+    case "roundTripDescription": return english ? "Send a PDF to Huawei Notes, annotate, and share it back to LinkDesk." : "发送 PDF 到华为笔记，批注后通过分享菜单回传 LinkDesk。"
+    case "sendToNotes": return english ? "Send PDF to Huawei Notes…" : "发送 PDF 到华为笔记…"
+    case "searchHelp": return english ? "Search PDF text (⌘F)" : "搜索 PDF 文字（⌘F）"
+    case "searchUnavailable": return english ? "Open a PDF to search text" : "打开 PDF 后可搜索文字"
+    case "modePicker": return english ? "Workspace Mode" : "工作区模式"
+    case "modePickerHelp": return english ? "Switch between PDF Annotation and Live Whiteboard" : "在 PDF 批注与实时白板之间切换"
+    case "cancelTransfer": return english ? "Cancel PDF Transfer" : "取消 PDF 传送"
+    case "retryTransfer": return english ? "Resend PDF" : "重新发送 PDF"
+    case "switching": return english ? "Switching" : "切换中"
+    case "connected": return english ? "Connected" : "已连接"
+    case "chooseConnection": return english ? "Choose a connection; your Mac will keep searching and switch automatically." : "选择连接方式后，Mac 会持续搜索并自动切换。"
+    case "scanHint": return english ? "Scan to pair for the first time; paired tablets reconnect automatically." : "首次连接可扫码；已安装的平板客户端会自动加入房间。"
+    case "discoveredDevices": return english ? "Discovered Devices" : "已发现设备"
+    case "recentEmpty": return english ? "No Recent Files" : "暂无历史记录"
+    case "sendPDF": return english ? "Send PDF to Tablet…" : "发送 PDF 到平板批注…"
+    case "savePDF": return english ? "Save PDF As…" : "另存为 PDF…"
+    case "searchMenu": return english ? "Search PDF…" : "搜索 PDF…"
+    case "zoomIn": return english ? "Zoom In" : "放大"
+    case "zoomOut": return english ? "Zoom Out" : "缩小"
+    case "whiteboardOrigin": return english ? "Return to Canvas Origin" : "回到白板原点"
+    case "fitWindow": return english ? "Fit to Window" : "适合窗口"
+    case "productInitial": return english ? "L" : "L"
     default: return key
     }
   }
@@ -415,6 +454,34 @@ enum L10n {
   static var receiverStatistics: String { value("receiverStatistics") }
   static var audioPlaying: String { value("audioPlaying") }
   static var audioSelectHint: String { value("audioSelectHint") }
+  static var scaleLarger: String { value("scaleLarger") }
+  static var scaleLarge: String { value("scaleLarge") }
+  static var scaleDefault: String { value("scaleDefault") }
+  static var scaleMore: String { value("scaleMore") }
+  static var scaleMost: String { value("scaleMost") }
+  static var roundTripTitle: String { value("roundTripTitle") }
+  static var roundTripDescription: String { value("roundTripDescription") }
+  static var sendToNotes: String { value("sendToNotes") }
+  static var searchHelp: String { value("searchHelp") }
+  static var searchUnavailable: String { value("searchUnavailable") }
+  static var modePicker: String { value("modePicker") }
+  static var modePickerHelp: String { value("modePickerHelp") }
+  static var cancelTransfer: String { value("cancelTransfer") }
+  static var retryTransfer: String { value("retryTransfer") }
+  static var switching: String { value("switching") }
+  static var connected: String { value("connected") }
+  static var chooseConnection: String { value("chooseConnection") }
+  static var scanHint: String { value("scanHint") }
+  static var discoveredDevices: String { value("discoveredDevices") }
+  static var recentEmpty: String { value("recentEmpty") }
+  static var sendPDF: String { value("sendPDF") }
+  static var savePDF: String { value("savePDF") }
+  static var searchMenu: String { value("searchMenu") }
+  static var zoomIn: String { value("zoomIn") }
+  static var zoomOut: String { value("zoomOut") }
+  static var whiteboardOrigin: String { value("whiteboardOrigin") }
+  static var fitWindow: String { value("fitWindow") }
+  static var productInitial: String { value("productInitial") }
 }
 
 enum ConnectionState: String, CaseIterable {

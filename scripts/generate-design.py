@@ -30,7 +30,7 @@ def generate(tokens, catalog):
         dark = tokens['colors']['dark'][role]
         swift.append(f'  static var {role}: Color {{ color({q(light)}, {q(dark)}) }}')
         ark.append(f'  static {role}(dark: boolean): string {{ return dark ? {q(dark)} : {q(light)}; }}')
-    for category in ('typography', 'spacing', 'radius', 'layout'):
+    for category in ('typography', 'spacing', 'radius', 'layout', 'dimensions'):
         name = 'font' if category == 'typography' else category
         swift.append(f'  enum {name} {{')
         for key, value in tokens[category].items():
@@ -60,7 +60,7 @@ def generate(tokens, catalog):
         ark.append(f'  static readonly ink{key[0].upper()+key[1:]}: string = {q(value)};')
     swift += ['  }', '}']
     ark += ['}']
-    swift += ['', 'enum L10n {', '  static var language = Locale.preferredLanguages.first ?? "zh-Hans"',
+    swift += ['', 'enum L10n {', '  static let language = Locale.preferredLanguages.first ?? "zh-Hans"',
               '  static func format(_ key: String, _ args: CustomStringConvertible...) -> String {',
               '    var result = value(key)', '    for (i, arg) in args.enumerated() { result = result.replacingOccurrences(of: "{\\(i)}", with: arg.description) }',
               '    return result', '  }', '  static func value(_ key: String) -> String {', '    let english = language.hasPrefix("en")', '    switch key {']

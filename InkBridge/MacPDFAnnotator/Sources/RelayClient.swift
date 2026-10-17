@@ -4,7 +4,8 @@ import Foundation
 @MainActor
 final class RelayClient: ObservableObject {
   @Published private(set) var status = "未连接"
-  @Published private(set) var isConnected = false
+  @Published private(set) var isConnected = false { didSet { if !isConnected { peerCount = 0 } } }
+  @Published private(set) var peerCount = 0
   @Published private(set) var documentStatus = ""
   @Published private(set) var documentProgress: Double?
   @Published private(set) var isDocumentTransferActive = false
@@ -458,6 +459,7 @@ final class RelayClient: ObservableObject {
       lastRevision = revision
     }
 
+    if message.type == "presence", let count = message.count { peerCount = count }
     if message.type == "ack" {
       if let id = message.ackMessageId { pendingAcks.removeValue(forKey: id) }
       return

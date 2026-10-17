@@ -9,9 +9,9 @@ enum ConnectionPreference: String, CaseIterable, Identifiable, Sendable {
   var id: String { rawValue }
   var title: String {
     switch self {
-    case .automatic: return "自动"
-    case .wifi: return "Wi-Fi"
-    case .usb: return "USB"
+    case .automatic: return L10n.automatic
+    case .wifi: return L10n.transportWireless
+    case .usb: return L10n.transportUSB
     }
   }
 }
