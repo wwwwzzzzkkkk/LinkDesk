@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.zhekuan.linkdesk",
     "vendor": "zhekuan",
-    "versionCode": 60004,
-    "versionName": "0.6.4",
+    "versionCode": 70000,
+    "versionName": "0.7.0",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }

@@ -7,9 +7,14 @@ permissions:
   contents: read
 jobs:
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Relay and drawing regressions
+        run: cd InkBridge && npm ci --ignore-scripts && npm test
       - name: Validate versions and scripts
         run: |
           for script in scripts/*.sh; do bash -n "$script"; done

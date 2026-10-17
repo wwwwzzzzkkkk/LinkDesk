@@ -18,3 +18,7 @@ dist/
 **/.idea/
 **/.cxx/
 **/.clangd
+
+.build/
+.swiftpm/
+**/oh-package-lock.json5

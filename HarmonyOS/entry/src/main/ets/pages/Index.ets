@@ -1,189 +1,103 @@
-import abilityAccessCtrl from '@ohos.abilityAccessCtrl';
-import common from '@ohos.app.ability.common';
-import linkdesk from 'liblinkdesk.so';
-import systemDateTime from '@ohos.systemDateTime';
-import { DisplayContext } from '../DisplayContext';
-
-interface ReceiverStats {
-  microphoneState: number;
-  hostRequestState: number;
-  audioState: number;
-  audioFrames: number;
-  state: number;
-  frames: number;
-  bytes: number;
-  error: number;
-  width: number;
-  height: number;
-  targetFPS: number;
-  vsyncHz: number;
-  latestMode: boolean;
-  timedSupported: boolean;
-  timedSubmissions: number;
-  receiveSubmitUs: number;
-  decodeUs: number;
-  submitUs: number;
-}
-
-interface FrameSample {
-  timeMs: number;
-  frames: number;
-}
+import { LinkDeskTheme } from '../LinkDeskTheme';
+import { InkWorkspace } from './InkWorkspace';
+import { DesktopReceiver } from './DesktopReceiver';
 
 @Entry
 @Component
 struct Index {
-  @State private microphoneAllowed: boolean = false;
-  @State private microphoneState: number = 0;
-  @State private microphoneMessage: string = '平板麦克风：关闭';
-  private surface: XComponentController = new XComponentController();
-  private timer: number = -1;
-  @State private state: number = 1;
-  @State private hostRequestState: number = 0;
-  private frameSamples: FrameSample[] = [];
-  @State private realtimeFPS: number = 0;
-  @State private error: number = 0;
-  @State private streamWidth: number = 2880;
-  @State private streamHeight: number = 1920;
-  @State private targetFPS: number = 60;
-  @State private controlsVisible: boolean = false;
-  @State private latestMode: boolean = true;
-  @State private timedSupported: boolean = true;
-  @State private audioState: number = 0;
-  @State private processMs: number = 0;
-  @State private displayWidth: number = 960;
-  @State private displayHeight: number = 640;
+  @StorageLink('LinkDeskDark') darkMode: boolean = false;
+  @StorageLink('LinkDeskThemePreference') themePreference: string = 'automatic';
+  @StorageLink('LinkDeskDestination') destination: string = 'home';
+  @State private requestedMode: string = 'pdf';
+  @State private activation: number = 0;
+  @State private compact: boolean = false;
 
-  private updateFPS(info: ReceiverStats): void {
-    const now = systemDateTime.getUptime(systemDateTime.TimeType.STARTUP, false);
-    if (info.state !== 3) {
-      this.frameSamples = [];
-      this.realtimeFPS = 0;
-      return;
-    }
-    if (this.frameSamples.length > 0) {
-      const last = this.frameSamples[this.frameSamples.length - 1];
-      if (info.frames < last.frames || now <= last.timeMs || now - last.timeMs > 2000) {
-        this.frameSamples = [];
-      }
-    }
-    this.frameSamples.push({ timeMs: now, frames: info.frames });
-    if (this.frameSamples.length > 3) this.frameSamples.shift();
-    const first = this.frameSamples[0];
-    const elapsed = now - first.timeMs;
-    this.realtimeFPS = elapsed > 0 ? Math.max(0, (info.frames - first.frames) * 1000 / elapsed) : 0;
+  private open(mode: string): void {
+    this.requestedMode = mode;
+    this.activation += 1;
+    this.destination = mode === 'display' ? 'display' : 'ink';
   }
 
-  private connect(): void {
-    this.frameSamples = [];
-    this.realtimeFPS = 0;
-    linkdesk.setLatestMode(this.latestMode);
-    linkdesk.start(this.surface.getXComponentSurfaceId(), DisplayContext.windowId);
-    if(this.microphoneAllowed) linkdesk.setMicrophoneEnabled(true);
-    if (this.timer >= 0) clearInterval(this.timer);
-    this.timer = setInterval(() => {
-      const info = JSON.parse(linkdesk.stats()) as ReceiverStats;
-      this.state = info.state;
-      this.hostRequestState = info.hostRequestState;
-      this.audioState = info.audioState;
-      this.microphoneState = info.microphoneState;
-      if(this.microphoneAllowed&&!DisplayContext.microphoneAllowed){this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;this.microphoneMessage='返回应用后请重新允许麦克风';}
-      this.updateFPS(info);
-      this.error = info.error;
-      this.streamWidth = info.width;
-      this.streamHeight = info.height;
-      this.targetFPS = info.targetFPS;
-      this.latestMode = info.latestMode;
-      this.timedSupported = info.timedSupported;
-      this.processMs = info.receiveSubmitUs / 1000;
-    }, 500);
+  @Builder workspaceCard(title: string, description: string, mark: Resource, mode: string, accent: string) {
+    Button({ type: ButtonType.Normal }) {
+      Column({ space: 13 }) {
+        Row() {
+          Stack() { Image(mark).width(26).height(26).objectFit(ImageFit.Contain) }
+            .width(46).height(46).backgroundColor((this.darkMode ? '#20314D' : '#F0F5FB')).borderRadius(14)
+          Blank()
+          Text('↗').fontSize(20).fontColor('#9CAABF')
+        }.width('100%')
+        Text(title).fontSize(21).fontWeight(FontWeight.Medium).fontColor((this.darkMode ? '#E8EEF8' : '#152441')).width('100%')
+        Text(description).fontSize(13).fontColor((this.darkMode ? '#96A6BE' : '#728096')).lineHeight(20).width('100%')
+      }.alignItems(HorizontalAlign.Start).padding(24).width('100%')
+    }.width('100%').height(185).backgroundColor((this.darkMode ? '#182337' : '#FFFFFF')).borderRadius(22)
+      .border({ width: 1, color: (this.darkMode ? '#2B3B55' : '#E5EBF3'), radius: 22 }).clip(true)
+      .onClick(() => this.open(mode)).accessibilityText(title + '，' + description)
   }
 
-  private async toggleMicrophone(): Promise<void> {
-    if(this.microphoneAllowed){linkdesk.setMicrophoneEnabled(false);this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;this.microphoneMessage='平板麦克风：关闭';return;}
-    try {
-      const manager=abilityAccessCtrl.createAtManager();
-      const result=await manager.requestPermissionsFromUser(getContext(this) as common.UIAbilityContext,['ohos.permission.MICROPHONE']);
-      if(result.authResults.length>0 && result.authResults[0]===0){
-        linkdesk.setMicrophoneEnabled(true);this.microphoneAllowed=true;DisplayContext.microphoneAllowed=true;this.microphoneMessage='请在 Mac 连屏中开启平板麦克风';
-      }else this.microphoneMessage='未允许麦克风，可在设置中重新授权';
-    }catch(_error){this.microphoneMessage='无法开启麦克风，请检查权限';}
+  @Builder home() {
+    Scroll() {
+      Column({ space: 26 }) {
+        Row({ space: 12 }) {
+          Image($r('app.media.app_icon')).width(43).height(43).borderRadius(12)
+          Column({ space: 3 }) {
+            Text('LinkDesk').fontSize(24).fontWeight(FontWeight.Bold).fontColor((this.darkMode ? '#E8EEF8' : '#152441'))
+            Text('你的跨屏工作空间').fontSize(12).fontColor((this.darkMode ? '#96A6BE' : '#728096'))
+          }.alignItems(HorizontalAlign.Start)
+          Blank()
+          this.themeControl()
+        }.width('100%')
+
+        Column({ space: 14 }) {
+          Text('让灵感，在屏幕间流动。').fontSize(this.compact ? 29 : 37)
+            .fontWeight(FontWeight.Bold).fontColor((this.darkMode ? '#E8EEF8' : '#152441')).width('100%')
+          Text('扩展桌面，随手批注，或一起构思。\n选择一个工作空间，开始你的跨屏协作。')
+            .fontSize(15).fontColor((this.darkMode ? '#A5B4CA' : '#64758D')).lineHeight(25).width('100%')
+          Row({ space: 8 }) {
+            Text('USB 高清连接').fontSize(11).fontColor('#326FB7')
+              .padding({ left: 11, right: 11, top: 6, bottom: 6 }).backgroundColor('#E3EFFC').borderRadius(12)
+            Text('Wi-Fi 自由书写').fontSize(11).fontColor('#288C79')
+              .padding({ left: 11, right: 11, top: 6, bottom: 6 }).backgroundColor('#DFF3ED').borderRadius(12)
+          }.width('100%').margin({ top: 4 })
+        }.padding(30).width('100%').alignItems(HorizontalAlign.Start).borderRadius(24)
+          .linearGradient({ angle: 125, colors: [[(this.darkMode ? '#1B2D49' : '#E9F1FE'), 0], [(this.darkMode ? '#163C3A' : '#E6F4EF'), 1]] })
+
+        GridRow({ columns: this.compact ? 1 : 2, gutter: 16 }) {
+          GridCol() { this.workspaceCard('扩展屏幕', '把平板变成 Mac 的第二块屏幕，也能连接扬声器和麦克风。', $r('app.media.workspace_display'), 'display', '#4F8FF7') }
+          GridCol() { this.workspaceCard('PDF 批注', '用手写笔阅读与批注，两端同步，也能发送到华为笔记。', $r('app.media.workspace_pdf'), 'pdf', '#4F8FF7') }
+          GridCol() { this.workspaceCard('实时白板', '无限画布，压感书写。让每一个想法都有展开的空间。', $r('app.media.workspace_whiteboard'), 'whiteboard', '#2EAA8E') }
+          GridCol() { this.workspaceCard('平板投屏', '把平板上的笔记与演示，通过 USB 带到 Mac。', $r('app.media.workspace_mirror'), 'mirror', '#2EAA8E') }
+        }.width('100%')
+        Text('扩展屏幕与投屏使用 USB；PDF 和白板也支持 Wi-Fi。')
+          .fontSize(12).fontColor((this.darkMode ? '#96A6BE' : '#728096')).textAlign(TextAlign.Center).width('100%')
+      }.width('100%').constraintSize({ maxWidth: 1000 }).padding(this.compact ? 22 : 36)
+    }.width('100%').height('100%').backgroundColor((this.darkMode ? '#0E1523' : '#F4F6FA'))
   }
-  @Builder microphoneControl(){
-    Column({space:8}){
-      Button(this.microphoneAllowed ? '关闭平板麦克风' : '允许 Mac 使用平板麦克风')
-        .onClick(()=>{this.toggleMicrophone();})
-      Text(this.microphoneState===2 ? '麦克风正在通过 USB 发送到 Mac' : this.microphoneState===-1 ? '麦克风启动失败，请检查权限' : this.microphoneMessage)
-        .fontSize(12).fontColor('#C6CEE0')
-    }
-  }
-  aboutToDisappear(): void {
-    if (this.timer >= 0) clearInterval(this.timer);
-    this.timer = -1;
-    linkdesk.setMicrophoneEnabled(false);
-    this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;
-    linkdesk.stop();
+
+  @Builder themeControl() {
+    Button(this.themePreference === 'automatic' ? '◐  跟随系统' : this.darkMode ? '☾  深色' : '☼  浅色')
+      .fontSize(12).height(34).fontColor(this.darkMode ? '#C8D5E8' : '#526781')
+      .backgroundColor(this.darkMode ? '#223149' : '#E8EDF5').borderRadius(17)
+      .accessibilityText('切换外观，两端同步')
+      .bindMenu([
+        { value: '跟随 Mac 系统', action: () => LinkDeskTheme.select('automatic') },
+        { value: '浅色', action: () => LinkDeskTheme.select('light') },
+        { value: '深色', action: () => LinkDeskTheme.select('dark') }
+      ])
   }
 
   build() {
-    Stack({ alignContent: Alignment.Center }) {
-      XComponent({ id: 'LinkDeskDisplay', type: XComponentType.SURFACE, controller: this.surface })
-        .width(this.displayWidth)
-        .height(this.displayHeight)
-        .onLoad(() => { this.connect(); })
-        .onDestroy(() => { linkdesk.stop(); })
-      if (this.state !== 3) {
-        Column({ space: 20 }) {
-          Text('连屏 LinkDesk').fontSize(36).fontWeight(FontWeight.Medium).fontColor('#F3F5FB')
-          Text(this.state === 2 ? '正在显示 Mac 桌面' :
-            this.hostRequestState === 3 ? '请先在 Mac 上允许录屏' :
-            this.hostRequestState === 4 ? 'Mac 未响应，请确认电脑仍在运行' :
-            this.hostRequestState === 5 ? '等待 Mac USB 通道，请检查数据线与授权' : '正在连接 Mac 连屏服务')
-            .fontSize(23).fontColor('#E0E7FF')
-          Text('保持数据线连接，打开平板应用即可请求副屏。')
-            .fontSize(17).fontColor('#A4ACC1').textAlign(TextAlign.Center)
-          if (this.error !== 0) {
-            Text('连接已中断，正在重试。诊断码：' + this.error.toString())
-              .fontSize(14).fontColor('#A4ACC1')
-          }
-          this.microphoneControl()
-          Button('重新连接').onClick(() => { this.connect(); })
-            .backgroundColor('#5978F4').fontColor(Color.White).margin({ top: 12 })
-        }.padding(40).borderRadius(28).backgroundColor('#EE111622')
+    Stack() {
+      if (this.destination !== 'display') {
+        // Keep the PDF bridge alive on the home screen for Huawei Notes returns.
+        InkWorkspace({ requestedMode: this.requestedMode, activation: this.activation, onExit: () => { this.destination = 'home'; } })
+          .visibility(this.destination === 'home' ? Visibility.Hidden : Visibility.Visible)
       }
-      if (this.state === 3 && this.controlsVisible) {
-        Column({ space: 10 }) {
-        Row({ space: 20 }) {
-          Text('USB · ' + this.streamWidth.toString() + ' × ' + this.streamHeight.toString() + ' · 实时 ' + this.realtimeFPS.toFixed(0) + ' 帧/秒 · 目标 ' + this.targetFPS.toString() + ' 帧/秒')
-            .fontSize(14).fontColor('#F3F5FB')
-          Button('重新连接').onClick(() => { this.connect(); })
-          Button('隐藏').onClick(() => { this.controlsVisible = false; })
-        }
-        Row({ space: 16 }) {
-          Button(this.latestMode && this.timedSupported ? '低延迟显示：开' : '低延迟显示：关')
-            .enabled(this.timedSupported)
-            .onClick(() => {
-              this.latestMode = !this.latestMode;
-              linkdesk.setLatestMode(this.latestMode);
-            })
-          Text('最近一帧平板处理 ' + this.processMs.toFixed(1) + ' ms')
-            .fontSize(12).fontColor('#C6CEE0')
-        }
-        this.microphoneControl()
-        Text('近 1 秒统计，静止画面会减少出帧').fontSize(12).fontColor('#C6CEE0')
-        Text(this.audioState === 2 ? '正在播放 Mac 声音' : '在 Mac 声音输出中选择 MatePad 扬声器')
-          .fontSize(12).fontColor('#C6CEE0')
-        }.padding(16).borderRadius(20).backgroundColor('#DD111622')
-          .position({ x: 24, y: 24 })
+      if (this.destination === 'home') { this.home() }
+      if (this.destination === 'display') {
+        DesktopReceiver({ onExit: () => { this.destination = 'home'; } })
       }
-    }
-    .width('100%').height('100%').backgroundColor(Color.Black)
-    .onAreaChange((_old: Area, current: Area) => {
-      const width = Number(current.width);
-      const height = Number(current.height);
-      this.displayWidth = Math.min(width, height * 1.5);
-      this.displayHeight = this.displayWidth / 1.5;
-    })
-    .onClick(() => { if (this.state === 3) this.controlsVisible = !this.controlsVisible; })
+    }.width('100%').height('100%').backgroundColor((this.darkMode ? '#0E1523' : '#F4F6FA'))
+      .onAreaChange((_old: Area, current: Area) => { this.compact = Number(current.width) < 700; })
   }
 }

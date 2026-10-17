@@ -5,6 +5,9 @@ DEVECO="${LINKDESK_DEVECO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 if [[ ! -f "$DEVECO/tools/hvigor/bin/hvigorw.js" && -f /Volumes/DevEco-Studio/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw.js ]]; then
   DEVECO=/Volumes/DevEco-Studio/DevEco-Studio.app/Contents
 fi
+if [[ ! -f "$DEVECO/tools/hvigor/bin/hvigorw.js" && -f /Volumes/Zark/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw.js ]]; then
+  DEVECO=/Volumes/Zark/Applications/DevEco-Studio.app/Contents
+fi
 export DEVECO_SDK_HOME="$DEVECO/sdk"
 export JAVA_HOME="$DEVECO/jbr/Contents/Home"
 export PATH="$DEVECO/tools/node/bin:$JAVA_HOME/bin:$PATH"

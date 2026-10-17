@@ -7,6 +7,18 @@
     {
       "name": "microphone_reason",
       "value": "把平板麦克风通过 USB 用作 Mac 的声音输入，仅在你开启功能时采集。"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "将手写笔输入同步到 Mac"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "LinkDesk"
+    },
+    {
+      "name": "screen_mirror_background_reason",
+      "value": "在后台持续将平板屏幕通过 USB 投射到 Mac"
     }
   ]
 }

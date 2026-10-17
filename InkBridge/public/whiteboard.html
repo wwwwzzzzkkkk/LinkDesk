@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <title>LinkDesk</title>
+    <link rel="stylesheet" href="/whiteboard.css" />
+  </head>
+  <body>
+    <main id="homeApp" class="home-shell" aria-label="LinkDesk功能入口" hidden>
+      <section class="home-card">
+        <div class="brand"><b>⌁</b><span>LinkDesk</span></div>
+        <p class="home-kicker">局域网手写协作</p>
+        <h1>选择要开始的工作方式</h1>
+        <p class="home-copy">笔迹只在你的 Mac 与平板之间传输，不会上传到云端。</p>
+        <div class="mode-cards">
+          <a class="mode-card" href="/?mode=whiteboard">
+            <span class="mode-icon">✦</span><strong>实时白板</strong><small>在浏览器打开白板，扫码连接平板书写。</small><b>打开白板 →</b>
+          </a>
+          <a class="mode-card" href="bijiqiao://open">
+            <span class="mode-icon">⌁</span><strong>PDF 批注</strong><small>打开 Mac 批注器，导入 PDF 后扫码开始标注。</small><b>打开 PDF 批注器 →</b>
+          </a>
+        </div>
+        <p class="home-note">首次使用 PDF 批注时，请先双击本文件夹内的“LinkDesk.app”。</p>
+      </section>
+    </main>
+
+    <main id="boardApp" class="app-shell" aria-label="LinkDesk白板" hidden>
+      <header class="topbar">
+        <div class="brand"><b>⌁</b><span>LinkDesk</span></div>
+        <div class="connection"><i id="connectionDot"></i><span id="connectionText">正在连接</span></div>
+        <div class="room-label"><span>房间</span><strong id="roomCode">------</strong><button id="copyRoom" class="text-button" type="button">复制</button></div>
+        <div class="top-actions"><button id="connectPad" class="primary" type="button">连接平板</button><button id="clearBoard" class="secondary" type="button">清空白板</button></div>
+      </header>
+      <section class="canvas-stage" aria-label="白板画布">
+        <canvas id="drawCanvas"></canvas>
+        <div id="hoverCursor" class="hover-cursor" hidden aria-hidden="true"><i></i></div>
+        <div id="boardEmpty" class="empty"><span>✦</span><strong>准备好书写</strong><p>用平板连接到这个房间，笔迹会实时出现在这里。</p></div>
+        <aside class="tool-rail" aria-label="画笔设置">
+          <div class="tool-group"><button class="color selected" data-color="#152441" style="--swatch:#152441" aria-label="深蓝色"></button><button class="color" data-color="#2269ef" style="--swatch:#2269ef" aria-label="蓝色"></button><button class="color" data-color="#e45a4f" style="--swatch:#e45a4f" aria-label="红色"></button><button class="color" data-color="#1b9a7e" style="--swatch:#1b9a7e" aria-label="绿色"></button></div>
+          <em></em><div class="tool-group"><button class="width" data-width="2.5" aria-label="细笔"></button><button class="width selected" data-width="4.5" aria-label="中等粗细"></button><button class="width" data-width="8" aria-label="粗笔"></button></div>
+        </aside>
+      </section>
+      <footer><span id="peopleText">等待平板加入</span><span>局域网实时同步 · 不上传笔迹</span></footer>
+    </main>
+
+    <main id="padApp" class="pad-shell" aria-label="LinkDesk数控板" hidden>
+      <header class="pad-header">
+        <div class="brand"><b>⌁</b><span>LinkDesk</span></div>
+        <div class="mode-switch" role="group" aria-label="书写方式">
+          <button data-input-mode="finger" type="button">手指</button>
+          <button data-input-mode="pen" class="selected" type="button">手写笔</button>
+        </div>
+        <div class="pad-room">房间 <strong id="padRoomCode">------</strong></div>
+        <div class="connection"><i id="padConnectionDot"></i><span id="padConnectionText">连接中</span></div>
+      </header>
+      <section class="pad-stage" aria-label="书写区域">
+        <img id="pdfPreview" class="pdf-preview" alt="Mac 当前 PDF 页面预览" hidden />
+        <canvas id="padCanvas"></canvas>
+        <div id="hoverCursor" class="hover-cursor" hidden aria-hidden="true"><i></i></div>
+        <div class="pad-guide"><span></span><b>在此书写</b><small id="inputHint">手写笔模式 · 手指与手掌不会落笔</small></div>
+        <div id="eraserCursor" class="eraser-cursor" hidden aria-hidden="true"><i></i></div>
+        <div id="toolToast" class="tool-toast" role="status" aria-live="polite"></div>
+      </section>
+      <footer class="pad-footer">
+        <div class="pad-tools">
+          <button class="pad-color selected" data-color="#152441" style="--swatch:#152441" aria-label="深蓝色"></button><button class="pad-color" data-color="#2269ef" style="--swatch:#2269ef" aria-label="蓝色"></button><button class="pad-color" data-color="#e45a4f" style="--swatch:#e45a4f" aria-label="红色"></button>
+          <em></em><button class="pad-width" data-width="2" aria-label="极细笔"><i></i></button><button class="pad-width selected" data-width="4.5" aria-label="中等笔画"><i></i></button><button class="pad-width" data-width="8" aria-label="粗笔"><i></i></button>
+          <em></em><button id="manualEraser" class="pad-action" type="button" aria-pressed="false">橡皮擦</button><button id="pressureEraser" class="pad-action pressure-action" type="button" aria-pressed="true">重按橡皮擦</button>
+          <label class="eraser-size" for="eraserSize"><span>大小</span><input id="eraserSize" type="range" min="24" max="144" step="2" value="48" aria-label="橡皮擦大小" /><output id="eraserSizeValue" for="eraserSize">48</output></label>
+        </div>
+        <button id="padClear" class="clear-pad" type="button">清空白板</button>
+      </footer>
+    </main>
+
+    <main id="pdfPadApp" class="pdfpad-shell" aria-label="LinkDesk PDF 数位板" hidden>
+      <header class="pdfpad-header">
+        <div class="brand"><b>⌁</b><span>LinkDesk PDF</span></div>
+        <strong id="pdfDocumentName" class="pdf-document-name">等待 Mac 打开 PDF</strong>
+        <div class="connection"><i id="pdfConnectionDot"></i><span id="pdfConnectionText">连接中</span></div>
+      </header>
+      <section id="pdfScroll" class="pdf-scroll" aria-label="PDF 阅读与批注区域">
+        <div id="pdfPages" class="pdf-pages"></div>
+        <div id="pdfLoading" class="pdf-loading">正在从 Mac 加载 PDF…</div>
+      </section>
+      <footer class="pdfpad-footer">
+        <div class="pdf-tools">
+          <button class="pdf-color selected" data-pdf-color="#152441" style="--swatch:#152441" aria-label="深蓝色"></button><button class="pdf-color" data-pdf-color="#2269ef" style="--swatch:#2269ef" aria-label="蓝色"></button><button class="pdf-color" data-pdf-color="#e45a4f" style="--swatch:#e45a4f" aria-label="红色"></button>
+          <em></em><button class="pdf-width" data-pdf-width="1.5" type="button">极细</button><button class="pdf-width selected" data-pdf-width="3.5" type="button">细</button><button class="pdf-width" data-pdf-width="6" type="button">粗</button>
+          <em></em><button id="pdfEraser" class="pdf-action" type="button" aria-pressed="false">橡皮擦</button>
+          <em></em><button id="pdfUndo" class="pdf-action" type="button" disabled>撤销</button><button id="pdfRedo" class="pdf-action" type="button" disabled>重做</button>
+          <em></em><button id="pdfZoomOut" class="pdf-action" type="button">−</button><output id="pdfZoomValue" class="pdf-zoom-value">100%</output><button id="pdfZoomIn" class="pdf-action" type="button">+</button>
+        </div>
+        <button id="pdfClear" class="clear-pad" type="button">清空批注</button>
+      </footer>
+    </main>
+
+    <dialog id="pairDialog"><button id="closePair" class="dialog-close" type="button" aria-label="关闭">×</button><div><label>连接你的平板</label><h1>用平板扫码开始书写</h1><p>确保平板和 Mac 使用同一 Wi‑Fi。扫码后会进入专用书写板，笔迹将实时显示在此页面。</p><img id="qrCode" width="220" height="220" alt="平板连接二维码" /><section class="link-box"><code id="padLink">正在生成连接地址…</code><button id="copyLink" class="text-button" type="button">复制链接</button></section><small>二维码不可用时，在平板浏览器输入上方链接即可。</small></div></dialog>
+    <script src="/qrcode.js"></script>
+    <script>
+      const bridgeParams = new URLSearchParams(location.search);
+      const bridgeModule = bridgeParams.get("role") === "pdfpad" ? "/pdfpad.js" : (bridgeParams.get("role") === "pad" || bridgeParams.get("mode") === "whiteboard" ? "/whiteboard.js" : "/home.js");
+      const bridgeScript = document.createElement("script");
+      bridgeScript.type = "module";
+      bridgeScript.src = bridgeModule;
+      document.body.append(bridgeScript);
+    </script>
+  </body>
+</html>
