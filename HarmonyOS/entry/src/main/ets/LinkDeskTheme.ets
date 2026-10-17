@@ -100,6 +100,8 @@ export class LinkDeskTheme {
     try {
       const response = await request.request(url, { method: http.RequestMethod.GET, connectTimeout: 1500, readTimeout: 1500 });
       if (response.responseCode !== 200 || generation !== LinkDeskTheme.generation) return;
+      AppStorage.setOrCreate('LinkDeskRelayReachable', true);
+      AppStorage.setOrCreate('LinkDeskTransport', LinkDeskTheme.host === '127.0.0.1' ? 'usb' : 'wifi');
       const shared = JSON.parse(response.result as string) as SharedTheme;
       if (!['automatic', 'light', 'dark'].includes(shared.preference) || !['light', 'dark'].includes(shared.appearance)) return;
       if (LinkDeskTheme.pending) {
@@ -125,7 +127,7 @@ export class LinkDeskTheme {
       } else if (shared.revision > 0) {
         LinkDeskTheme.apply(shared.preference, shared.appearance === 'dark');
       }
-    } catch (_) { /* Keep the last appearance while reconnecting. */ }
+    } catch (_) { AppStorage.setOrCreate('LinkDeskRelayReachable', false); /* Keep the last appearance while reconnecting. */ }
     finally { request.destroy(); LinkDeskTheme.busy = false; }
   }
 }

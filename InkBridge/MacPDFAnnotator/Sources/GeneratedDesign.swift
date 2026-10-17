@@ -369,6 +369,7 @@ enum L10n {
     case "noReturnTask": return english ? "No PDF is waiting to be returned" : "没有等待回传的 PDF 任务"
     case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接"
     case "waitConnection": return english ? "Waiting for connection" : "等待连接"
+    case "lowLatency": return english ? "Low Latency" : "低延迟显示"
     default: return key
     }
   }
@@ -581,6 +582,7 @@ enum L10n {
   static var noReturnTask: String { value("noReturnTask") }
   static var switchUSBFirst: String { value("switchUSBFirst") }
   static var waitConnection: String { value("waitConnection") }
+  static var lowLatency: String { value("lowLatency") }
 }
 
 enum ConnectionState: String, CaseIterable {

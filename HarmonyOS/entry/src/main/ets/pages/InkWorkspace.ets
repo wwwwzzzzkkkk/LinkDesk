@@ -1,4 +1,6 @@
 import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
+import { PageHeader, ConnectionPill, SettingRow, EmptyState } from '../design/Components';
+import { WorkspaceSpec } from '../design/WorkspaceSpec';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import { webview } from '@kit.ArkWeb';
 import { promptAction } from '@kit.ArkUI';
@@ -55,6 +57,7 @@ export struct InkWorkspace {
   @Prop @Watch('requestedModeDidChange') requestedMode: string = 'pdf';
   @Prop @Watch('requestedModeDidChange') activation: number = 0;
   onExit: () => void = () => {};
+  onModeChange: (mode: string) => void = () => {};
   private pendingInitialMode: boolean = false;
   private pendingMirrorStart: boolean = false;
 
@@ -74,7 +77,7 @@ export struct InkWorkspace {
   @State connectionPreference: string = 'automatic';
   @State appMode: string = 'pdf';
   @State showPad: boolean = false;
-  @State connected: boolean = false;
+  @State @Watch('publishConnection') connected: boolean = false;
   @State documentName: string = Strings.waitPDFTitle;
   @State zoomPercent: number = 100;
   @State color: string = DT.inkInk;
@@ -231,6 +234,15 @@ export struct InkWorkspace {
     this.resetPenBridge();
   }
 
+  private publishConnection(): void {
+    AppStorage.setOrCreate('LinkDeskInkConnected', this.connected);
+    AppStorage.setOrCreate('LinkDeskTransport', this.connectionMode);
+  }
+  private connectionState(): ConnectionState {
+    if (this.connected) return ConnectionState.working;
+    return ConnectionState.disconnected;
+  }
+
   @Builder themeControl() {
     Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
       .fontSize(DT.fontCaption).height(DT.spacingS32).fontColor(DT.secondary(this.darkMode))
@@ -248,6 +260,9 @@ export struct InkWorkspace {
       if (this.showPad) {
         Stack() {
           this.PadArea()
+          if (this.requestedMode === 'mirror') {
+            this.MirrorPanel()
+          }
           Column() {
             if (this.topBarCollapsed) {
               this.CollapsedHeaderButton()
@@ -256,7 +271,7 @@ export struct InkWorkspace {
             }
             Blank(1)
             this.ToolbarRow()
-          }
+          }.visibility(this.requestedMode === 'mirror' ? Visibility.Hidden : Visibility.Visible)
           .width('100%').height('100%')
           .alignItems(HorizontalAlign.Start)
           .padding({
@@ -268,7 +283,7 @@ export struct InkWorkspace {
           .hitTestBehavior(HitTestMode.Transparent)
         }
         .width('100%').height('100%')
-        .backgroundColor(DT.canvas(this.darkMode))
+.backgroundColor(DT.canvas(this.darkMode))
       } else {
         this.ConnectionPanel()
       }
@@ -288,18 +303,24 @@ export struct InkWorkspace {
     .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
+  @Builder MirrorPanel() {
+    Scroll() {
+      Column({ space: DT.spacingS24 }) {
+        PageHeader({ title: Strings.mirrorTitle, subtitle: Strings.mirrorSubtitle,
+          state: this.screenMirroring ? ConnectionState.working : this.connectionState() })
+        EmptyState({ icon: DT.iconMirror, title: this.screenMirroring ? Strings.mirrorRunning : Strings.mirrorEmptyTitle,
+          message: Strings.mirrorEmptyDescription, actionTitle: this.screenMirroring ? Strings.stopMirror : Strings.startMirror,
+          action: () => this.toggleScreenMirror(), disabled: this.connectionMode !== 'usb' })
+      }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
+    }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
+  }
+
   // ==================== 连接面板 ====================
   @Builder ConnectionPanel() {
+    Scroll() {
     Column({ space: DT.spacingS16 }) {
+      PageHeader({ title: WorkspaceSpec.title(this.requestedMode), subtitle: WorkspaceSpec.subtitle(this.requestedMode), state: this.connectionState() })
       this.themeControl()
-      Button(Strings.backHome).onClick(() => this.onExit()).fontSize(DT.fontCaption).backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode))
-      Column() {
-        Text(Strings.productName).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
-        Text(this.requestedMode === 'mirror' ? Strings.mirrorSubtitle : Strings.inkFeatureHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).margin({ top: DT.spacingS4 })
-        Text(Strings.stylusHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).margin({ top: DT.spacingS4 })
-      }
-      .alignItems(HorizontalAlign.Center).margin({ top: DT.spacingS80 })
-
       Column({ space: DT.spacingS12 }) {
         Row({ space: DT.spacingS8 }) {
           Button(Strings.automatic)
@@ -387,150 +408,31 @@ export struct InkWorkspace {
 
       Blank(1)
     }
-    .width('100%').layoutWeight(1)
+    .width('100%')
     .padding({ left: DT.spacingS24, right: DT.spacingS24 })
     .backgroundColor(DT.canvas(this.darkMode))
+    }.width('100%').height('100%')
   }
 
   // ==================== 顶部状态栏 ====================
   @Builder HeaderRow() {
-    Stack({ alignContent: Alignment.Center }) {
-      Text(this.documentName)
-        .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width(this.headerTitleWidth())
-        .textAlign(TextAlign.Center)
-        .accessibilityText(`当前文件 ${this.documentName}`)
-
-      Row() {
+    Column({ space: DT.spacingS8 }) {
+      PageHeader({ title: WorkspaceSpec.title(this.appMode), subtitle: WorkspaceSpec.subtitle(this.appMode), state: this.connectionState() })
+      Scroll() {
         Row({ space: DT.spacingS8 }) {
-          Row({ space: DT.spacingS8 }) {
-            Stack() {
-              Text(Strings.productInitial).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.onAccent(this.darkMode))
-            }
-            .width(DT.spacingS28).height(DT.spacingS28)
-            .borderRadius(DT.radiusSmall)
-            
-            .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS4 })
-            if (this.padAreaWidth >= 900) {
-              Text(Strings.productName).fontSize(DT.fontBody).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
-              Text(this.connectionMode === 'usb' ? Strings.transportUSB : Strings.transportWireless)
-                .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
-                .fontColor(this.connectionMode === 'usb' ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
-                .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
-                .backgroundColor(this.connectionMode === 'usb'
-                  ? DT.glass(this.darkMode)
-                  : DT.control(this.darkMode))
-                .borderRadius(DT.radiusSmall)
-            }
-          }
-          .onClick(() => this.onExit())
-          .hitTestBehavior(HitTestMode.Block)
-
-          Row({ space: DT.spacingS4 }) {
-            Button() {
-              Stack({ alignContent: Alignment.Center }) {
-                Text(Strings.pdfTitle).fontSize(DT.fontCaption)
-                  .fontColor(this.appMode === 'pdf' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
-              }
-            }
-              .width(DT.spacingS48).height(DT.spacingS32).padding(DT.spacingS0)
-              .backgroundColor(this.appMode === 'pdf' ? DT.control(this.darkMode) : DT.clear(this.darkMode))
-              .fontColor(this.appMode === 'pdf' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
-              .borderRadius(DT.radiusSmall)
-              .onClick(() => this.switchAppMode('pdf', true))
-            Button() {
-              Stack({ alignContent: Alignment.Center }) {
-                Text(Strings.whiteboardTitle).fontSize(DT.fontCaption)
-                  .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
-              }
-            }
-              .width(DT.spacingS48).height(DT.spacingS32).padding(DT.spacingS0)
-              .backgroundColor(this.appMode === 'whiteboard' ? DT.control(this.darkMode) : DT.clear(this.darkMode))
-              .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
-              .borderRadius(DT.radiusSmall)
-              .onClick(() => this.switchAppMode('whiteboard', true))
-          }
-          .padding(DT.spacingS4)
-          .backgroundColor(DT.glass(this.darkMode))
-          .borderRadius(DT.radiusSmall)
-        }
-        .onAreaChange((_, area) => {
-          this.headerLeftWidth = Math.max(0, area.width as number);
-        })
-
-        Blank(1)
-
-        Row({ space: DT.spacingS8 }) {
-          if (this.padAreaWidth >= 720) {
-            Text(this.room)
-              .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
-              .maxLines(1)
-          }
-          Row({ space: DT.spacingS4 }) {
-            Circle()
-              .width(DT.spacingS8).height(DT.spacingS8)
-              .fill(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
-            if (this.padAreaWidth >= 620) {
-              Text(this.connected ? Strings.connected : Strings.waitConnection)
-                .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
-                .fontColor(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
-            }
-          }
-          .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
-          .backgroundColor(this.connected ? DT.glass(this.darkMode) : DT.glass(this.darkMode))
-          .borderRadius(DT.radiusSmall)
-
-          if (this.roundTripId.length > 0) {
-            Button(Strings.returnPDF)
-              .height(DT.spacingS32).padding({ left: DT.spacingS8, right: DT.spacingS8 })
-              .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
-              .fontColor(DT.text(this.darkMode))
-              .backgroundColor(DT.glass(this.darkMode))
-              .borderRadius(DT.radiusSmall)
-              .accessibilityText(Strings.returnAccessibility)
-              .onClick(() => this.selectRoundTripReturnPDF())
-          }
-
+          Text(Strings.get('pairingCodeValue', [this.room])).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
           this.themeControl()
+          if (this.roundTripId.length > 0) {
+            Button(Strings.returnPDF).height(DT.layoutTouchTarget).onClick(() => this.selectRoundTripReturnPDF())
+          }
           Button(this.screenMirroring ? Strings.stopMirror : Strings.startMirror)
-            .height(DT.spacingS32).padding({ left: DT.spacingS8, right: DT.spacingS8 })
-            .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
-            .fontColor(this.screenMirroring ? DT.error(this.darkMode) : DT.text(this.darkMode))
-            .backgroundColor(this.screenMirroring
-              ? DT.glass(this.darkMode)
-              : DT.glass(this.darkMode))
-            .borderRadius(DT.radiusSmall)
-            .accessibilityText(this.screenMirroring ? Strings.stopMirrorAccessibility : Strings.mirrorAccessibility)
-            .onClick(() => this.toggleScreenMirror())
-
-          Button('⌃')
-            .width(DT.spacingS32).height(DT.spacingS32).padding(DT.spacingS0).fontSize(DT.fontCaption)
-            .fontColor(DT.text(this.darkMode))
-            .backgroundColor(DT.control(this.darkMode))
-            .borderRadius(DT.radiusSmall)
-            .accessibilityText(Strings.collapseTools)
-            .onClick(() => this.setTopBarCollapsed(true))
-        }
-        .onAreaChange((_, area) => {
-          this.headerRightWidth = Math.max(0, area.width as number);
-        })
-      }
-      .width('100%')
-    }
-    .width('100%').height(DT.spacingS48)
-    .padding({ left: DT.spacingS12, right: DT.spacingS12 })
-    .backgroundColor(DT.glass(this.darkMode))
-    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-    
-    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
-    .borderRadius(DT.radiusMedium)
-    .clip(true)
-    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
-    .geometryTransition('inkbridge-topbar-roll')
-    .onAreaChange((_, area) => {
-      this.headerWidth = Math.max(1, area.width as number);
-    })
+            .height(DT.layoutTouchTarget).onClick(() => this.toggleScreenMirror())
+          Button(Strings.collapseTools).height(DT.layoutTouchTarget).onClick(() => this.setTopBarCollapsed(true))
+        }.padding(DT.spacingS8)
+      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')
+    }.width('100%').padding(DT.spacingS16).borderRadius(DT.radiusMedium)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+      .geometryTransition('inkbridge-topbar-roll')
   }
 
   @Builder CollapsedHeaderButton() {
@@ -1948,6 +1850,7 @@ export struct InkWorkspace {
       return;
     }
     this.appMode = mode;
+    this.onModeChange(mode);
     this.documentName = mode === 'whiteboard' ? Strings.whiteboardTitle : Strings.waitPDFTitle;
     this.zoomPercent = 100;
     if (this.showPad && this.connectedHost.length > 0 && this.connectedRoom.length === 6) {

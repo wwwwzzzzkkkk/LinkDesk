@@ -344,6 +344,7 @@ export class Strings {
       case "noReturnTask": return english ? "No PDF is waiting to be returned" : "没有等待回传的 PDF 任务";
       case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接";
       case "waitConnection": return english ? "Waiting for connection" : "等待连接";
+      case "lowLatency": return english ? "Low Latency" : "低延迟显示";
       default: return key;
     }
   }
@@ -556,6 +557,7 @@ export class Strings {
   static get noReturnTask(): string { return Strings.value("noReturnTask"); }
   static get switchUSBFirst(): string { return Strings.value("switchUSBFirst"); }
   static get waitConnection(): string { return Strings.value("waitConnection"); }
+  static get lowLatency(): string { return Strings.value("lowLatency"); }
 }
 
 export enum ConnectionState {

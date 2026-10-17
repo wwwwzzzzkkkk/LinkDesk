@@ -1,3 +1,4 @@
+import { PageHeader, EmptyState, SettingRow } from '../design/Components';
 import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import abilityAccessCtrl from '@ohos.abilityAccessCtrl';
@@ -88,6 +89,7 @@ export struct DesktopReceiver {
     this.timer = setInterval(() => {
       const info = JSON.parse(linkdesk.stats()) as ReceiverStats;
       this.state = info.state;
+      AppStorage.setOrCreate('LinkDeskReceiverWorking', info.state === 3);
       this.hostRequestState = info.hostRequestState;
       this.audioState = info.audioState;
       this.microphoneState = info.microphoneState;
@@ -113,13 +115,15 @@ export struct DesktopReceiver {
       }else this.microphoneMessage=Strings.microphoneDenied;
     }catch(_error){this.microphoneMessage=Strings.microphoneError;}
   }
-  @Builder microphoneControl(){
-    Column({space:8}){
-      Button(this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone)
-        .onClick(()=>{this.toggleMicrophone();})
-      Text(this.microphoneState===2 ? Strings.microphoneSending : this.microphoneState===-1 ? '麦克风启动失败，请检查权限' : this.microphoneMessage)
-        .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-    }
+  @Builder microphoneAction() {
+    Button(this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone)
+      .constraintSize({ minHeight: DT.layoutTouchTarget, minWidth: DT.layoutTouchTarget })
+      .onClick(() => { void this.toggleMicrophone(); })
+  }
+  @Builder microphoneControl() {
+    SettingRow({ title: Strings.tabletMicrophone,
+      detail: this.microphoneState === 2 ? Strings.microphoneSending : this.microphoneState === -1 ? Strings.microphoneError : this.microphoneMessage,
+      control: this.microphoneAction })
   }
   aboutToDisappear(): void {
     if (this.timer >= 0) clearInterval(this.timer);
@@ -127,86 +131,68 @@ export struct DesktopReceiver {
     linkdesk.setMicrophoneEnabled(false);
     this.microphoneAllowed=false;DisplayContext.microphoneAllowed=false;
     linkdesk.stop();
+    AppStorage.setOrCreate('LinkDeskReceiverWorking', false);
   }
 
-  @Builder homeControl() {
-    Button(Strings.backHome).fontSize(DT.fontCaption).height(DT.spacingS40)
-      .fontColor(DT.secondary(this.darkMode)).backgroundColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusMedium)
-      .margin({ left: DT.spacingS16, top: DT.spacingS16 }).onClick(() => this.onExit())
+  private connectionState(): ConnectionState {
+    if (this.error !== 0) return ConnectionState.error;
+    if (this.state === 3) return ConnectionState.working;
+    if (this.hostRequestState > 0) return ConnectionState.waitingForMode;
+    return ConnectionState.disconnected;
   }
-  @Builder themeControl() {
-    Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
-      .fontSize(DT.fontCaption).height(DT.spacingS32).fontColor(DT.secondary(this.darkMode))
-      .backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusMedium).margin({ top: DT.spacingS16, right: DT.spacingS16 })
-      .accessibilityText(Strings.themeAccessibility)
-      .bindMenu([
-        { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
-        { value: Strings.themeLight, action: () => LinkDeskTheme.select('light') },
-        { value: Strings.themeDark, action: () => LinkDeskTheme.select('dark') }
-      ])
+  private connectionHint(): string {
+    if (this.hostRequestState === 3) return Strings.capturePermissionHint;
+    if (this.hostRequestState === 4) return Strings.macNotResponding;
+    if (this.hostRequestState === 5) return Strings.usbChannelHint;
+    return Strings.displayEmptyDescription;
   }
-
+  @Builder exitControl() {
+    Button(Strings.backHome).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.radiusSmall)
+      .onClick(() => this.onExit())
+  }
+  @Builder latencyControl() {
+    Toggle({ type: ToggleType.Switch, isOn: this.latestMode }).enabled(this.timedSupported)
+      .height(DT.layoutTouchTarget).onChange((value: boolean) => { this.latestMode = value; linkdesk.setLatestMode(value); })
+  }
   build() {
     Stack({ alignContent: Alignment.Center }) {
       XComponent({ id: 'LinkDeskDisplay', type: XComponentType.SURFACE, controller: this.surface })
-        .width(this.displayWidth)
-        .height(this.displayHeight)
-        .onLoad(() => { this.connect(); })
-        .onDestroy(() => { linkdesk.stop(); })
+        .width(this.displayWidth).height(this.displayHeight)
+        .onLoad(() => this.connect()).onDestroy(() => linkdesk.stop())
       if (this.state !== 3) {
-        Column({ space: DT.spacingS20 }) {
-          Text(Strings.displayTitle).fontSize(DT.fontTitle).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode))
-          Text(this.state === 2 ? '正在显示 Mac 桌面' :
-            this.hostRequestState === 3 ? Strings.capturePermissionHint :
-            this.hostRequestState === 4 ? Strings.macNotResponding :
-            this.hostRequestState === 5 ? Strings.usbChannelHint : '正在连接 Mac 连屏服务')
-            .fontSize(DT.fontSection).fontColor(DT.secondary(this.darkMode))
-          Text('保持数据线连接，打开平板应用即可请求副屏。')
-            .fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode)).textAlign(TextAlign.Center)
-          if (this.error !== 0) {
-            Text('连接已中断，正在重试。诊断码：' + this.error.toString())
-              .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-          }
-          this.microphoneControl()
-          Button(Strings.reconnect).onClick(() => { this.connect(); })
-            .backgroundColor(DT.accent(this.darkMode)).fontColor(DT.onAccent(this.darkMode)).margin({ top: DT.spacingS12 })
-        }.padding(DT.spacingS36).borderRadius(DT.radiusLarge).backgroundColor(DT.surface(this.darkMode))
+        Scroll() {
+          Column({ space: DT.spacingS24 }) {
+            PageHeader({ title: Strings.displayTitle, subtitle: Strings.displaySubtitle, state: this.connectionState() })
+            EmptyState({ icon: DT.iconDisplay, title: Strings.displayEmptyTitle, message: this.connectionHint(),
+              actionTitle: Strings.reconnect, action: () => this.connect() })
+            if (this.error !== 0) {
+              Text(Strings.get('diagnosticCode', [this.error.toString()])).fontSize(DT.fontCaption).fontColor(DT.error(this.darkMode))
+            }
+            this.microphoneControl()
+          }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
+        }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
       }
       if (this.state === 3 && this.controlsVisible) {
-        Column({ space: DT.spacingS8 }) {
-        Row({ space: DT.spacingS20 }) {
-          Text('USB · ' + this.streamWidth.toString() + ' × ' + this.streamHeight.toString() + ' · 实时 ' + this.realtimeFPS.toFixed(0) + ' 帧/秒 · 目标 ' + this.targetFPS.toString() + ' 帧/秒')
+        Column({ space: DT.spacingS16 }) {
+          PageHeader({ title: Strings.displayTitle, subtitle: Strings.displaySubtitle, state: this.connectionState() })
+          Text(Strings.get('receiverMetrics', [this.streamWidth.toString(), this.streamHeight.toString(), this.realtimeFPS.toFixed(0), this.targetFPS.toString()]))
             .fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode))
-          Button(Strings.reconnect).onClick(() => { this.connect(); })
-          Button(Strings.hide).onClick(() => { this.controlsVisible = false; })
-        }
-        Row({ space: DT.spacingS16 }) {
-          Button(this.latestMode && this.timedSupported ? Strings.lowLatencyOn : Strings.lowLatencyOff)
-            .enabled(this.timedSupported)
-            .onClick(() => {
-              this.latestMode = !this.latestMode;
-              linkdesk.setLatestMode(this.latestMode);
-            })
-          Text('最近一帧平板处理 ' + this.processMs.toFixed(1) + ' ms')
-            .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-        }
-        this.microphoneControl()
-        Text(Strings.receiverStatistics).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-        Text(this.audioState === 2 ? Strings.audioPlaying : Strings.audioSelectHint)
-          .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-        }.padding(DT.spacingS16).borderRadius(DT.radiusMedium).backgroundColor(DT.secondary(this.darkMode))
-          .position({ x: 24, y: 24 })
+          SettingRow({ title: Strings.lowLatency, detail: Strings.get('receiverProcessing', [this.processMs.toFixed(1)]), control: this.latencyControl })
+          this.microphoneControl()
+          Row({ space: DT.spacingS12 }) {
+            this.exitControl()
+            Button(Strings.reconnect).height(DT.layoutTouchTarget).onClick(() => this.connect())
+            Button(Strings.hide).height(DT.layoutTouchTarget).onClick(() => { this.controlsVisible = false; })
+          }
+        }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.spacingS24).borderRadius(DT.radiusMedium)
+          .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
       }
-    }
-    .overlay(this.homeControl, { align: Alignment.TopStart })
-    .overlay(this.themeControl, { align: Alignment.TopEnd })
-    .width('100%').height('100%').backgroundColor(DT.video(this.darkMode))
-    .onAreaChange((_old: Area, current: Area) => {
-      const width = Number(current.width);
-      const height = Number(current.height);
-      this.displayWidth = Math.min(width, height * 1.5);
-      this.displayHeight = this.displayWidth / 1.5;
-    })
-    .onClick(() => { if (this.state === 3) this.controlsVisible = !this.controlsVisible; })
+    }.width('100%').height('100%').backgroundColor(DT.video(this.darkMode))
+      .onAreaChange((_old: Area, current: Area) => {
+        const width = Number(current.width); const height = Number(current.height);
+        this.displayWidth = Math.min(width, height * 1.5); this.displayHeight = this.displayWidth / 1.5;
+      })
+      .onClick(() => { if (this.state === 3) this.controlsVisible = !this.controlsVisible; })
   }
 }

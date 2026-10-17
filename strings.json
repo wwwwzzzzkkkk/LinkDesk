@@ -837,6 +837,10 @@
     "waitConnection": {
       "zh-Hans": "等待连接",
       "en": "Waiting for connection"
+    },
+    "lowLatency": {
+      "zh-Hans": "低延迟显示",
+      "en": "Low Latency"
     }
   }
 }
