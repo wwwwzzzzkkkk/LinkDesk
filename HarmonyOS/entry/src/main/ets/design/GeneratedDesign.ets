@@ -89,6 +89,10 @@ export class DT {
   static readonly dimensionsD320 = 320;
   static readonly dimensionsD1000 = 1000;
   static readonly dimensionsD680 = 680;
+  static readonly dimensionsD184 = 184;
+  static readonly dimensionsD360 = 360;
+  static readonly dimensionsD380 = 380;
+  static readonly dimensionsD392 = 392;
   static readonly durationFeedback: number = 120;
   static readonly durationMenuEnter: number = 240;
   static readonly durationMenuExit: number = 180;
@@ -116,6 +120,9 @@ export class DT {
   static readonly inkPurple: string = "#8e44ad";
   static readonly inkOrange: string = "#f39c12";
   static readonly inkWhite: string = "#ffffff";
+  static readonly inkColor7: string = "#2269ef";
+  static readonly inkColor8: string = "#e45a4f";
+  static readonly inkColor9: string = "#1b9a7e";
 }
 
 export class Strings {
@@ -291,6 +298,52 @@ export class Strings {
       case "whiteboardOrigin": return english ? "Return to Canvas Origin" : "回到白板原点";
       case "fitWindow": return english ? "Fit to Window" : "适合窗口";
       case "productInitial": return english ? "L" : "L";
+      case "penWidthLevels": return english ? "4 levels" : "4 档";
+      case "inkFeatureHint": return english ? "PDF annotation · Live whiteboard · Shared workspace" : "PDF 批注 · 无限白板 · 双端同步";
+      case "stylusHint": return english ? "Stylus hover · Pressure sensitivity · Live sync" : "触控笔悬停定位 · 压感书写 · 实时同步";
+      case "usbLowLatency": return english ? "Low-latency USB connection" : "USB 超低延时连接";
+      case "usbAutoHint": return english ? "Keep USB connected; your Mac sets up the connection automatically" : "保持数据线连接，Mac 会自动建立有线通道";
+      case "automaticHint": return english ? "Prefer USB; discover your Mac over Wi-Fi when unplugged" : "优先 USB，无数据线时自动发现同 Wi-Fi 下的 Mac";
+      case "usbOnlyHint": return english ? "USB mode uses the cable connection" : "USB 模式不使用 Wi-Fi，保持数据线连接即可";
+      case "wifiHint": return english ? "Connect your tablet and Mac to the same Wi-Fi network" : "确保平板与 Mac 处于同一 Wi-Fi 网络";
+      case "macPDFHint": return english ? "Open LinkDesk and a PDF on your Mac" : "Mac 端需先启动LinkDesk服务并打开 PDF";
+      case "automaticHostPlaceholder": return english ? "Discover Mac automatically or enter an address" : "自动发现 Mac（也可手动输入 IP）";
+      case "scanMac": return english ? "Scan Mac QR Code" : "扫描 Mac 二维码";
+      case "autoConnectMac": return english ? "Connect Automatically" : "自动连接 Mac";
+      case "usbConnectMac": return english ? "Connect over USB" : "通过 USB 连接 Mac";
+      case "wifiConnectMac": return english ? "Connect over Wi-Fi" : "通过 Wi-Fi 连接 Mac";
+      case "returnAccessibility": return english ? "Select an annotated PDF and return it to Mac" : "选择已批注 PDF 并回传到 Mac";
+      case "mirrorAccessibility": return english ? "Mirror to Mac over USB" : "通过 USB 投屏到 Mac";
+      case "stopMirrorAccessibility": return english ? "Stop mirroring to Mac" : "停止投屏到 Mac";
+      case "eraserRange": return english ? "Eraser Range" : "当前擦除范围";
+      case "eraserRing": return english ? "Show a gray ring while erasing" : "擦除时显示灰色范围圆环";
+      case "secondaryMenu": return english ? "Tool Options" : "工具选项";
+      case "highlighterHold": return english ? "Hold for 2 seconds to straighten" : "停顿 2 秒自动拉直";
+      case "pressureEraseOn": return english ? "Pressure Erasing: On" : "重按临时擦除 开";
+      case "pressureEraseOff": return english ? "Pressure Erasing: Off" : "重按临时擦除 关";
+      case "sensitivityLow": return english ? "Low" : "低";
+      case "sensitivityMedium": return english ? "Medium" : "中";
+      case "sensitivityHigh": return english ? "High" : "高";
+      case "confirm": return english ? "Confirm" : "确定";
+      case "clearPDFConfirm": return english ? "Clear all PDF annotations? You can undo this." : "确定要清空全部 PDF 批注吗？清空后仍可撤销。";
+      case "clearWhiteboardConfirm": return english ? "Clear the whiteboard? You can undo this." : "确定要清空白板吗？清空后仍可撤销。";
+      case "mirrorForegroundHint": return english ? "Keep LinkDesk in the foreground to continue mirroring" : "全局投屏保活失败，请保持LinkDesk在前台";
+      case "notesFallback": return english ? "Huawei Notes is unavailable; opened with the system PDF app" : "华为笔记不可用，已交给系统 PDF 应用";
+      case "mirrorStopped": return english ? "Mirroring stopped" : "已停止投屏";
+      case "returnedMac": return english ? "Returned to Mac" : "已回传到 Mac";
+      case "notesOpened": return english ? "Opened in Huawei Notes; export and share back to LinkDesk after annotating" : "已在华为笔记打开，批注后请导出并分享到LinkDesk";
+      case "returnSaveHint": return english ? "Annotated PDF returned; choose a save location on Mac" : "批注版已回传，请在 Mac 选择保存位置";
+      case "fileSizeUnsupported": return english ? "Unsupported file size" : "文件大小不受支持";
+      case "fileReadIncomplete": return english ? "Could not read the entire file" : "文件读取不完整";
+      case "scanUnavailable": return english ? "Could not start the scanner" : "无法启动系统扫码服务";
+      case "scanInvalid": return english ? "No valid LinkDesk pairing QR code found" : "未识别到有效的LinkDesk连接二维码";
+      case "pdfDownloading": return english ? "Downloading to tablet…" : "正在下载到平板…";
+      case "pdfReturning": return english ? "Returning to Mac…" : "正在回传到 Mac…";
+      case "mirrorRunning": return english ? "Mirroring to Mac" : "正在投屏到 Mac";
+      case "notesOpening": return english ? "Opening Huawei Notes…" : "正在用华为笔记打开…";
+      case "noReturnTask": return english ? "No PDF is waiting to be returned" : "没有等待回传的 PDF 任务";
+      case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接";
+      case "waitConnection": return english ? "Waiting for connection" : "等待连接";
       default: return key;
     }
   }
@@ -457,6 +510,52 @@ export class Strings {
   static get whiteboardOrigin(): string { return Strings.value("whiteboardOrigin"); }
   static get fitWindow(): string { return Strings.value("fitWindow"); }
   static get productInitial(): string { return Strings.value("productInitial"); }
+  static get penWidthLevels(): string { return Strings.value("penWidthLevels"); }
+  static get inkFeatureHint(): string { return Strings.value("inkFeatureHint"); }
+  static get stylusHint(): string { return Strings.value("stylusHint"); }
+  static get usbLowLatency(): string { return Strings.value("usbLowLatency"); }
+  static get usbAutoHint(): string { return Strings.value("usbAutoHint"); }
+  static get automaticHint(): string { return Strings.value("automaticHint"); }
+  static get usbOnlyHint(): string { return Strings.value("usbOnlyHint"); }
+  static get wifiHint(): string { return Strings.value("wifiHint"); }
+  static get macPDFHint(): string { return Strings.value("macPDFHint"); }
+  static get automaticHostPlaceholder(): string { return Strings.value("automaticHostPlaceholder"); }
+  static get scanMac(): string { return Strings.value("scanMac"); }
+  static get autoConnectMac(): string { return Strings.value("autoConnectMac"); }
+  static get usbConnectMac(): string { return Strings.value("usbConnectMac"); }
+  static get wifiConnectMac(): string { return Strings.value("wifiConnectMac"); }
+  static get returnAccessibility(): string { return Strings.value("returnAccessibility"); }
+  static get mirrorAccessibility(): string { return Strings.value("mirrorAccessibility"); }
+  static get stopMirrorAccessibility(): string { return Strings.value("stopMirrorAccessibility"); }
+  static get eraserRange(): string { return Strings.value("eraserRange"); }
+  static get eraserRing(): string { return Strings.value("eraserRing"); }
+  static get secondaryMenu(): string { return Strings.value("secondaryMenu"); }
+  static get highlighterHold(): string { return Strings.value("highlighterHold"); }
+  static get pressureEraseOn(): string { return Strings.value("pressureEraseOn"); }
+  static get pressureEraseOff(): string { return Strings.value("pressureEraseOff"); }
+  static get sensitivityLow(): string { return Strings.value("sensitivityLow"); }
+  static get sensitivityMedium(): string { return Strings.value("sensitivityMedium"); }
+  static get sensitivityHigh(): string { return Strings.value("sensitivityHigh"); }
+  static get confirm(): string { return Strings.value("confirm"); }
+  static get clearPDFConfirm(): string { return Strings.value("clearPDFConfirm"); }
+  static get clearWhiteboardConfirm(): string { return Strings.value("clearWhiteboardConfirm"); }
+  static get mirrorForegroundHint(): string { return Strings.value("mirrorForegroundHint"); }
+  static get notesFallback(): string { return Strings.value("notesFallback"); }
+  static get mirrorStopped(): string { return Strings.value("mirrorStopped"); }
+  static get returnedMac(): string { return Strings.value("returnedMac"); }
+  static get notesOpened(): string { return Strings.value("notesOpened"); }
+  static get returnSaveHint(): string { return Strings.value("returnSaveHint"); }
+  static get fileSizeUnsupported(): string { return Strings.value("fileSizeUnsupported"); }
+  static get fileReadIncomplete(): string { return Strings.value("fileReadIncomplete"); }
+  static get scanUnavailable(): string { return Strings.value("scanUnavailable"); }
+  static get scanInvalid(): string { return Strings.value("scanInvalid"); }
+  static get pdfDownloading(): string { return Strings.value("pdfDownloading"); }
+  static get pdfReturning(): string { return Strings.value("pdfReturning"); }
+  static get mirrorRunning(): string { return Strings.value("mirrorRunning"); }
+  static get notesOpening(): string { return Strings.value("notesOpening"); }
+  static get noReturnTask(): string { return Strings.value("noReturnTask"); }
+  static get switchUSBFirst(): string { return Strings.value("switchUSBFirst"); }
+  static get waitConnection(): string { return Strings.value("waitConnection"); }
 }
 
 export enum ConnectionState {

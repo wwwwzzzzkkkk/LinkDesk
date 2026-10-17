@@ -107,6 +107,10 @@ enum DT {
     static let d320: CGFloat = 320
     static let d1000: CGFloat = 1000
     static let d680: CGFloat = 680
+    static let d184: CGFloat = 184
+    static let d360: CGFloat = 360
+    static let d380: CGFloat = 380
+    static let d392: CGFloat = 392
   }
   enum motion {
     static let feedback: Double = 0.12
@@ -140,6 +144,9 @@ enum DT {
     static let purple = "#8e44ad"
     static let orange = "#f39c12"
     static let white = "#ffffff"
+    static let color7 = "#2269ef"
+    static let color8 = "#e45a4f"
+    static let color9 = "#1b9a7e"
   }
 }
 
@@ -316,6 +323,52 @@ enum L10n {
     case "whiteboardOrigin": return english ? "Return to Canvas Origin" : "回到白板原点"
     case "fitWindow": return english ? "Fit to Window" : "适合窗口"
     case "productInitial": return english ? "L" : "L"
+    case "penWidthLevels": return english ? "4 levels" : "4 档"
+    case "inkFeatureHint": return english ? "PDF annotation · Live whiteboard · Shared workspace" : "PDF 批注 · 无限白板 · 双端同步"
+    case "stylusHint": return english ? "Stylus hover · Pressure sensitivity · Live sync" : "触控笔悬停定位 · 压感书写 · 实时同步"
+    case "usbLowLatency": return english ? "Low-latency USB connection" : "USB 超低延时连接"
+    case "usbAutoHint": return english ? "Keep USB connected; your Mac sets up the connection automatically" : "保持数据线连接，Mac 会自动建立有线通道"
+    case "automaticHint": return english ? "Prefer USB; discover your Mac over Wi-Fi when unplugged" : "优先 USB，无数据线时自动发现同 Wi-Fi 下的 Mac"
+    case "usbOnlyHint": return english ? "USB mode uses the cable connection" : "USB 模式不使用 Wi-Fi，保持数据线连接即可"
+    case "wifiHint": return english ? "Connect your tablet and Mac to the same Wi-Fi network" : "确保平板与 Mac 处于同一 Wi-Fi 网络"
+    case "macPDFHint": return english ? "Open LinkDesk and a PDF on your Mac" : "Mac 端需先启动LinkDesk服务并打开 PDF"
+    case "automaticHostPlaceholder": return english ? "Discover Mac automatically or enter an address" : "自动发现 Mac（也可手动输入 IP）"
+    case "scanMac": return english ? "Scan Mac QR Code" : "扫描 Mac 二维码"
+    case "autoConnectMac": return english ? "Connect Automatically" : "自动连接 Mac"
+    case "usbConnectMac": return english ? "Connect over USB" : "通过 USB 连接 Mac"
+    case "wifiConnectMac": return english ? "Connect over Wi-Fi" : "通过 Wi-Fi 连接 Mac"
+    case "returnAccessibility": return english ? "Select an annotated PDF and return it to Mac" : "选择已批注 PDF 并回传到 Mac"
+    case "mirrorAccessibility": return english ? "Mirror to Mac over USB" : "通过 USB 投屏到 Mac"
+    case "stopMirrorAccessibility": return english ? "Stop mirroring to Mac" : "停止投屏到 Mac"
+    case "eraserRange": return english ? "Eraser Range" : "当前擦除范围"
+    case "eraserRing": return english ? "Show a gray ring while erasing" : "擦除时显示灰色范围圆环"
+    case "secondaryMenu": return english ? "Tool Options" : "工具选项"
+    case "highlighterHold": return english ? "Hold for 2 seconds to straighten" : "停顿 2 秒自动拉直"
+    case "pressureEraseOn": return english ? "Pressure Erasing: On" : "重按临时擦除 开"
+    case "pressureEraseOff": return english ? "Pressure Erasing: Off" : "重按临时擦除 关"
+    case "sensitivityLow": return english ? "Low" : "低"
+    case "sensitivityMedium": return english ? "Medium" : "中"
+    case "sensitivityHigh": return english ? "High" : "高"
+    case "confirm": return english ? "Confirm" : "确定"
+    case "clearPDFConfirm": return english ? "Clear all PDF annotations? You can undo this." : "确定要清空全部 PDF 批注吗？清空后仍可撤销。"
+    case "clearWhiteboardConfirm": return english ? "Clear the whiteboard? You can undo this." : "确定要清空白板吗？清空后仍可撤销。"
+    case "mirrorForegroundHint": return english ? "Keep LinkDesk in the foreground to continue mirroring" : "全局投屏保活失败，请保持LinkDesk在前台"
+    case "notesFallback": return english ? "Huawei Notes is unavailable; opened with the system PDF app" : "华为笔记不可用，已交给系统 PDF 应用"
+    case "mirrorStopped": return english ? "Mirroring stopped" : "已停止投屏"
+    case "returnedMac": return english ? "Returned to Mac" : "已回传到 Mac"
+    case "notesOpened": return english ? "Opened in Huawei Notes; export and share back to LinkDesk after annotating" : "已在华为笔记打开，批注后请导出并分享到LinkDesk"
+    case "returnSaveHint": return english ? "Annotated PDF returned; choose a save location on Mac" : "批注版已回传，请在 Mac 选择保存位置"
+    case "fileSizeUnsupported": return english ? "Unsupported file size" : "文件大小不受支持"
+    case "fileReadIncomplete": return english ? "Could not read the entire file" : "文件读取不完整"
+    case "scanUnavailable": return english ? "Could not start the scanner" : "无法启动系统扫码服务"
+    case "scanInvalid": return english ? "No valid LinkDesk pairing QR code found" : "未识别到有效的LinkDesk连接二维码"
+    case "pdfDownloading": return english ? "Downloading to tablet…" : "正在下载到平板…"
+    case "pdfReturning": return english ? "Returning to Mac…" : "正在回传到 Mac…"
+    case "mirrorRunning": return english ? "Mirroring to Mac" : "正在投屏到 Mac"
+    case "notesOpening": return english ? "Opening Huawei Notes…" : "正在用华为笔记打开…"
+    case "noReturnTask": return english ? "No PDF is waiting to be returned" : "没有等待回传的 PDF 任务"
+    case "switchUSBFirst": return english ? "Switch to USB first" : "请先切换到 USB 连接"
+    case "waitConnection": return english ? "Waiting for connection" : "等待连接"
     default: return key
     }
   }
@@ -482,6 +535,52 @@ enum L10n {
   static var whiteboardOrigin: String { value("whiteboardOrigin") }
   static var fitWindow: String { value("fitWindow") }
   static var productInitial: String { value("productInitial") }
+  static var penWidthLevels: String { value("penWidthLevels") }
+  static var inkFeatureHint: String { value("inkFeatureHint") }
+  static var stylusHint: String { value("stylusHint") }
+  static var usbLowLatency: String { value("usbLowLatency") }
+  static var usbAutoHint: String { value("usbAutoHint") }
+  static var automaticHint: String { value("automaticHint") }
+  static var usbOnlyHint: String { value("usbOnlyHint") }
+  static var wifiHint: String { value("wifiHint") }
+  static var macPDFHint: String { value("macPDFHint") }
+  static var automaticHostPlaceholder: String { value("automaticHostPlaceholder") }
+  static var scanMac: String { value("scanMac") }
+  static var autoConnectMac: String { value("autoConnectMac") }
+  static var usbConnectMac: String { value("usbConnectMac") }
+  static var wifiConnectMac: String { value("wifiConnectMac") }
+  static var returnAccessibility: String { value("returnAccessibility") }
+  static var mirrorAccessibility: String { value("mirrorAccessibility") }
+  static var stopMirrorAccessibility: String { value("stopMirrorAccessibility") }
+  static var eraserRange: String { value("eraserRange") }
+  static var eraserRing: String { value("eraserRing") }
+  static var secondaryMenu: String { value("secondaryMenu") }
+  static var highlighterHold: String { value("highlighterHold") }
+  static var pressureEraseOn: String { value("pressureEraseOn") }
+  static var pressureEraseOff: String { value("pressureEraseOff") }
+  static var sensitivityLow: String { value("sensitivityLow") }
+  static var sensitivityMedium: String { value("sensitivityMedium") }
+  static var sensitivityHigh: String { value("sensitivityHigh") }
+  static var confirm: String { value("confirm") }
+  static var clearPDFConfirm: String { value("clearPDFConfirm") }
+  static var clearWhiteboardConfirm: String { value("clearWhiteboardConfirm") }
+  static var mirrorForegroundHint: String { value("mirrorForegroundHint") }
+  static var notesFallback: String { value("notesFallback") }
+  static var mirrorStopped: String { value("mirrorStopped") }
+  static var returnedMac: String { value("returnedMac") }
+  static var notesOpened: String { value("notesOpened") }
+  static var returnSaveHint: String { value("returnSaveHint") }
+  static var fileSizeUnsupported: String { value("fileSizeUnsupported") }
+  static var fileReadIncomplete: String { value("fileReadIncomplete") }
+  static var scanUnavailable: String { value("scanUnavailable") }
+  static var scanInvalid: String { value("scanInvalid") }
+  static var pdfDownloading: String { value("pdfDownloading") }
+  static var pdfReturning: String { value("pdfReturning") }
+  static var mirrorRunning: String { value("mirrorRunning") }
+  static var notesOpening: String { value("notesOpening") }
+  static var noReturnTask: String { value("noReturnTask") }
+  static var switchUSBFirst: String { value("switchUSBFirst") }
+  static var waitConnection: String { value("waitConnection") }
 }
 
 enum ConnectionState: String, CaseIterable {

@@ -653,6 +653,190 @@
     "productInitial": {
       "zh-Hans": "L",
       "en": "L"
+    },
+    "penWidthLevels": {
+      "zh-Hans": "4 档",
+      "en": "4 levels"
+    },
+    "inkFeatureHint": {
+      "zh-Hans": "PDF 批注 · 无限白板 · 双端同步",
+      "en": "PDF annotation · Live whiteboard · Shared workspace"
+    },
+    "stylusHint": {
+      "zh-Hans": "触控笔悬停定位 · 压感书写 · 实时同步",
+      "en": "Stylus hover · Pressure sensitivity · Live sync"
+    },
+    "usbLowLatency": {
+      "zh-Hans": "USB 超低延时连接",
+      "en": "Low-latency USB connection"
+    },
+    "usbAutoHint": {
+      "zh-Hans": "保持数据线连接，Mac 会自动建立有线通道",
+      "en": "Keep USB connected; your Mac sets up the connection automatically"
+    },
+    "automaticHint": {
+      "zh-Hans": "优先 USB，无数据线时自动发现同 Wi-Fi 下的 Mac",
+      "en": "Prefer USB; discover your Mac over Wi-Fi when unplugged"
+    },
+    "usbOnlyHint": {
+      "zh-Hans": "USB 模式不使用 Wi-Fi，保持数据线连接即可",
+      "en": "USB mode uses the cable connection"
+    },
+    "wifiHint": {
+      "zh-Hans": "确保平板与 Mac 处于同一 Wi-Fi 网络",
+      "en": "Connect your tablet and Mac to the same Wi-Fi network"
+    },
+    "macPDFHint": {
+      "zh-Hans": "Mac 端需先启动LinkDesk服务并打开 PDF",
+      "en": "Open LinkDesk and a PDF on your Mac"
+    },
+    "automaticHostPlaceholder": {
+      "zh-Hans": "自动发现 Mac（也可手动输入 IP）",
+      "en": "Discover Mac automatically or enter an address"
+    },
+    "scanMac": {
+      "zh-Hans": "扫描 Mac 二维码",
+      "en": "Scan Mac QR Code"
+    },
+    "autoConnectMac": {
+      "zh-Hans": "自动连接 Mac",
+      "en": "Connect Automatically"
+    },
+    "usbConnectMac": {
+      "zh-Hans": "通过 USB 连接 Mac",
+      "en": "Connect over USB"
+    },
+    "wifiConnectMac": {
+      "zh-Hans": "通过 Wi-Fi 连接 Mac",
+      "en": "Connect over Wi-Fi"
+    },
+    "returnAccessibility": {
+      "zh-Hans": "选择已批注 PDF 并回传到 Mac",
+      "en": "Select an annotated PDF and return it to Mac"
+    },
+    "mirrorAccessibility": {
+      "zh-Hans": "通过 USB 投屏到 Mac",
+      "en": "Mirror to Mac over USB"
+    },
+    "stopMirrorAccessibility": {
+      "zh-Hans": "停止投屏到 Mac",
+      "en": "Stop mirroring to Mac"
+    },
+    "eraserRange": {
+      "zh-Hans": "当前擦除范围",
+      "en": "Eraser Range"
+    },
+    "eraserRing": {
+      "zh-Hans": "擦除时显示灰色范围圆环",
+      "en": "Show a gray ring while erasing"
+    },
+    "secondaryMenu": {
+      "zh-Hans": "工具选项",
+      "en": "Tool Options"
+    },
+    "highlighterHold": {
+      "zh-Hans": "停顿 2 秒自动拉直",
+      "en": "Hold for 2 seconds to straighten"
+    },
+    "pressureEraseOn": {
+      "zh-Hans": "重按临时擦除 开",
+      "en": "Pressure Erasing: On"
+    },
+    "pressureEraseOff": {
+      "zh-Hans": "重按临时擦除 关",
+      "en": "Pressure Erasing: Off"
+    },
+    "sensitivityLow": {
+      "zh-Hans": "低",
+      "en": "Low"
+    },
+    "sensitivityMedium": {
+      "zh-Hans": "中",
+      "en": "Medium"
+    },
+    "sensitivityHigh": {
+      "zh-Hans": "高",
+      "en": "High"
+    },
+    "confirm": {
+      "zh-Hans": "确定",
+      "en": "Confirm"
+    },
+    "clearPDFConfirm": {
+      "zh-Hans": "确定要清空全部 PDF 批注吗？清空后仍可撤销。",
+      "en": "Clear all PDF annotations? You can undo this."
+    },
+    "clearWhiteboardConfirm": {
+      "zh-Hans": "确定要清空白板吗？清空后仍可撤销。",
+      "en": "Clear the whiteboard? You can undo this."
+    },
+    "mirrorForegroundHint": {
+      "zh-Hans": "全局投屏保活失败，请保持LinkDesk在前台",
+      "en": "Keep LinkDesk in the foreground to continue mirroring"
+    },
+    "notesFallback": {
+      "zh-Hans": "华为笔记不可用，已交给系统 PDF 应用",
+      "en": "Huawei Notes is unavailable; opened with the system PDF app"
+    },
+    "mirrorStopped": {
+      "zh-Hans": "已停止投屏",
+      "en": "Mirroring stopped"
+    },
+    "returnedMac": {
+      "zh-Hans": "已回传到 Mac",
+      "en": "Returned to Mac"
+    },
+    "notesOpened": {
+      "zh-Hans": "已在华为笔记打开，批注后请导出并分享到LinkDesk",
+      "en": "Opened in Huawei Notes; export and share back to LinkDesk after annotating"
+    },
+    "returnSaveHint": {
+      "zh-Hans": "批注版已回传，请在 Mac 选择保存位置",
+      "en": "Annotated PDF returned; choose a save location on Mac"
+    },
+    "fileSizeUnsupported": {
+      "zh-Hans": "文件大小不受支持",
+      "en": "Unsupported file size"
+    },
+    "fileReadIncomplete": {
+      "zh-Hans": "文件读取不完整",
+      "en": "Could not read the entire file"
+    },
+    "scanUnavailable": {
+      "zh-Hans": "无法启动系统扫码服务",
+      "en": "Could not start the scanner"
+    },
+    "scanInvalid": {
+      "zh-Hans": "未识别到有效的LinkDesk连接二维码",
+      "en": "No valid LinkDesk pairing QR code found"
+    },
+    "pdfDownloading": {
+      "zh-Hans": "正在下载到平板…",
+      "en": "Downloading to tablet…"
+    },
+    "pdfReturning": {
+      "zh-Hans": "正在回传到 Mac…",
+      "en": "Returning to Mac…"
+    },
+    "mirrorRunning": {
+      "zh-Hans": "正在投屏到 Mac",
+      "en": "Mirroring to Mac"
+    },
+    "notesOpening": {
+      "zh-Hans": "正在用华为笔记打开…",
+      "en": "Opening Huawei Notes…"
+    },
+    "noReturnTask": {
+      "zh-Hans": "没有等待回传的 PDF 任务",
+      "en": "No PDF is waiting to be returned"
+    },
+    "switchUSBFirst": {
+      "zh-Hans": "请先切换到 USB 连接",
+      "en": "Switch to USB first"
+    },
+    "waitConnection": {
+      "zh-Hans": "等待连接",
+      "en": "Waiting for connection"
     }
   }
 }

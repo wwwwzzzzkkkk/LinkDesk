@@ -1,3 +1,4 @@
+import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import { webview } from '@kit.ArkWeb';
 import { promptAction } from '@kit.ArkUI';
@@ -74,9 +75,9 @@ export struct InkWorkspace {
   @State appMode: string = 'pdf';
   @State showPad: boolean = false;
   @State connected: boolean = false;
-  @State documentName: string = '等待 Mac 打开 PDF';
+  @State documentName: string = Strings.waitPDFTitle;
   @State zoomPercent: number = 100;
-  @State color: string = '#152441';
+  @State color: string = DT.inkInk;
   @State penWidth: number = 3.5;
   @State eraser: boolean = false;
   @State highlighter: boolean = false;
@@ -231,14 +232,14 @@ export struct InkWorkspace {
   }
 
   @Builder themeControl() {
-    Button(this.themePreference === 'automatic' ? '◐  跟随系统' : this.darkMode ? '☾  深色' : '☼  浅色')
-      .fontSize(12).height(34).fontColor(this.darkMode ? '#C8D5E8' : '#526781')
-      .backgroundColor(this.darkMode ? '#223149' : '#E8EDF5').borderRadius(17)
-      .accessibilityText('切换外观，两端同步')
+    Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
+      .fontSize(DT.fontCaption).height(DT.spacingS32).fontColor(DT.secondary(this.darkMode))
+      .backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusMedium)
+      .accessibilityText(Strings.themeAccessibility)
       .bindMenu([
-        { value: '跟随 Mac 系统', action: () => LinkDeskTheme.select('automatic') },
-        { value: '浅色', action: () => LinkDeskTheme.select('light') },
-        { value: '深色', action: () => LinkDeskTheme.select('dark') }
+        { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
+        { value: Strings.themeLight, action: () => LinkDeskTheme.select('light') },
+        { value: Strings.themeDark, action: () => LinkDeskTheme.select('dark') }
       ])
   }
 
@@ -259,15 +260,15 @@ export struct InkWorkspace {
           .width('100%').height('100%')
           .alignItems(HorizontalAlign.Start)
           .padding({
-            left: 12,
-            right: 12,
+            left: DT.spacingS12,
+            right: DT.spacingS12,
             top: this.topSafeInset() + 6,
             bottom: this.bottomSafeInset() + 6
           })
           .hitTestBehavior(HitTestMode.Transparent)
         }
         .width('100%').height('100%')
-        .backgroundColor('#0b1420')
+        .backgroundColor(DT.canvas(this.darkMode))
       } else {
         this.ConnectionPanel()
       }
@@ -283,47 +284,47 @@ export struct InkWorkspace {
       }
     }
     .width('100%').height('100%')
-    .backgroundColor(this.darkMode ? '#0E1523' : '#F4F6FA')
+    .backgroundColor(DT.canvas(this.darkMode))
     .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   // ==================== 连接面板 ====================
   @Builder ConnectionPanel() {
-    Column({ space: 18 }) {
+    Column({ space: DT.spacingS16 }) {
       this.themeControl()
-      Button('‹  工作台').onClick(() => this.onExit()).fontSize(13).backgroundColor(this.chromeColor('#E8EDF5')).fontColor(this.chromeColor('#263B5B'))
+      Button(Strings.backHome).onClick(() => this.onExit()).fontSize(DT.fontCaption).backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode))
       Column() {
-        Text('LinkDesk').fontSize(28).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#152441'))
-        Text(this.requestedMode === 'mirror' ? '连接 Mac，开始平板投屏' : 'PDF 批注 · 无限白板 · 双端同步').fontSize(14).fontColor(this.chromeColor('#728096')).margin({ top: 4 })
-        Text('触控笔悬停定位 · 压感书写 · 实时同步').fontSize(12).fontColor(this.chromeColor('#a0aec0')).margin({ top: 2 })
+        Text(Strings.productName).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+        Text(this.requestedMode === 'mirror' ? Strings.mirrorSubtitle : Strings.inkFeatureHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).margin({ top: DT.spacingS4 })
+        Text(Strings.stylusHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).margin({ top: DT.spacingS4 })
       }
-      .alignItems(HorizontalAlign.Center).margin({ top: 80 })
+      .alignItems(HorizontalAlign.Center).margin({ top: DT.spacingS80 })
 
-      Column({ space: 12 }) {
-        Row({ space: 8 }) {
-          Button('自动')
-            .layoutWeight(1).height(44).fontSize(14)
-            .backgroundColor(this.connectionPreference === 'automatic' ? '#4F8FF7' : this.chromeColor('#e8edf5'))
-            .fontColor(this.connectionPreference === 'automatic' ? Color.White : this.chromeColor('#526078'))
-            .borderRadius(10)
+      Column({ space: DT.spacingS12 }) {
+        Row({ space: DT.spacingS8 }) {
+          Button(Strings.automatic)
+            .layoutWeight(1).height(DT.spacingS44).fontSize(DT.fontCaption)
+            .backgroundColor(this.connectionPreference === 'automatic' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .fontColor(this.connectionPreference === 'automatic' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
+            .borderRadius(DT.radiusSmall)
             .onClick(() => {
               this.connectionPreference = 'automatic';
               this.scheduleReconnect(0);
             })
-          Button('Wi-Fi')
-            .layoutWeight(1).height(44).fontSize(14)
-            .backgroundColor(this.connectionPreference === 'wifi' ? '#4F8FF7' : this.chromeColor('#e8edf5'))
-            .fontColor(this.connectionPreference === 'wifi' ? Color.White : this.chromeColor('#526078'))
-            .borderRadius(10)
+          Button(Strings.transportWireless)
+            .layoutWeight(1).height(DT.spacingS44).fontSize(DT.fontCaption)
+            .backgroundColor(this.connectionPreference === 'wifi' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .fontColor(this.connectionPreference === 'wifi' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
+            .borderRadius(DT.radiusSmall)
             .onClick(() => {
               this.connectionMode = 'wifi';
               this.connectionPreference = 'wifi';
             })
-          Button('USB')
-            .layoutWeight(1).height(44).fontSize(14)
-            .backgroundColor(this.connectionPreference === 'usb' ? '#4F8FF7' : this.chromeColor('#e8edf5'))
-            .fontColor(this.connectionPreference === 'usb' ? Color.White : this.chromeColor('#526078'))
-            .borderRadius(10)
+          Button(Strings.transportUSB)
+            .layoutWeight(1).height(DT.spacingS44).fontSize(DT.fontCaption)
+            .backgroundColor(this.connectionPreference === 'usb' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .fontColor(this.connectionPreference === 'usb' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
+            .borderRadius(DT.radiusSmall)
             .onClick(() => {
               this.connectionMode = 'usb';
               this.connectionPreference = 'usb';
@@ -331,131 +332,128 @@ export struct InkWorkspace {
         }.width('100%')
 
         if (this.connectionMode === 'wifi') {
-          TextInput({ text: this.host, placeholder: '自动发现 Mac（也可手动输入 IP）' })
-            .width('100%').height(48).backgroundColor(this.chromeColor('#ffffff')).borderRadius(12)
-            .fontSize(15).padding({ left: 16, right: 16 })
-            .border({ width: 1, color: this.chromeColor('#dfe5ef') })
+          TextInput({ text: this.host, placeholder: Strings.automaticHostPlaceholder })
+            .width('100%').height(DT.spacingS48).backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusSmall)
+            .fontSize(DT.fontBody).padding({ left: DT.spacingS16, right: DT.spacingS16 })
+            .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
             .onChange((value: string) => this.host = value.trim())
         } else {
-          Column({ space: 3 }) {
-            Text('USB 超低延时连接').fontSize(15).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#152441'))
-            Text('保持数据线连接，Mac 会自动建立有线通道').fontSize(11).fontColor(this.chromeColor('#728096'))
+          Column({ space: DT.spacingS4 }) {
+            Text(Strings.usbLowLatency).fontSize(DT.fontBody).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode))
+            Text(Strings.usbAutoHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
           }
-          .width('100%').height(48).justifyContent(FlexAlign.Center)
-          .backgroundColor(this.chromeColor('#ffffff')).borderRadius(12)
-          .border({ width: 1, color: this.chromeColor('#dfe5ef') })
+          .width('100%').height(DT.spacingS48).justifyContent(FlexAlign.Center)
+          .backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusSmall)
+          .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
         }
 
-        TextInput({ text: this.room, placeholder: '6 位房间号' })
-          .width('100%').height(48).backgroundColor(this.chromeColor('#ffffff')).borderRadius(12)
-          .fontSize(18).padding({ left: 16, right: 16 })
-          .letterSpacing(4).maxLength(6)
-          .border({ width: 1, color: this.chromeColor('#dfe5ef') })
+        TextInput({ text: this.room, placeholder: Strings.pairingPlaceholder })
+          .width('100%').height(DT.spacingS48).backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusSmall)
+          .fontSize(DT.fontBody).padding({ left: DT.spacingS16, right: DT.spacingS16 })
+          .letterSpacing(DT.spacingS4).maxLength(6)
+          .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
           .onChange((value: string) => {
             this.room = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
           })
 
-        Button('扫描 Mac 二维码')
-          .width('100%').height(44)
-          .fontSize(15).fontWeight(FontWeight.Medium)
-          .backgroundColor(this.chromeColor('#e8edf5')).fontColor(this.chromeColor('#263b5b'))
-          .border({ width: 1, color: this.chromeColor('#d7dfeb') })
-          .borderRadius(12)
+        Button(Strings.scanMac)
+          .width('100%').height(DT.spacingS44)
+          .fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
+          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode))
+          .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
+          .borderRadius(DT.radiusSmall)
           .onClick(() => this.startNativePairingScan())
 
         Button(this.connectionPreference === 'automatic'
-          ? '自动连接 Mac'
-          : (this.connectionMode === 'usb' ? '通过 USB 连接 Mac' : '通过 Wi-Fi 连接 Mac'))
-          .width('100%').height(48)
-          .fontSize(16).fontWeight(FontWeight.Bold)
-          .backgroundColor(this.darkMode ? '#326ED6' : '#152441').fontColor(Color.White)
-          .borderRadius(12)
+          ? Strings.autoConnectMac
+          : (this.connectionMode === 'usb' ? Strings.usbConnectMac : Strings.wifiConnectMac))
+          .width('100%').height(DT.spacingS48)
+          .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
+          .backgroundColor(DT.text(this.darkMode)).fontColor(DT.onAccent(this.darkMode))
+          .borderRadius(DT.radiusSmall)
           .onClick(() => this.connectToPad())
       }
-      .width('100%').constraintSize({ maxWidth: 360 }).margin({ top: 12 })
+      .width('100%').constraintSize({ maxWidth: DT.dimensionsD360 }).margin({ top: DT.spacingS12 })
 
-      Column({ space: 4 }) {
+      Column({ space: DT.spacingS4 }) {
         Text(this.connectionPreference === 'automatic'
-          ? '优先 USB，无数据线时自动发现同 Wi-Fi 下的 Mac'
-          : (this.connectionMode === 'usb' ? 'USB 模式不使用 Wi-Fi，保持数据线连接即可' : '确保平板与 Mac 处于同一 Wi-Fi 网络'))
-          .fontSize(12).fontColor(this.chromeColor('#8993a3'))
-        Text('Mac 端需先启动LinkDesk服务并打开 PDF').fontSize(12).fontColor(this.chromeColor('#8993a3'))
+          ? Strings.automaticHint
+          : (this.connectionMode === 'usb' ? Strings.usbOnlyHint : Strings.wifiHint))
+          .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
+        Text(Strings.macPDFHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
         Text(`版本 ${INKBRIDGE_APP_VERSION} · 协议 v${INKBRIDGE_PROTOCOL_VERSION}`)
-          .fontSize(10).fontColor(this.chromeColor('#a0a8b5'))
+          .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
       }.alignItems(HorizontalAlign.Center)
 
       Blank(1)
     }
     .width('100%').layoutWeight(1)
-    .padding({ left: 24, right: 24 })
-    .backgroundColor(this.chromeColor('#f4f6fa'))
+    .padding({ left: DT.spacingS24, right: DT.spacingS24 })
+    .backgroundColor(DT.canvas(this.darkMode))
   }
 
   // ==================== 顶部状态栏 ====================
   @Builder HeaderRow() {
     Stack({ alignContent: Alignment.Center }) {
       Text(this.documentName)
-        .fontSize(12).fontColor(this.chromeColor('#b8c5d6'))
+        .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         .width(this.headerTitleWidth())
         .textAlign(TextAlign.Center)
         .accessibilityText(`当前文件 ${this.documentName}`)
 
       Row() {
-        Row({ space: 6 }) {
-          Row({ space: 6 }) {
+        Row({ space: DT.spacingS8 }) {
+          Row({ space: DT.spacingS8 }) {
             Stack() {
-              Text('L').fontSize(12).fontWeight(FontWeight.Bold).fontColor(Color.White)
+              Text(Strings.productInitial).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.onAccent(this.darkMode))
             }
-            .width(28).height(28)
-            .borderRadius(9)
-            .linearGradient({
-              angle: 145,
-              colors: [['#4f8ff7', 0], ['#58d3b7', 1]]
-            })
-            .shadow({ radius: 12, color: this.glassColor('rgba(42, 112, 219, 0.34)'), offsetX: 0, offsetY: 5 })
+            .width(DT.spacingS28).height(DT.spacingS28)
+            .borderRadius(DT.radiusSmall)
+            
+            .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS4 })
             if (this.padAreaWidth >= 900) {
-              Text('LinkDesk').fontSize(15).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#f4f8ff'))
-              Text(this.connectionMode === 'usb' ? 'USB' : 'Wi-Fi')
-                .fontSize(10).fontWeight(FontWeight.Medium)
-                .fontColor(this.connectionMode === 'usb' ? this.chromeColor('#9be5d2') : this.chromeColor('#d4e1f2'))
-                .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              Text(Strings.productName).fontSize(DT.fontBody).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+              Text(this.connectionMode === 'usb' ? Strings.transportUSB : Strings.transportWireless)
+                .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
+                .fontColor(this.connectionMode === 'usb' ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
+                .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
                 .backgroundColor(this.connectionMode === 'usb'
-                  ? this.glassColor('rgba(45, 187, 149, 0.18)')
-                  : this.glassColor('rgba(255, 255, 255, 0.10)'))
-                .borderRadius(7)
+                  ? DT.glass(this.darkMode)
+                  : DT.control(this.darkMode))
+                .borderRadius(DT.radiusSmall)
             }
           }
           .onClick(() => this.onExit())
           .hitTestBehavior(HitTestMode.Block)
 
-          Row({ space: 3 }) {
+          Row({ space: DT.spacingS4 }) {
             Button() {
               Stack({ alignContent: Alignment.Center }) {
-                Text('PDF').fontSize(11)
-                  .fontColor(this.appMode === 'pdf' ? (this.darkMode ? Color.White : '#152441') : this.chromeColor('#aebdd0'))
+                Text(Strings.pdfTitle).fontSize(DT.fontCaption)
+                  .fontColor(this.appMode === 'pdf' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
               }
             }
-              .width(50).height(30).padding(0)
-              .backgroundColor(this.appMode === 'pdf' ? this.glassColor('rgba(255, 255, 255, 0.18)') : Color.Transparent)
-              .fontColor(this.appMode === 'pdf' ? (this.darkMode ? Color.White : '#152441') : this.chromeColor('#aebdd0'))
-              .borderRadius(8)
+              .width(DT.spacingS48).height(DT.spacingS32).padding(DT.spacingS0)
+              .backgroundColor(this.appMode === 'pdf' ? DT.control(this.darkMode) : DT.clear(this.darkMode))
+              .fontColor(this.appMode === 'pdf' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
+              .borderRadius(DT.radiusSmall)
               .onClick(() => this.switchAppMode('pdf', true))
             Button() {
               Stack({ alignContent: Alignment.Center }) {
-                Text('白板').fontSize(11)
-                  .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? Color.White : '#152441') : this.chromeColor('#aebdd0'))
+                Text(Strings.whiteboardTitle).fontSize(DT.fontCaption)
+                  .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
               }
             }
-              .width(50).height(30).padding(0)
-              .backgroundColor(this.appMode === 'whiteboard' ? this.glassColor('rgba(255, 255, 255, 0.18)') : Color.Transparent)
-              .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? Color.White : '#152441') : this.chromeColor('#aebdd0'))
-              .borderRadius(8)
+              .width(DT.spacingS48).height(DT.spacingS32).padding(DT.spacingS0)
+              .backgroundColor(this.appMode === 'whiteboard' ? DT.control(this.darkMode) : DT.clear(this.darkMode))
+              .fontColor(this.appMode === 'whiteboard' ? (this.darkMode ? DT.onAccent(this.darkMode) : DT.text(this.darkMode)) : DT.secondary(this.darkMode))
+              .borderRadius(DT.radiusSmall)
               .onClick(() => this.switchAppMode('whiteboard', true))
           }
-          .padding(3)
-          .backgroundColor(this.glassColor('rgba(0, 0, 0, 0.16)'))
-          .borderRadius(11)
+          .padding(DT.spacingS4)
+          .backgroundColor(DT.glass(this.darkMode))
+          .borderRadius(DT.radiusSmall)
         }
         .onAreaChange((_, area) => {
           this.headerLeftWidth = Math.max(0, area.width as number);
@@ -463,55 +461,55 @@ export struct InkWorkspace {
 
         Blank(1)
 
-        Row({ space: 6 }) {
+        Row({ space: DT.spacingS8 }) {
           if (this.padAreaWidth >= 720) {
             Text(this.room)
-              .fontSize(9).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#aab9cc'))
+              .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
               .maxLines(1)
           }
-          Row({ space: 5 }) {
+          Row({ space: DT.spacingS4 }) {
             Circle()
-              .width(7).height(7)
-              .fill(this.connected ? '#58d3b7' : this.chromeColor('#f0b74d'))
+              .width(DT.spacingS8).height(DT.spacingS8)
+              .fill(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
             if (this.padAreaWidth >= 620) {
-              Text(this.connected ? '已连接' : '等待连接')
-                .fontSize(11).fontWeight(FontWeight.Medium)
-                .fontColor(this.connected ? this.chromeColor('#9be5d2') : this.chromeColor('#d4bd8a'))
+              Text(this.connected ? Strings.connected : Strings.waitConnection)
+                .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
+                .fontColor(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
             }
           }
-          .padding({ left: 9, right: 9, top: 5, bottom: 5 })
-          .backgroundColor(this.connected ? this.glassColor('rgba(45, 187, 149, 0.13)') : this.glassColor('rgba(240, 183, 77, 0.12)'))
-          .borderRadius(12)
+          .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
+          .backgroundColor(this.connected ? DT.glass(this.darkMode) : DT.glass(this.darkMode))
+          .borderRadius(DT.radiusSmall)
 
           if (this.roundTripId.length > 0) {
-            Button('回传批注')
-              .height(30).padding({ left: 10, right: 10 })
-              .fontSize(11).fontWeight(FontWeight.Medium)
-              .fontColor(this.chromeColor('#d7e9ff'))
-              .backgroundColor(this.glassColor('rgba(88, 211, 183, 0.17)'))
-              .borderRadius(9)
-              .accessibilityText('选择已批注 PDF 并回传到 Mac')
+            Button(Strings.returnPDF)
+              .height(DT.spacingS32).padding({ left: DT.spacingS8, right: DT.spacingS8 })
+              .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
+              .fontColor(DT.text(this.darkMode))
+              .backgroundColor(DT.glass(this.darkMode))
+              .borderRadius(DT.radiusSmall)
+              .accessibilityText(Strings.returnAccessibility)
               .onClick(() => this.selectRoundTripReturnPDF())
           }
 
           this.themeControl()
-          Button(this.screenMirroring ? '停止投屏' : '投屏')
-            .height(30).padding({ left: 10, right: 10 })
-            .fontSize(11).fontWeight(FontWeight.Medium)
-            .fontColor(this.screenMirroring ? this.chromeColor('#ffbbb4') : this.chromeColor('#d7e9ff'))
+          Button(this.screenMirroring ? Strings.stopMirror : Strings.startMirror)
+            .height(DT.spacingS32).padding({ left: DT.spacingS8, right: DT.spacingS8 })
+            .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
+            .fontColor(this.screenMirroring ? DT.error(this.darkMode) : DT.text(this.darkMode))
             .backgroundColor(this.screenMirroring
-              ? this.glassColor('rgba(221, 82, 72, 0.18)')
-              : this.glassColor('rgba(79, 143, 247, 0.16)'))
-            .borderRadius(9)
-            .accessibilityText(this.screenMirroring ? '停止投屏到 Mac' : '通过 USB 投屏到 Mac')
+              ? DT.glass(this.darkMode)
+              : DT.glass(this.darkMode))
+            .borderRadius(DT.radiusSmall)
+            .accessibilityText(this.screenMirroring ? Strings.stopMirrorAccessibility : Strings.mirrorAccessibility)
             .onClick(() => this.toggleScreenMirror())
 
           Button('⌃')
-            .width(30).height(30).padding(0).fontSize(14)
-            .fontColor(this.chromeColor('#d7e9ff'))
-            .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)'))
-            .borderRadius(9)
-            .accessibilityText('收起顶部菜单')
+            .width(DT.spacingS32).height(DT.spacingS32).padding(DT.spacingS0).fontSize(DT.fontCaption)
+            .fontColor(DT.text(this.darkMode))
+            .backgroundColor(DT.control(this.darkMode))
+            .borderRadius(DT.radiusSmall)
+            .accessibilityText(Strings.collapseTools)
             .onClick(() => this.setTopBarCollapsed(true))
         }
         .onAreaChange((_, area) => {
@@ -520,27 +518,15 @@ export struct InkWorkspace {
       }
       .width('100%')
     }
-    .width('100%').height(46)
-    .padding({ left: 12, right: 12 })
-    .backgroundColor(this.glassColor('rgba(12, 24, 38, 0.20)'))
-    .backgroundEffect({
-      radius: 24,
-      saturation: 1.15,
-      brightness: this.darkMode ? 0.88 : 1.06,
-      color: this.glassColor('rgba(12, 24, 38, 0.18)')
-    })
-    .linearGradient({
-      angle: 125,
-      colors: [
-        [this.glassColor('rgba(76, 130, 181, 0.20)'), 0],
-        [this.glassColor('rgba(12, 24, 38, 0.24)'), 0.48],
-        [this.glassColor('rgba(38, 116, 127, 0.17)'), 1]
-      ]
-    })
-    .border({ width: 1, color: this.glassColor('rgba(210, 232, 255, 0.40)') })
-    .borderRadius(18)
+    .width('100%').height(DT.spacingS48)
+    .padding({ left: DT.spacingS12, right: DT.spacingS12 })
+    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
+    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .borderRadius(DT.radiusMedium)
     .clip(true)
-    .shadow({ radius: 18, color: this.glassColor('rgba(0, 0, 0, 0.26)'), offsetX: 0, offsetY: 7 })
+    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
     .geometryTransition('inkbridge-topbar-roll')
     .onAreaChange((_, area) => {
       this.headerWidth = Math.max(1, area.width as number);
@@ -550,36 +536,25 @@ export struct InkWorkspace {
   @Builder CollapsedHeaderButton() {
     Button() {
       Stack({ alignContent: Alignment.Center }) {
-        Text('L').fontSize(13).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#f4f8ff'))
+        Text(Strings.productInitial).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
         Circle()
-          .width(6).height(6)
-          .fill(this.connected ? '#58d3b7' : this.chromeColor('#f0b74d'))
+          .width(DT.spacingS8).height(DT.spacingS8)
+          .fill(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
           .position({ x: 37, y: 7 })
-        Text('⌄').fontSize(10).fontColor(this.chromeColor('#d7e9ff'))
+        Text('⌄').fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode))
           .position({ x: 32, y: 29 })
       }
     }
-    .width(48).height(48).padding(0)
-    .backgroundColor(this.glassColor('rgba(12, 24, 38, 0.20)'))
-    .backgroundEffect({
-      radius: 24,
-      saturation: 1.15,
-      brightness: this.darkMode ? 0.88 : 1.06,
-      color: this.glassColor('rgba(12, 24, 38, 0.18)')
-    })
-    .linearGradient({
-      angle: 145,
-      colors: [
-        [this.glassColor('rgba(79, 143, 247, 0.42)'), 0],
-        [this.glassColor('rgba(88, 211, 183, 0.22)'), 1]
-      ]
-    })
-    .border({ width: 1, color: this.glassColor('rgba(210, 232, 255, 0.40)') })
-    .borderRadius(24)
+    .width(DT.spacingS48).height(DT.spacingS48).padding(DT.spacingS0)
+    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
+    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .borderRadius(DT.radiusLarge)
     .clip(true)
-    .shadow({ radius: 18, color: this.glassColor('rgba(0, 0, 0, 0.26)'), offsetX: 0, offsetY: 7 })
+    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
     .geometryTransition('inkbridge-topbar-roll')
-    .accessibilityText('展开顶部菜单')
+    .accessibilityText(Strings.expandTools)
     .onClick(() => this.setTopBarCollapsed(false))
   }
 
@@ -630,259 +605,223 @@ export struct InkWorkspace {
   @Builder ToolbarRow() {
     Row() {
       Blank(1)
-      Row({ space: 5 }) {
+      Row({ space: DT.spacingS4 }) {
         Button() {
-          Text('✎').fontSize(17).fontColor(!this.eraser && !this.highlighter ? this.chromeColor('#d7e9ff') : this.chromeColor('#c3cede'))
+          Text('✎').fontSize(DT.fontBody).fontColor(!this.eraser && !this.highlighter ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
         }
-        .width(38).height(36).padding(0)
-        .backgroundColor(!this.eraser && !this.highlighter ? this.glassColor('rgba(75, 138, 232, 0.30)') : this.glassColor('rgba(255, 255, 255, 0.055)'))
-        .fontColor(!this.eraser && !this.highlighter ? this.chromeColor('#d7e9ff') : this.chromeColor('#c3cede'))
-        .border({ width: 1, color: !this.eraser && !this.highlighter ? this.glassColor('rgba(130, 177, 246, 0.20)') : Color.Transparent })
-        .borderRadius(10)
-        .accessibilityText('画笔')
+        .width(DT.spacingS40).height(DT.spacingS36).padding(DT.spacingS0)
+        .backgroundColor(!this.eraser && !this.highlighter ? DT.glass(this.darkMode) : DT.control(this.darkMode))
+        .fontColor(!this.eraser && !this.highlighter ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
+        .border({ width: DT.layoutStroke, color: !this.eraser && !this.highlighter ? DT.glass(this.darkMode) : DT.clear(this.darkMode) })
+        .borderRadius(DT.radiusSmall)
+        .accessibilityText(Strings.pen)
         .onClick(() => this.selectPenTool())
 
         Button() {
           this.HighlighterGlyph(this.highlighter)
         }
-        .width(38).height(36).padding(0)
-        .backgroundColor(this.highlighter ? this.glassColor('rgba(237, 205, 70, 0.24)') : this.glassColor('rgba(255, 255, 255, 0.055)'))
-        .border({ width: 1, color: this.highlighter ? this.glassColor('rgba(255, 231, 116, 0.34)') : Color.Transparent })
-        .borderRadius(10)
-        .accessibilityText('荧光笔')
+        .width(DT.spacingS40).height(DT.spacingS36).padding(DT.spacingS0)
+        .backgroundColor(this.highlighter ? DT.glass(this.darkMode) : DT.control(this.darkMode))
+        .border({ width: DT.layoutStroke, color: this.highlighter ? DT.glass(this.darkMode) : DT.clear(this.darkMode) })
+        .borderRadius(DT.radiusSmall)
+        .accessibilityText(Strings.highlighter)
         .onClick(() => this.selectHighlighterTool())
 
         Button() {
           this.EraserGlyph(this.eraser)
         }
-        .width(38).height(36).padding(0)
-        .backgroundColor(this.eraser ? this.glassColor('rgba(75, 138, 232, 0.30)') : this.glassColor('rgba(255, 255, 255, 0.055)'))
-        .fontColor(this.eraser ? this.chromeColor('#d7e9ff') : this.chromeColor('#c3cede'))
-        .border({ width: 1, color: this.eraser ? this.glassColor('rgba(130, 177, 246, 0.20)') : Color.Transparent })
-        .borderRadius(10)
-        .accessibilityText('橡皮擦')
+        .width(DT.spacingS40).height(DT.spacingS36).padding(DT.spacingS0)
+        .backgroundColor(this.eraser ? DT.glass(this.darkMode) : DT.control(this.darkMode))
+        .fontColor(this.eraser ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
+        .border({ width: DT.layoutStroke, color: this.eraser ? DT.glass(this.darkMode) : DT.clear(this.darkMode) })
+        .borderRadius(DT.radiusSmall)
+        .accessibilityText(Strings.eraser)
         .onClick(() => this.selectEraserTool())
 
         this.ToolDivider()
         Button('↶')
-          .width(36).height(36).padding(0).fontSize(16)
+          .width(DT.spacingS36).height(DT.spacingS36).padding(DT.spacingS0).fontSize(DT.fontBody)
           .enabled(this.canUndo)
-          .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).fontColor(this.canUndo ? this.chromeColor('#c3cede') : this.chromeColor('#748195'))
-          .borderRadius(10).accessibilityText('撤销').onClick(() => this.runJS('nativeUndo()'))
+          .backgroundColor(DT.control(this.darkMode)).fontColor(this.canUndo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+          .borderRadius(DT.radiusSmall).accessibilityText(Strings.undo).onClick(() => this.runJS('nativeUndo()'))
         Button('↷')
-          .width(36).height(36).padding(0).fontSize(16)
+          .width(DT.spacingS36).height(DT.spacingS36).padding(DT.spacingS0).fontSize(DT.fontBody)
           .enabled(this.canRedo)
-          .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).fontColor(this.canRedo ? this.chromeColor('#c3cede') : this.chromeColor('#748195'))
-          .borderRadius(10).accessibilityText('重做').onClick(() => this.runJS('nativeRedo()'))
+          .backgroundColor(DT.control(this.darkMode)).fontColor(this.canRedo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+          .borderRadius(DT.radiusSmall).accessibilityText(Strings.redo).onClick(() => this.runJS('nativeRedo()'))
 
         if (this.appMode === 'pdf') {
           this.ToolDivider()
           Button('−')
-            .width(34).height(36).padding(0).fontSize(16)
-            .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).fontColor(this.chromeColor('#c3cede')).borderRadius(10)
+            .width(DT.spacingS32).height(DT.spacingS36).padding(DT.spacingS0).fontSize(DT.fontBody)
+            .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
             .onClick(() => this.runJS('nativeZoomOut()'))
           Text(`${Math.round(this.zoomPercent)}%`)
-            .fontSize(11).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#d2dbe8'))
-            .width(42).textAlign(TextAlign.Center)
+            .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
+            .width(DT.spacingS40).textAlign(TextAlign.Center)
           Button('+')
-            .width(34).height(36).padding(0).fontSize(16)
-            .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).fontColor(this.chromeColor('#c3cede')).borderRadius(10)
+            .width(DT.spacingS32).height(DT.spacingS36).padding(DT.spacingS0).fontSize(DT.fontBody)
+            .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
             .onClick(() => this.runJS('nativeZoomIn()'))
         }
 
         this.ToolDivider()
 
         Button('⌫')
-          .width(38).height(36).padding(0).fontSize(17).fontWeight(FontWeight.Medium)
-          .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).fontColor(this.chromeColor('#ffaaa6'))
-          .borderRadius(10)
-          .accessibilityText(this.appMode === 'pdf' ? '清空批注' : '清空白板')
+          .width(DT.spacingS40).height(DT.spacingS36).padding(DT.spacingS0).fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
+          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.error(this.darkMode))
+          .borderRadius(DT.radiusSmall)
+          .accessibilityText(this.appMode === 'pdf' ? Strings.clearAnnotations : Strings.clearWhiteboard)
           .onClick(() => this.confirmClear())
       }
-      .padding({ left: 7, right: 7, top: 5, bottom: 5 })
-      .backgroundColor(this.glassColor('rgba(12, 24, 38, 0.20)'))
-      .backgroundEffect({
-        radius: 24,
-        saturation: 1.15,
-        brightness: this.darkMode ? 0.88 : 1.06,
-        color: this.glassColor('rgba(12, 24, 38, 0.18)')
-      })
-      .linearGradient({
-        angle: 125,
-        colors: [
-          [this.glassColor('rgba(76, 130, 181, 0.20)'), 0],
-          [this.glassColor('rgba(12, 24, 38, 0.24)'), 0.48],
-          [this.glassColor('rgba(38, 116, 127, 0.17)'), 1]
-        ]
-      })
-      .border({ width: 1, color: this.glassColor('rgba(210, 232, 255, 0.40)') })
-      .borderRadius(18)
-      .shadow({ radius: 18, color: this.glassColor('rgba(0, 0, 0, 0.28)'), offsetX: 0, offsetY: 8 })
+      .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
+      .backgroundColor(DT.glass(this.darkMode))
+      .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+      
+      .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+      .borderRadius(DT.radiusMedium)
+      .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
       Blank(1)
     }
-    .width('100%').height(50)
+    .width('100%').height(DT.spacingS48)
   }
 
   // ==================== 工具栏辅助组件 ====================
   @Builder PenToolMenu() {
-    Column({ space: 13 }) {
+    Column({ space: DT.spacingS12 }) {
       Row() {
-        Text('画笔粗细').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#eef5ff'))
+        Text(Strings.penWidth).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
         Blank(1)
-        Text('4 档').fontSize(10).fontColor(this.chromeColor('#aebdd0'))
+        Text(Strings.penWidthLevels).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
       }.width('100%')
-      Row({ space: 8 }) {
+      Row({ space: DT.spacingS8 }) {
         this.PenLevelButton(1.2, '1', 1)
         this.PenLevelButton(2.2, '2', 2)
         this.PenLevelButton(3.5, '3', 4)
         this.PenLevelButton(5.5, '4', 7)
       }
-      Divider().color(this.glassColor('rgba(255, 255, 255, 0.12)'))
+      Divider().color(DT.control(this.darkMode))
       Row() {
-        Text('画笔颜色').fontSize(11).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#bdcadb'))
+        Text(Strings.penColor).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
         Blank(1)
-        Row({ space: 7 }) {
-          this.ColorSwatch('#152441')
-          this.ColorSwatch('#2269ef')
-          this.ColorSwatch('#e45a4f')
-          this.ColorSwatch('#1b9a7e')
+        Row({ space: DT.spacingS8 }) {
+          this.ColorSwatch(DT.inkInk)
+          this.ColorSwatch(DT.inkColor7)
+          this.ColorSwatch(DT.inkColor8)
+          this.ColorSwatch(DT.inkColor9)
         }
       }.width('100%')
     }
-    .width(360)
-    .padding({ left: 16, right: 16, top: 15, bottom: 14 })
+    .width(DT.dimensionsD360)
+    .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
     .margin({ bottom: this.bottomSafeInset() + 60 })
-    .backgroundColor(this.glassColor('rgba(12, 26, 40, 0.38)'))
-    .backgroundEffect({
-      radius: 28,
-      saturation: 1.15,
-      brightness: this.darkMode ? 0.88 : 1.06,
-      color: this.glassColor('rgba(12, 26, 40, 0.20)')
-    })
-    .linearGradient({
-      angle: 135,
-      colors: [
-        [this.glassColor('rgba(67, 116, 163, 0.38)'), 0],
-        [this.glassColor('rgba(12, 26, 40, 0.44)'), 0.62],
-        [this.glassColor('rgba(36, 104, 113, 0.32)'), 1]
-      ]
-    })
-    .border({ width: 1, color: this.glassColor('rgba(169, 210, 255, 0.24)') })
-    .borderRadius(18)
-    .shadow({ radius: 28, color: this.glassColor('rgba(0, 0, 0, 0.38)'), offsetX: 0, offsetY: 12 })
+    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
+    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .borderRadius(DT.radiusMedium)
+    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
 
   @Builder EraserToolMenu() {
-    Column({ space: 13 }) {
+    Column({ space: DT.spacingS12 }) {
       Row() {
-        Row({ space: 9 }) {
+        Row({ space: DT.spacingS8 }) {
           this.EraserGlyph(true)
-          Text('橡皮设置').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#eef5ff'))
+          Text(Strings.eraserSettings).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
         }
         Blank(1)
-        Text('独立二级菜单').fontSize(10).fontColor(this.chromeColor('#aebdd0'))
+        Text(Strings.secondaryMenu).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
       }.width('100%')
-      Row({ space: 12 }) {
+      Row({ space: DT.spacingS12 }) {
         Stack() {
-          Circle().width(48).height(48)
-            .fill(this.glassColor('rgba(255, 255, 255, 0.06)')).stroke(this.chromeColor('#a8b5c8')).strokeWidth(1.5)
-          Text(`${Math.round(this.eraserSize)} px`).fontSize(9).fontWeight(FontWeight.Medium)
-            .fontColor(this.chromeColor('#c5d0df'))
+          Circle().width(DT.spacingS48).height(DT.spacingS48)
+            .fill(DT.control(this.darkMode)).stroke(DT.secondary(this.darkMode)).strokeWidth(1.5)
+          Text(`${Math.round(this.eraserSize)} px`).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
+            .fontColor(DT.secondary(this.darkMode))
         }
-        Column({ space: 3 }) {
-          Text('当前擦除范围').fontSize(12).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#eef5ff'))
-          Text('擦除时显示灰色范围圆环').fontSize(10).fontColor(this.chromeColor('#aebdd0'))
+        Column({ space: DT.spacingS4 }) {
+          Text(Strings.eraserRange).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode))
+          Text(Strings.eraserRing).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
         }.alignItems(HorizontalAlign.Start)
       }
-      .width('100%').padding(10).backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)')).borderRadius(12)
-      Row({ space: 8 }) {
+      .width('100%').padding(DT.spacingS8).backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusSmall)
+      Row({ space: DT.spacingS8 }) {
         this.EraserLevelButton(24, '1', 14)
         this.EraserLevelButton(40, '2', 20)
         this.EraserLevelButton(64, '3', 27)
         this.EraserLevelButton(96, '4', 34)
       }
       Row() {
-        Button(this.pressureEraserEnabled ? '重按临时擦除 开' : '重按临时擦除 关')
-          .height(30).fontSize(10).padding({ left: 10, right: 10 })
+        Button(this.pressureEraserEnabled ? Strings.pressureEraseOn : Strings.pressureEraseOff)
+          .height(DT.spacingS32).fontSize(DT.fontCaption).padding({ left: DT.spacingS8, right: DT.spacingS8 })
           .backgroundColor(this.pressureEraserEnabled
-            ? this.glassColor('rgba(45, 187, 149, 0.16)')
-            : this.glassColor('rgba(255, 255, 255, 0.055)'))
-          .fontColor(this.pressureEraserEnabled ? this.chromeColor('#9be5d2') : this.chromeColor('#aebdd0'))
+            ? DT.glass(this.darkMode)
+            : DT.control(this.darkMode))
+          .fontColor(this.pressureEraserEnabled ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
           .border({
-            width: 1,
+            width: DT.layoutStroke,
             color: this.pressureEraserEnabled
-              ? this.glassColor('rgba(102, 215, 186, 0.34)')
-              : this.glassColor('rgba(255, 255, 255, 0.12)')
+              ? DT.glass(this.darkMode)
+              : DT.control(this.darkMode)
           })
-          .borderRadius(8).onClick(() => this.togglePressureEraser())
+          .borderRadius(DT.radiusSmall).onClick(() => this.togglePressureEraser())
         Blank(1)
         Button(`灵敏度 ${this.pressureSensitivityLabel()}`)
-          .height(30).fontSize(10).padding({ left: 10, right: 10 })
+          .height(DT.spacingS32).fontSize(DT.fontCaption).padding({ left: DT.spacingS8, right: DT.spacingS8 })
           .enabled(this.pressureEraserEnabled)
-          .backgroundColor(this.glassColor('rgba(255, 255, 255, 0.055)'))
-          .fontColor(this.pressureEraserEnabled ? this.chromeColor('#c3cede') : this.chromeColor('#748195'))
-          .border({ width: 1, color: this.glassColor('rgba(255, 255, 255, 0.12)') })
-          .borderRadius(8).onClick(() => this.cyclePressureSensitivity())
+          .backgroundColor(DT.control(this.darkMode))
+          .fontColor(this.pressureEraserEnabled ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+          .border({ width: DT.layoutStroke, color: DT.control(this.darkMode) })
+          .borderRadius(DT.radiusSmall).onClick(() => this.cyclePressureSensitivity())
       }.width('100%')
     }
-    .width(380)
-    .padding({ left: 16, right: 16, top: 15, bottom: 14 })
+    .width(DT.dimensionsD380)
+    .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
     .margin({ bottom: this.bottomSafeInset() + 60 })
-    .backgroundColor(this.glassColor('rgba(12, 26, 40, 0.38)'))
-    .backgroundEffect({
-      radius: 28,
-      saturation: 1.15,
-      brightness: this.darkMode ? 0.88 : 1.06,
-      color: this.glassColor('rgba(12, 26, 40, 0.20)')
-    })
-    .linearGradient({
-      angle: 135,
-      colors: [
-        [this.glassColor('rgba(67, 116, 163, 0.38)'), 0],
-        [this.glassColor('rgba(12, 26, 40, 0.44)'), 0.62],
-        [this.glassColor('rgba(36, 104, 113, 0.32)'), 1]
-      ]
-    })
-    .border({ width: 1, color: this.glassColor('rgba(169, 210, 255, 0.24)') })
-    .borderRadius(18)
-    .shadow({ radius: 28, color: this.glassColor('rgba(0, 0, 0, 0.38)'), offsetX: 0, offsetY: 12 })
+    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
+    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .borderRadius(DT.radiusMedium)
+    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
 
   @Builder HighlighterToolMenu() {
-    Column({ space: 13 }) {
+    Column({ space: DT.spacingS12 }) {
       Row() {
-        Row({ space: 9 }) {
+        Row({ space: DT.spacingS8 }) {
           this.HighlighterGlyph(true)
-          Text('荧光笔').fontSize(14).fontWeight(FontWeight.Bold).fontColor(this.chromeColor('#eef5ff'))
+          Text(Strings.highlighter).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
         }
         Blank(1)
-        Text('停顿 2 秒自动拉直').fontSize(10).fontColor(this.chromeColor('#d9c969'))
+        Text(Strings.highlighterHold).fontSize(DT.fontCaption).fontColor(DT.warning(this.darkMode))
       }.width('100%')
-      Column({ space: 8 }) {
+      Column({ space: DT.spacingS8 }) {
         Row() {
-          Text('粗细').fontSize(11).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#bdcadb'))
+          Text(Strings.width).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
           Blank(1)
-          Text(`${Math.round(this.highlighterWidth)} px`).fontSize(10).fontColor(this.chromeColor('#fff0a2'))
+          Text(`${Math.round(this.highlighterWidth)} px`).fontSize(DT.fontCaption).fontColor(DT.warning(this.darkMode))
         }.width('100%')
-        Row({ space: 8 }) {
+        Row({ space: DT.spacingS8 }) {
           this.HighlighterWidthButton(8, '1', 3)
           this.HighlighterWidthButton(14, '2', 5)
           this.HighlighterWidthButton(22, '3', 8)
           this.HighlighterWidthButton(32, '4', 11)
         }
       }
-      Divider().color(this.glassColor('rgba(255, 255, 255, 0.12)'))
-      Column({ space: 8 }) {
+      Divider().color(DT.control(this.darkMode))
+      Column({ space: DT.spacingS8 }) {
         Row() {
-          Text('不透明度').fontSize(11).fontWeight(FontWeight.Medium).fontColor(this.chromeColor('#bdcadb'))
+          Text(Strings.opacity).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
           Blank(1)
-          Text(`${Math.round(this.highlighterOpacity * 100)}%`).fontSize(10).fontColor(this.chromeColor('#fff0a2'))
+          Text(`${Math.round(this.highlighterOpacity * 100)}%`).fontSize(DT.fontCaption).fontColor(DT.warning(this.darkMode))
         }.width('100%')
-        Row({ space: 8 }) {
+        Row({ space: DT.spacingS8 }) {
           this.HighlighterOpacityButton(0.18, '18%')
           this.HighlighterOpacityButton(0.28, '28%')
           this.HighlighterOpacityButton(0.40, '40%')
@@ -890,113 +829,101 @@ export struct InkWorkspace {
         }
       }
     }
-    .width(390)
-    .padding({ left: 16, right: 16, top: 15, bottom: 14 })
+    .width(DT.dimensionsD392)
+    .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
     .margin({ bottom: this.bottomSafeInset() + 60 })
-    .backgroundColor(this.glassColor('rgba(12, 26, 40, 0.38)'))
-    .backgroundEffect({
-      radius: 28,
-      saturation: 1.15,
-      brightness: this.darkMode ? 0.90 : 1.06,
-      color: this.glassColor('rgba(12, 26, 40, 0.20)')
-    })
-    .linearGradient({
-      angle: 135,
-      colors: [
-        [this.glassColor('rgba(151, 130, 50, 0.28)'), 0],
-        [this.glassColor('rgba(12, 26, 40, 0.44)'), 0.62],
-        [this.glassColor('rgba(36, 104, 113, 0.28)'), 1]
-      ]
-    })
-    .border({ width: 1, color: this.glassColor('rgba(255, 230, 116, 0.28)') })
-    .borderRadius(18)
-    .shadow({ radius: 28, color: this.glassColor('rgba(0, 0, 0, 0.38)'), offsetX: 0, offsetY: 12 })
+    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+    
+    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .borderRadius(DT.radiusMedium)
+    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
 
   @Builder EraserGlyph(active: boolean) {
     Row() {
-      Rect().width(9).height(12).fill(active ? this.chromeColor('#87b8ff') : this.chromeColor('#aab7c9'))
-      Rect().width(9).height(12).fill(this.glassColor('rgba(244, 248, 255, 0.92)'))
+      Rect().width(DT.spacingS8).height(DT.spacingS12).fill(active ? DT.accent(this.darkMode) : DT.secondary(this.darkMode))
+      Rect().width(DT.spacingS8).height(DT.spacingS12).fill(DT.glass(this.darkMode))
     }
-    .width(20).height(14)
-    .border({ width: 1.5, color: active ? this.chromeColor('#9bc5ff') : this.chromeColor('#b6c2d2') })
-    .borderRadius(3)
+    .width(DT.spacingS20).height(DT.spacingS16)
+    .border({ width: DT.layoutStroke, color: active ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode) })
+    .borderRadius(DT.radiusSmall)
     .rotate({ angle: -32 })
   }
 
   @Builder HighlighterGlyph(active: boolean) {
     Stack() {
-      Rect().width(10).height(18)
-        .fill(active ? '#ffe56f' : this.chromeColor('#c8c28f'))
-        .borderRadius({ topLeft: 2, topRight: 2, bottomLeft: 1, bottomRight: 1 })
-      Rect().width(14).height(5)
-        .fill(active ? this.glassColor('rgba(255, 235, 122, 0.94)') : this.glassColor('rgba(221, 219, 185, 0.86)'))
-        .margin({ top: 17 })
-        .borderRadius(2)
+      Rect().width(DT.spacingS8).height(DT.spacingS16)
+        .fill(active ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+        .borderRadius({ topLeft: DT.radiusSmall, topRight: DT.radiusSmall, bottomLeft: DT.radiusSmall, bottomRight: DT.radiusSmall })
+      Rect().width(DT.spacingS16).height(DT.spacingS4)
+        .fill(active ? DT.glass(this.darkMode) : DT.glass(this.darkMode))
+        .margin({ top: DT.spacingS16 })
+        .borderRadius(DT.radiusSmall)
     }
-    .width(22).height(24)
+    .width(DT.spacingS24).height(DT.spacingS24)
     .rotate({ angle: -28 })
   }
 
   @Builder HighlighterWidthButton(widthValue: number, label: string, sampleWidth: number) {
     Button() {
-      Column({ space: 5 }) {
-        Divider().width(38).strokeWidth(sampleWidth).color('#ffe56f')
-        Text(label).fontSize(10).fontWeight(FontWeight.Medium)
+      Column({ space: DT.spacingS4 }) {
+        Divider().width(DT.spacingS40).strokeWidth(sampleWidth).color(DT.secondary(this.darkMode))
+        Text(label).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
       }
     }
-    .width(81).height(58).padding(0)
+    .width(DT.spacingS80).height(DT.spacingS56).padding(DT.spacingS0)
     .backgroundColor(this.highlighterWidth === widthValue
-      ? this.glassColor('rgba(237, 205, 70, 0.22)')
-      : this.glassColor('rgba(255, 255, 255, 0.045)'))
-    .fontColor(this.highlighterWidth === widthValue ? this.chromeColor('#fff0a2') : this.chromeColor('#bdcadb'))
+      ? DT.glass(this.darkMode)
+      : DT.control(this.darkMode))
+    .fontColor(this.highlighterWidth === widthValue ? DT.warning(this.darkMode) : DT.secondary(this.darkMode))
     .border({
-      width: 1,
+      width: DT.layoutStroke,
       color: this.highlighterWidth === widthValue
-        ? this.glassColor('rgba(255, 231, 116, 0.34)')
-        : this.glassColor('rgba(255, 255, 255, 0.08)')
+        ? DT.glass(this.darkMode)
+        : DT.control(this.darkMode)
     })
-    .borderRadius(10)
+    .borderRadius(DT.radiusSmall)
     .onClick(() => this.setHighlighterWidth(widthValue))
   }
 
   @Builder HighlighterOpacityButton(opacityValue: number, label: string) {
     Button() {
-      Column({ space: 5 }) {
-        Rect().width(40).height(12).fill(`rgba(255, 229, 91, ${opacityValue})`).borderRadius(4)
-        Text(label).fontSize(10).fontWeight(FontWeight.Medium)
+      Column({ space: DT.spacingS4 }) {
+        Rect().width(DT.spacingS40).height(DT.spacingS12).fill(`rgba(255, 229, 91, ${opacityValue})`).borderRadius(DT.radiusSmall)
+        Text(label).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
       }
     }
-    .width(81).height(52).padding(0)
+    .width(DT.spacingS80).height(DT.spacingS52).padding(DT.spacingS0)
     .backgroundColor(Math.abs(this.highlighterOpacity - opacityValue) < 0.001
-      ? this.glassColor('rgba(237, 205, 70, 0.22)')
-      : this.glassColor('rgba(255, 255, 255, 0.045)'))
-    .fontColor(Math.abs(this.highlighterOpacity - opacityValue) < 0.001 ? this.chromeColor('#fff0a2') : this.chromeColor('#bdcadb'))
+      ? DT.glass(this.darkMode)
+      : DT.control(this.darkMode))
+    .fontColor(Math.abs(this.highlighterOpacity - opacityValue) < 0.001 ? DT.warning(this.darkMode) : DT.secondary(this.darkMode))
     .border({
-      width: 1,
+      width: DT.layoutStroke,
       color: Math.abs(this.highlighterOpacity - opacityValue) < 0.001
-        ? this.glassColor('rgba(255, 231, 116, 0.34)')
-        : this.glassColor('rgba(255, 255, 255, 0.08)')
+        ? DT.glass(this.darkMode)
+        : DT.control(this.darkMode)
     })
-    .borderRadius(10)
+    .borderRadius(DT.radiusSmall)
     .onClick(() => this.setHighlighterOpacity(opacityValue))
   }
 
   @Builder ColorSwatch(colorValue: string) {
     Button() {
-      Circle().width(20).height(20).fill(colorValue)
+      Circle().width(DT.spacingS20).height(DT.spacingS20).fill(colorValue)
     }
-    .width(28).height(28)
+    .width(DT.spacingS28).height(DT.spacingS28)
     .border({
       width: this.color === colorValue ? 2 : 1,
-      color: this.color === colorValue ? this.chromeColor('#d7e9ff') : this.glassColor('rgba(255, 255, 255, 0.22)')
+      color: this.color === colorValue ? DT.text(this.darkMode) : DT.control(this.darkMode)
     })
     .backgroundColor(this.color === colorValue
-      ? this.glassColor('rgba(130, 177, 246, 0.18)')
-      : this.glassColor('rgba(255, 255, 255, 0.055)'))
-    .borderRadius(14)
+      ? DT.glass(this.darkMode)
+      : DT.control(this.darkMode))
+    .borderRadius(DT.radiusSmall)
     .onClick(() => {
       this.color = colorValue;
       this.eraser = false;
@@ -1009,24 +936,24 @@ export struct InkWorkspace {
 
   @Builder PenLevelButton(widthValue: number, label: string, sampleWidth: number) {
     Button() {
-      Column({ space: 5 }) {
-        Divider().width(38).strokeWidth(sampleWidth)
-          .color(this.penWidthLevel() === widthValue ? this.chromeColor('#9bc5ff') : this.chromeColor('#bdcadb'))
-        Text(label).fontSize(10).fontWeight(FontWeight.Medium)
+      Column({ space: DT.spacingS4 }) {
+        Divider().width(DT.spacingS40).strokeWidth(sampleWidth)
+          .color(this.penWidthLevel() === widthValue ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+        Text(label).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
       }
     }
-      .width(76).height(58)
+      .width(DT.spacingS76).height(DT.spacingS56)
       .backgroundColor(this.penWidthLevel() === widthValue
-        ? this.glassColor('rgba(75, 138, 232, 0.28)')
-        : this.glassColor('rgba(255, 255, 255, 0.055)'))
-      .fontColor(this.penWidthLevel() === widthValue ? this.chromeColor('#d7e9ff') : this.chromeColor('#bdcadb'))
+        ? DT.glass(this.darkMode)
+        : DT.control(this.darkMode))
+      .fontColor(this.penWidthLevel() === widthValue ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
       .border({
-        width: 1,
+        width: DT.layoutStroke,
         color: this.penWidthLevel() === widthValue
-          ? this.glassColor('rgba(130, 177, 246, 0.28)')
-          : this.glassColor('rgba(255, 255, 255, 0.10)')
+          ? DT.glass(this.darkMode)
+          : DT.control(this.darkMode)
       })
-      .borderRadius(10).padding(0)
+      .borderRadius(DT.radiusSmall).padding(DT.spacingS0)
       .onClick(() => {
         this.penWidth = widthValue;
         this.eraser = false;
@@ -1039,68 +966,40 @@ export struct InkWorkspace {
 
   @Builder EraserLevelButton(sizeValue: number, label: string, previewSize: number) {
     Button() {
-      Column({ space: 4 }) {
+      Column({ space: DT.spacingS4 }) {
         Circle().width(previewSize).height(previewSize)
           .fill(this.eraserSizeLevel() === sizeValue
-            ? this.glassColor('rgba(75, 138, 232, 0.22)')
-            : this.glassColor('rgba(255, 255, 255, 0.045)'))
-          .stroke(this.eraserSizeLevel() === sizeValue ? this.chromeColor('#9bc5ff') : this.chromeColor('#aab7c9')).strokeWidth(1.5)
-        Text(label).fontSize(10).fontWeight(FontWeight.Medium)
+            ? DT.glass(this.darkMode)
+            : DT.control(this.darkMode))
+          .stroke(this.eraserSizeLevel() === sizeValue ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode)).strokeWidth(1.5)
+        Text(label).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
       }
     }
-    .width(81).height(62).padding(0)
+    .width(DT.spacingS80).height(DT.spacingS64).padding(DT.spacingS0)
     .backgroundColor(this.eraserSizeLevel() === sizeValue
-      ? this.glassColor('rgba(75, 138, 232, 0.26)')
-      : this.glassColor('rgba(255, 255, 255, 0.045)'))
-    .fontColor(this.eraserSizeLevel() === sizeValue ? this.chromeColor('#d7e9ff') : this.chromeColor('#bdcadb'))
+      ? DT.glass(this.darkMode)
+      : DT.control(this.darkMode))
+    .fontColor(this.eraserSizeLevel() === sizeValue ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
     .border({
-      width: 1,
+      width: DT.layoutStroke,
       color: this.eraserSizeLevel() === sizeValue
-        ? this.glassColor('rgba(130, 177, 246, 0.26)')
-        : this.glassColor('rgba(255, 255, 255, 0.08)')
+        ? DT.glass(this.darkMode)
+        : DT.control(this.darkMode)
     })
-    .borderRadius(10)
+    .borderRadius(DT.radiusSmall)
     .onClick(() => this.setEraserSize(sizeValue))
   }
 
   @Builder ToolDivider() {
     Divider()
       .vertical(true)
-      .height(18).color(this.glassColor('rgba(255, 255, 255, 0.12)'))
-      .margin({ left: 2, right: 2 })
+      .height(DT.spacingS16).color(DT.control(this.darkMode))
+      .margin({ left: DT.spacingS4, right: DT.spacingS4 })
   }
 
   private applyWebTheme(): void {
     this.runJS(`document.documentElement.dataset.linkdeskTheme='${this.darkMode ? 'dark' : 'light'}'`);
   }
-  private chromeColor(color: string): string {
-    const c = color.toLowerCase();
-    if (this.darkMode) {
-      if (c === '#f4f6fa') return '#0E1523';
-      if (c === '#ffffff') return '#182337';
-      if (c === '#152441') return '#E8EEF8';
-      if (c === '#e8edf5') return '#223149';
-      if (c === '#dfe5ef' || c === '#d7dfeb') return '#2B3B55';
-      if (c === '#526078' || c === '#263b5b') return '#A5B4CA';
-      return color;
-    }
-    if (c === '#f4f8ff' || c === '#d7e9ff' || c === '#c3cede' || c === '#d2dbe8') return '#152441';
-    if (c === '#b8c5d6' || c === '#aebdd0' || c === '#aab9cc' || c === '#bdcadb' || c === '#b7c6d8' || c === '#d4e1f2') return '#526781';
-    if (c === '#9be5d2') return '#1B806B';
-    if (c === '#d4bd8a') return '#94670D';
-    if (c === '#ffbbb4' || c === '#ffaaa6') return '#B83D44';
-    if (c === '#fff0a2') return '#8A6600';
-    if (c === '#0b1420') return '#EDF2F8';
-    return color;
-  }
-  private glassColor(color: string): string {
-    if (this.darkMode) return color;
-    if (color.startsWith('rgba(12,') || color.startsWith('rgba(10,') || color.startsWith('rgba(14,')) return 'rgba(248, 251, 255, 0.82)';
-    if (color.startsWith('rgba(0,')) return 'rgba(20, 40, 70, 0.10)';
-    if (color.startsWith('rgba(255, 255, 255,')) return 'rgba(35, 65, 105, 0.06)';
-    return color;
-  }
-
   private headerTitleWidth(): number {
     const reservedSide = Math.max(this.headerLeftWidth, this.headerRightWidth) + 16;
     return Math.max(0, this.headerWidth - reservedSide * 2);
@@ -1108,8 +1007,8 @@ export struct InkWorkspace {
 
   private setTopBarCollapsed(collapsed: boolean): void {
     this.getUIContext().animateTo({
-      duration: this.reduceMotion ? 0 : 520,
-      curve: Curve.EaseInOut
+      duration: this.reduceMotion ? DT.durationNone : DT.durationCollapse,
+      curve: DT.curveStandard()
     }, () => {
       this.topBarCollapsed = collapsed;
     });
@@ -1120,21 +1019,21 @@ export struct InkWorkspace {
     const appear = TransitionEffect.opacity(0)
       .combine(TransitionEffect.translate({ y: 12 }))
       .combine(TransitionEffect.scale({
-        x: 0.96,
-        y: 0.96,
+        x: DT.transformMenuScale,
+        y: DT.transformMenuScale,
         centerX: '50%',
         centerY: '100%'
       }))
-      .animation({ duration: 240, curve: Curve.EaseOut });
+      .animation({ duration: DT.durationMenuEnter, curve: DT.curveEnter() });
     const disappear = TransitionEffect.opacity(0)
       .combine(TransitionEffect.translate({ y: 8 }))
       .combine(TransitionEffect.scale({
-        x: 0.98,
-        y: 0.98,
+        x: DT.transformExitScale,
+        y: DT.transformExitScale,
         centerX: '50%',
         centerY: '100%'
       }))
-      .animation({ duration: 180, curve: Curve.EaseIn });
+      .animation({ duration: DT.durationMenuExit, curve: DT.curveExit() });
     return TransitionEffect.asymmetric(appear, disappear);
   }
 
@@ -1226,7 +1125,7 @@ export struct InkWorkspace {
       return;
     }
     if (this.connectionMode !== 'usb') {
-      promptAction.showToast({ message: '请先切换到 USB 连接' });
+      promptAction.showToast({ message: Strings.switchUSBFirst });
       this.reportScreenMirrorStatus('failed', requestId, '平板当前不是 USB 连接');
       return;
     }
@@ -1236,7 +1135,7 @@ export struct InkWorkspace {
       void this.startMirrorBackgroundTask();
       this.reportScreenMirrorStatus('started', requestId);
       void this.refreshRoundTripLiveView();
-      promptAction.showToast({ message: '正在投屏到 Mac' });
+      promptAction.showToast({ message: Strings.mirrorRunning });
     } else {
       const error = `投屏启动失败 (${result})`;
       this.reportScreenMirrorStatus('failed', requestId, error);
@@ -1252,7 +1151,7 @@ export struct InkWorkspace {
     void this.stopMirrorBackgroundTask();
     this.reportScreenMirrorStatus('stopped', requestId);
     void this.refreshRoundTripLiveView();
-    promptAction.showToast({ message: '已停止投屏' });
+    promptAction.showToast({ message: Strings.mirrorStopped });
   }
 
   private handleLiveViewAction(action: string): void {
@@ -1303,7 +1202,7 @@ export struct InkWorkspace {
     } catch (error) {
       const failure = error as BusinessError;
       console.error(`Failed to keep screen mirror in background: ${failure.code} ${failure.message}`);
-      promptAction.showToast({ message: '全局投屏保活失败，请保持LinkDesk在前台' });
+      promptAction.showToast({ message: Strings.mirrorForegroundHint });
     }
   }
 
@@ -1327,7 +1226,7 @@ export struct InkWorkspace {
     if (!roundTripId || !documentId || documentVersion <= 0 || !documentHash) return;
     this.roundTripId = roundTripId;
     this.roundTripName = name;
-    this.roundTripStatus = '正在下载到平板…';
+    this.roundTripStatus = Strings.pdfDownloading;
     this.saveRoundTripState();
     const request = http.createHttp();
     try {
@@ -1367,10 +1266,10 @@ export struct InkWorkspace {
         const reason = RoundTripLiveViewController.lastFailure();
         if (reason) promptAction.showToast({ message: `${reason}，可返回LinkDesk控制投屏` });
       }
-      this.roundTripStatus = '正在用华为笔记打开…';
+      this.roundTripStatus = Strings.notesOpening;
       try {
         await context.startAbility(huaweiNotesWant);
-        this.roundTripStatus = '已在华为笔记打开，批注后请导出并分享到LinkDesk';
+        this.roundTripStatus = Strings.notesOpened;
       } catch (notesError) {
         const notesFailure = notesError as BusinessError;
         console.error(`Failed to open Huawei Notes: ${notesFailure.code} ${notesFailure.message}`);
@@ -1381,7 +1280,7 @@ export struct InkWorkspace {
           flags: wantConstant.Flags.FLAG_AUTH_READ_URI_PERMISSION
         };
         await context.startAbility(fallbackWant);
-        this.roundTripStatus = '华为笔记不可用，已交给系统 PDF 应用';
+        this.roundTripStatus = Strings.notesFallback;
       }
     } catch (error) {
       const failure = error as BusinessError;
@@ -1413,7 +1312,7 @@ export struct InkWorkspace {
 
   private async uploadRoundTripURI(uri: string): Promise<void> {
     if (!uri || !this.roundTripId) {
-      promptAction.showToast({ message: '没有等待回传的 PDF 任务' });
+      promptAction.showToast({ message: Strings.noReturnTask });
       return;
     }
     let file: fileIo.File | undefined = undefined;
@@ -1421,13 +1320,13 @@ export struct InkWorkspace {
     try {
       file = fileIo.openSync(uri, fileIo.OpenMode.READ_ONLY);
       const stat = fileIo.statSync(file.fd);
-      if (stat.size <= 0 || stat.size > 250 * 1024 * 1024) throw new Error('文件大小不受支持');
+      if (stat.size <= 0 || stat.size > 250 * 1024 * 1024) throw new Error(Strings.fileSizeUnsupported);
       const buffer = new ArrayBuffer(stat.size);
       const readBytes = fileIo.readSync(file.fd, buffer);
-      if (readBytes !== stat.size) throw new Error('文件读取不完整');
+      if (readBytes !== stat.size) throw new Error(Strings.fileReadIncomplete);
       let name = `${this.roundTripName.replace(/\.pdf$/i, '')}_已批注.pdf`;
       try { name = new fileUri.FileUri(uri).name || name; } catch (_) {}
-      this.roundTripStatus = '正在回传到 Mac…';
+      this.roundTripStatus = Strings.pdfReturning;
       const response = await request.request(
         `http://${this.hostForURL(this.connectedHost)}:3210/api/roundtrip/return/${this.connectedRoom}`,
         {
@@ -1444,12 +1343,12 @@ export struct InkWorkspace {
         }
       );
       if (Number(response.responseCode) !== 201) throw new Error(`HTTP ${response.responseCode}`);
-      this.roundTripStatus = '已回传到 Mac';
+      this.roundTripStatus = Strings.returnedMac;
       this.roundTripId = '';
       this.roundTripName = '';
       this.saveRoundTripState();
       await RoundTripLiveViewController.stop();
-      promptAction.showToast({ message: '批注版已回传，请在 Mac 选择保存位置' });
+      promptAction.showToast({ message: Strings.returnSaveHint });
     } catch (error) {
       const failure = error as BusinessError;
       this.roundTripStatus = `回传失败：${failure.message ?? String(error)}`;
@@ -1512,13 +1411,13 @@ export struct InkWorkspace {
   private confirmClear(): void {
     this.openToolMenu = '';
     promptAction.showDialog({
-      title: this.appMode === 'pdf' ? '清空批注' : '清空白板',
+      title: this.appMode === 'pdf' ? Strings.clearAnnotations : Strings.clearWhiteboard,
       message: this.appMode === 'pdf'
-        ? '确定要清空全部 PDF 批注吗？清空后仍可撤销。'
-        : '确定要清空白板吗？清空后仍可撤销。',
+        ? Strings.clearPDFConfirm
+        : Strings.clearWhiteboardConfirm,
       buttons: [
-        { text: '取消', color: '#526079' },
-        { text: '确定', color: '#e1534a' }
+        { text: Strings.cancel, color: DT.secondary(this.darkMode) },
+        { text: Strings.confirm, color: DT.secondary(this.darkMode) }
       ]
     }).then((res: Object) => {
       if ((res as Record<string, number>)['index'] === 1) this.runJS('nativeClear()');
@@ -1542,9 +1441,9 @@ export struct InkWorkspace {
   }
 
   private pressureSensitivityLabel(): string {
-    if (this.pressureSensitivity === 'sensitive') return '高';
-    if (this.pressureSensitivity === 'steady') return '低';
-    return '中';
+    if (this.pressureSensitivity === 'sensitive') return Strings.sensitivityHigh;
+    if (this.pressureSensitivity === 'steady') return Strings.sensitivityLow;
+    return Strings.sensitivityMedium;
   }
 
   private pressureEraserThreshold(): number {
@@ -1694,14 +1593,14 @@ export struct InkWorkspace {
       });
       const pairing = this.parseScannedPairingLink(result.originalValue);
       if (!pairing) {
-        promptAction.showToast({ message: '未识别到有效的LinkDesk连接二维码' });
+        promptAction.showToast({ message: Strings.scanInvalid });
         return;
       }
       this.applyScannedPairingLink(pairing);
     } catch (reason) {
       const error = reason as BusinessError;
       if (error.code !== 1000500002) {
-        promptAction.showToast({ message: '无法启动系统扫码服务' });
+        promptAction.showToast({ message: Strings.scanUnavailable });
       }
     }
   }
@@ -2049,7 +1948,7 @@ export struct InkWorkspace {
       return;
     }
     this.appMode = mode;
-    this.documentName = mode === 'whiteboard' ? '实时白板' : '等待 Mac 打开 PDF';
+    this.documentName = mode === 'whiteboard' ? Strings.whiteboardTitle : Strings.waitPDFTitle;
     this.zoomPercent = 100;
     if (this.showPad && this.connectedHost.length > 0 && this.connectedRoom.length === 6) {
       this.webUrl = this.makeModeUrl(mode);
@@ -2076,7 +1975,7 @@ export struct InkWorkspace {
     this.openToolMenu = '';
     this.cursorVisible = false;
     this.connected = false;
-    this.documentName = '等待 Mac 打开 PDF';
+    this.documentName = Strings.waitPDFTitle;
     this.zoomPercent = 100;
     if (this.hoverThrottleTimer) {
       clearTimeout(this.hoverThrottleTimer);
@@ -2105,7 +2004,7 @@ export struct InkWorkspace {
             const data: Record<string, Object> = JSON.parse(message) as Record<string, Object>;
             if (data.type === 'state') {
               this.connected = (data.connected as boolean) ?? false;
-              this.documentName = (data.documentName as string) || '等待 Mac 打开 PDF';
+              this.documentName = (data.documentName as string) || Strings.waitPDFTitle;
               this.zoomPercent = Math.round(((data.zoom as number) || 1) * 100);
               this.color = (data.color as string) || this.color;
               this.penWidth = (data.width as number) || this.penWidth;

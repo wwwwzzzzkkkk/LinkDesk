@@ -1,3 +1,4 @@
+import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import { InkWorkspace } from './InkWorkspace';
 import { DesktopReceiver } from './DesktopReceiver';
@@ -20,69 +21,69 @@ struct Index {
 
   @Builder workspaceCard(title: string, description: string, mark: Resource, mode: string, accent: string) {
     Button({ type: ButtonType.Normal }) {
-      Column({ space: 13 }) {
+      Column({ space: DT.spacingS12 }) {
         Row() {
-          Stack() { Image(mark).width(26).height(26).objectFit(ImageFit.Contain) }
-            .width(46).height(46).backgroundColor((this.darkMode ? '#20314D' : '#F0F5FB')).borderRadius(14)
+          Stack() { Image(mark).width(DT.spacingS24).height(DT.spacingS24).objectFit(ImageFit.Contain) }
+            .width(DT.spacingS48).height(DT.spacingS48).backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusSmall)
           Blank()
-          Text('↗').fontSize(20).fontColor('#9CAABF')
+          Text('↗').fontSize(DT.fontLabel).fontColor(DT.secondary(this.darkMode))
         }.width('100%')
-        Text(title).fontSize(21).fontWeight(FontWeight.Medium).fontColor((this.darkMode ? '#E8EEF8' : '#152441')).width('100%')
-        Text(description).fontSize(13).fontColor((this.darkMode ? '#96A6BE' : '#728096')).lineHeight(20).width('100%')
-      }.alignItems(HorizontalAlign.Start).padding(24).width('100%')
-    }.width('100%').height(185).backgroundColor((this.darkMode ? '#182337' : '#FFFFFF')).borderRadius(22)
-      .border({ width: 1, color: (this.darkMode ? '#2B3B55' : '#E5EBF3'), radius: 22 }).clip(true)
+        Text(title).fontSize(DT.fontLabel).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode)).width('100%')
+        Text(description).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).lineHeight(DT.spacingS20).width('100%')
+      }.alignItems(HorizontalAlign.Start).padding(DT.spacingS24).width('100%')
+    }.width('100%').height(DT.dimensionsD184).backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusMedium)
+      .border({ width: DT.layoutStroke, color: DT.border(this.darkMode), radius: DT.radiusSmall }).clip(true)
       .onClick(() => this.open(mode)).accessibilityText(title + '，' + description)
   }
 
   @Builder home() {
     Scroll() {
-      Column({ space: 26 }) {
-        Row({ space: 12 }) {
-          Image($r('app.media.app_icon')).width(43).height(43).borderRadius(12)
-          Column({ space: 3 }) {
-            Text('LinkDesk').fontSize(24).fontWeight(FontWeight.Bold).fontColor((this.darkMode ? '#E8EEF8' : '#152441'))
-            Text('你的跨屏工作空间').fontSize(12).fontColor((this.darkMode ? '#96A6BE' : '#728096'))
+      Column({ space: DT.spacingS24 }) {
+        Row({ space: DT.spacingS12 }) {
+          Image($r('app.media.app_icon')).width(DT.spacingS44).height(DT.spacingS44).borderRadius(DT.radiusSmall)
+          Column({ space: DT.spacingS4 }) {
+            Text(Strings.productName).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+            Text(Strings.productSubtitle).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
           }.alignItems(HorizontalAlign.Start)
           Blank()
           this.themeControl()
         }.width('100%')
 
-        Column({ space: 14 }) {
-          Text('让灵感，在屏幕间流动。').fontSize(this.compact ? 29 : 37)
-            .fontWeight(FontWeight.Bold).fontColor((this.darkMode ? '#E8EEF8' : '#152441')).width('100%')
+        Column({ space: DT.spacingS16 }) {
+          Text(Strings.heroTitle).fontSize(this.compact ? 29 : 37)
+            .fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode)).width('100%')
           Text('扩展桌面，随手批注，或一起构思。\n选择一个工作空间，开始你的跨屏协作。')
-            .fontSize(15).fontColor((this.darkMode ? '#A5B4CA' : '#64758D')).lineHeight(25).width('100%')
-          Row({ space: 8 }) {
-            Text('USB 高清连接').fontSize(11).fontColor('#326FB7')
-              .padding({ left: 11, right: 11, top: 6, bottom: 6 }).backgroundColor('#E3EFFC').borderRadius(12)
-            Text('Wi-Fi 自由书写').fontSize(11).fontColor('#288C79')
-              .padding({ left: 11, right: 11, top: 6, bottom: 6 }).backgroundColor('#DFF3ED').borderRadius(12)
-          }.width('100%').margin({ top: 4 })
-        }.padding(30).width('100%').alignItems(HorizontalAlign.Start).borderRadius(24)
-          .linearGradient({ angle: 125, colors: [[(this.darkMode ? '#1B2D49' : '#E9F1FE'), 0], [(this.darkMode ? '#163C3A' : '#E6F4EF'), 1]] })
+            .fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode)).lineHeight(DT.spacingS24).width('100%')
+          Row({ space: DT.spacingS8 }) {
+            Text('USB 高清连接').fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
+              .padding({ left: DT.spacingS12, right: DT.spacingS12, top: DT.spacingS8, bottom: DT.spacingS8 }).backgroundColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
+            Text('Wi-Fi 自由书写').fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
+              .padding({ left: DT.spacingS12, right: DT.spacingS12, top: DT.spacingS8, bottom: DT.spacingS8 }).backgroundColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
+          }.width('100%').margin({ top: DT.spacingS4 })
+        }.padding(DT.spacingS32).width('100%').alignItems(HorizontalAlign.Start).borderRadius(DT.radiusLarge)
+          
 
-        GridRow({ columns: this.compact ? 1 : 2, gutter: 16 }) {
-          GridCol() { this.workspaceCard('扩展屏幕', '把平板变成 Mac 的第二块屏幕，也能连接扬声器和麦克风。', $r('app.media.workspace_display'), 'display', '#4F8FF7') }
-          GridCol() { this.workspaceCard('PDF 批注', '用手写笔阅读与批注，两端同步，也能发送到华为笔记。', $r('app.media.workspace_pdf'), 'pdf', '#4F8FF7') }
-          GridCol() { this.workspaceCard('实时白板', '无限画布，压感书写。让每一个想法都有展开的空间。', $r('app.media.workspace_whiteboard'), 'whiteboard', '#2EAA8E') }
-          GridCol() { this.workspaceCard('平板投屏', '把平板上的笔记与演示，通过 USB 带到 Mac。', $r('app.media.workspace_mirror'), 'mirror', '#2EAA8E') }
+        GridRow({ columns: this.compact ? 1 : 2, gutter: DT.spacingS16 }) {
+          GridCol() { this.workspaceCard(Strings.displayTitle, '把平板变成 Mac 的第二块屏幕，也能连接扬声器和麦克风。', $r('app.media.workspace_display'), 'display', DT.accent(this.darkMode)) }
+          GridCol() { this.workspaceCard(Strings.pdfTitle, '用手写笔阅读与批注，两端同步，也能发送到华为笔记。', $r('app.media.workspace_pdf'), 'pdf', DT.accent(this.darkMode)) }
+          GridCol() { this.workspaceCard(Strings.whiteboardTitle, '无限画布，压感书写。让每一个想法都有展开的空间。', $r('app.media.workspace_whiteboard'), 'whiteboard', DT.success(this.darkMode)) }
+          GridCol() { this.workspaceCard(Strings.mirrorTitle, '把平板上的笔记与演示，通过 USB 带到 Mac。', $r('app.media.workspace_mirror'), 'mirror', DT.success(this.darkMode)) }
         }.width('100%')
         Text('扩展屏幕与投屏使用 USB；PDF 和白板也支持 Wi-Fi。')
-          .fontSize(12).fontColor((this.darkMode ? '#96A6BE' : '#728096')).textAlign(TextAlign.Center).width('100%')
-      }.width('100%').constraintSize({ maxWidth: 1000 }).padding(this.compact ? 22 : 36)
-    }.width('100%').height('100%').backgroundColor((this.darkMode ? '#0E1523' : '#F4F6FA'))
+          .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).textAlign(TextAlign.Center).width('100%')
+      }.width('100%').constraintSize({ maxWidth: DT.dimensionsD1000 }).padding(this.compact ? 22 : 36)
+    }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
   }
 
   @Builder themeControl() {
-    Button(this.themePreference === 'automatic' ? '◐  跟随系统' : this.darkMode ? '☾  深色' : '☼  浅色')
-      .fontSize(12).height(34).fontColor(this.darkMode ? '#C8D5E8' : '#526781')
-      .backgroundColor(this.darkMode ? '#223149' : '#E8EDF5').borderRadius(17)
-      .accessibilityText('切换外观，两端同步')
+    Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
+      .fontSize(DT.fontCaption).height(DT.spacingS32).fontColor(DT.secondary(this.darkMode))
+      .backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusMedium)
+      .accessibilityText(Strings.themeAccessibility)
       .bindMenu([
-        { value: '跟随 Mac 系统', action: () => LinkDeskTheme.select('automatic') },
-        { value: '浅色', action: () => LinkDeskTheme.select('light') },
-        { value: '深色', action: () => LinkDeskTheme.select('dark') }
+        { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
+        { value: Strings.themeLight, action: () => LinkDeskTheme.select('light') },
+        { value: Strings.themeDark, action: () => LinkDeskTheme.select('dark') }
       ])
   }
 
@@ -97,7 +98,7 @@ struct Index {
       if (this.destination === 'display') {
         DesktopReceiver({ onExit: () => { this.destination = 'home'; } })
       }
-    }.width('100%').height('100%').backgroundColor((this.darkMode ? '#0E1523' : '#F4F6FA'))
+    }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
       .onAreaChange((_old: Area, current: Area) => { this.compact = Number(current.width) < 700; })
   }
 }
