@@ -126,7 +126,7 @@ export struct DesktopReceiver {
   @Builder microphoneControl() {
     SettingRow({ title: Strings.tabletMicrophone,
       detail: this.microphoneState === 2 ? Strings.microphoneSending : this.microphoneState === -1 ? Strings.microphoneError : this.microphoneMessage,
-      control: this.microphoneAction })
+      control: (): void => { this.microphoneAction(); } })
   }
   aboutToAppear(): void { PlatformUI.setReceiver(true); }
 
@@ -186,7 +186,7 @@ export struct DesktopReceiver {
           PageHeader({ title: Strings.displayTitle, subtitle: Strings.displaySubtitle, state: this.connectionState() })
           Text(Strings.get('receiverMetrics', [this.streamWidth.toString(), this.streamHeight.toString(), this.realtimeFPS.toFixed(0), this.targetFPS.toString()]))
             .fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode))
-          SettingRow({ title: Strings.lowLatency, detail: Strings.get('receiverProcessing', [this.processMs.toFixed(1)]), control: this.latencyControl })
+          SettingRow({ title: Strings.lowLatency, detail: Strings.get('receiverProcessing', [this.processMs.toFixed(1)]), control: (): void => { this.latencyControl(); } })
           this.microphoneControl()
           Row({ space: DT.spacingS12 }) {
             this.exitControl()
