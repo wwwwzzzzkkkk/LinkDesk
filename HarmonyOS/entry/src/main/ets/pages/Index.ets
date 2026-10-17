@@ -136,7 +136,7 @@ struct Index {
         }.width('100%')
         Text(Strings.connectionHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
       }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(this.wide ? DT.layoutPagePadding : DT.layoutCompactPadding)
-    }.width('100%').height('100%')
+    }.width('100%').height('100%').align(Alignment.Top)
   }
   @Builder content() {
     Stack() {
