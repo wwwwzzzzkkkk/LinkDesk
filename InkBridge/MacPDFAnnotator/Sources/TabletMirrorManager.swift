@@ -39,9 +39,9 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
         view = existingView
         window = existingWindow
       } else {
-        view = TabletMirrorView(frame: NSRect(x: 0, y: 0, width: 960, height: 640))
+        view = TabletMirrorView(frame: NSRect(x: 0, y: 0, width: DT.layout.mirrorWindowWidth, height: DT.layout.mirrorWindowHeight))
         window = NSWindow(
-          contentRect: NSRect(x: 0, y: 0, width: 960, height: 640),
+          contentRect: NSRect(x: 0, y: 0, width: DT.layout.mirrorWindowWidth, height: DT.layout.mirrorWindowHeight),
           styleMask: [.titled, .closable, .miniaturizable, .resizable],
           backing: .buffered,
           defer: false
@@ -51,7 +51,7 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
         window.delegate = self
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: 3, height: 2)
-        window.contentMinSize = NSSize(width: 720, height: 480)
+        window.contentMinSize = NSSize(width: DT.layout.mirrorWindowMinWidth, height: DT.layout.mirrorWindowMinHeight)
         window.center()
         mirrorWindow = window
         mirrorView = view

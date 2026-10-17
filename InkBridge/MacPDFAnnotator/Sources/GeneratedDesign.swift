@@ -96,11 +96,13 @@ enum DT {
     static let toolbarHeight: CGFloat = 64
     static let formMaxWidth: CGFloat = 480
     static let stroke: CGFloat = 1
-    static let mirrorWindowWidth: CGFloat = 1024
-    static let mirrorWindowHeight: CGFloat = 768
+    static let mirrorWindowWidth: CGFloat = 960
+    static let mirrorWindowHeight: CGFloat = 640
     static let mirrorWindowFallbackHeight: CGFloat = 900
     static let mirrorWindowMaxHeight: CGFloat = 720
     static let mirrorWindowVisibleFraction: CGFloat = 0.78
+    static let mirrorWindowMinWidth: CGFloat = 720
+    static let mirrorWindowMinHeight: CGFloat = 480
   }
   enum dimensions {
     static let d120: CGFloat = 120
