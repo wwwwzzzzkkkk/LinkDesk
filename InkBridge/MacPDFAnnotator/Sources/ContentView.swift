@@ -173,7 +173,7 @@ private struct MacModePicker: View {
       L10n.modePicker,
       selection: Binding(
         get: { workspace.mode },
-        set: workspace.selectMode
+        set: { value in workspace.selectMode(value) }
       )
     ) {
       ForEach(AppMode.allCases) { mode in

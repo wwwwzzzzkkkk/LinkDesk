@@ -92,7 +92,7 @@ struct LinkDeskWorkspaceView: View {
             Spacer()
             Text(workspace.room).monospaced().textSelection(.enabled)
           }.font(.system(size: DT.font.caption))
-          Picker(L10n.appearance, selection: Binding(get: { theme.preference }, set: theme.select)) {
+          Picker(L10n.appearance, selection: Binding(get: { theme.preference }, set: { value in theme.select(value) })) {
             ForEach(ThemePreference.allCases) { Text($0.title).tag($0) }
           }.pickerStyle(.menu).help(L10n.themeHelp)
           Button(L10n.pairingTitle) { workspace.isShowingPairing = true }.buttonStyle(.bordered)
