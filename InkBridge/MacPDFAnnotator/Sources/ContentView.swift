@@ -445,7 +445,7 @@ private struct MacSearchOverlay: View {
         L10n.searchPlaceholder,
         text: Binding(
           get: { workspace.searchQuery },
-          set: workspace.updateSearchQuery
+          set: { value in workspace.updateSearchQuery(value) }
         )
       )
       .textFieldStyle(.plain)
