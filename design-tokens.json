@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "description": "Unitless source: dimensions → pt/vp; type → pt/fp; durations → seconds/ms. Content ink, transport and pixel geometry are not UI scale.",
+  "colors": {
+    "light": {
+      "accent": "#3979DE",
+      "accentSoft": "#E7EFFD",
+      "creative": "#19856E",
+      "canvas": "#F4F6FA",
+      "surface": "#FFFFFF",
+      "control": "#EDF1F8",
+      "glass": "#CCF8FAFF",
+      "text": "#152441",
+      "secondary": "#596B85",
+      "tertiary": "#73839A",
+      "border": "#DFE6F1",
+      "success": "#19856E",
+      "warning": "#986808",
+      "error": "#BD3949",
+      "onAccent": "#FFFFFF",
+      "paper": "#FFFFFF",
+      "ink": "#152441",
+      "video": "#000000",
+      "clear": "#00000000",
+      "scrim": "#19283C",
+      "selection": "#D7E7FF"
+    },
+    "dark": {
+      "accent": "#78ACFF",
+      "accentSoft": "#203451",
+      "creative": "#58D3B7",
+      "canvas": "#0E1523",
+      "surface": "#182337",
+      "control": "#223149",
+      "glass": "#CC16243A",
+      "text": "#E8EEF8",
+      "secondary": "#A5B4CA",
+      "tertiary": "#8B9DB7",
+      "border": "#30425F",
+      "success": "#58D3B7",
+      "warning": "#F0C267",
+      "error": "#FF9FA9",
+      "onAccent": "#0E1523",
+      "paper": "#FFFFFF",
+      "ink": "#152441",
+      "video": "#000000",
+      "clear": "#00000000",
+      "scrim": "#000000",
+      "selection": "#2C4973"
+    }
+  },
+  "typography": {
+    "caption": {
+      "mac": 12,
+      "harmony": 12
+    },
+    "body": {
+      "mac": 14,
+      "harmony": 16
+    },
+    "label": {
+      "mac": 17,
+      "harmony": 20
+    },
+    "section": {
+      "mac": 22,
+      "harmony": 24
+    },
+    "title": {
+      "mac": 30,
+      "harmony": 32
+    }
+  },
+  "spacing": {
+    "s0": 0,
+    "s4": 4,
+    "s8": 8,
+    "s12": 12,
+    "s16": 16,
+    "s20": 20,
+    "s24": 24,
+    "s28": 28,
+    "s32": 32,
+    "s36": 36,
+    "s40": 40,
+    "s44": 44,
+    "s48": 48,
+    "s52": 52,
+    "s56": 56,
+    "s60": 60,
+    "s64": 64,
+    "s68": 68,
+    "s72": 72,
+    "s76": 76,
+    "s80": 80,
+    "s84": 84,
+    "s88": 88,
+    "s92": 92,
+    "s96": 96
+  },
+  "radius": {
+    "small": 12,
+    "medium": 20,
+    "large": 28
+  },
+  "layout": {
+    "touchTarget": 48,
+    "macControl": 28,
+    "sidebar": 224,
+    "sidebarMin": 208,
+    "sidebarMax": 272,
+    "wideBreakpoint": 840,
+    "singleColumnBreakpoint": 600,
+    "pageMax": 960,
+    "pagePadding": 32,
+    "compactPadding": 16,
+    "settingRowMac": 64,
+    "settingRowTablet": 80,
+    "bottomNavigation": 80,
+    "iconSmall": 16,
+    "icon": 24,
+    "iconTile": 48,
+    "statusDot": 8,
+    "cardMinHeight": 176,
+    "headerMinHeight": 80,
+    "menuMaxWidth": 384,
+    "toolbarHeight": 64,
+    "formMaxWidth": 480,
+    "stroke": 1,
+    "mirrorWindowWidth": 960,
+    "mirrorWindowHeight": 640,
+    "mirrorWindowFallbackHeight": 900,
+    "mirrorWindowMaxHeight": 720,
+    "mirrorWindowVisibleFraction": 0.78,
+    "mirrorWindowMinWidth": 720,
+    "mirrorWindowMinHeight": 480
+  },
+  "motion": {
+    "duration": {
+      "feedback": 120,
+      "menuEnter": 240,
+      "menuExit": 180,
+      "collapse": 520,
+      "none": 0,
+      "notice": 2800,
+      "errorNotice": 4200
+    },
+    "curve": {
+      "standard": [
+        0.42,
+        0,
+        0.58,
+        1
+      ],
+      "enter": [
+        0.16,
+        1,
+        0.3,
+        1
+      ],
+      "exit": [
+        0.4,
+        0,
+        1,
+        1
+      ]
+    },
+    "opacity": {
+      "muted": 0.6,
+      "subtle": 0.08,
+      "border": 0.16,
+      "pressed": 0.84
+    },
+    "transform": {
+      "menuScale": 0.96,
+      "exitScale": 0.98,
+      "searchScale": 0.96
+    }
+  },
+  "icons": {
+    "home": {
+      "mac": "square.grid.2x2",
+      "harmony": "workspace_home",
+      "svgBody": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/>"
+    },
+    "display": {
+      "mac": "display.2",
+      "harmony": "workspace_display",
+      "svgBody": "<rect x=\"2\" y=\"3\" width=\"15\" height=\"12\" rx=\"2\"/><path d=\"M9.5 15v4M6 19h7\"/><rect x=\"16\" y=\"9\" width=\"6\" height=\"12\" rx=\"1.5\"/>"
+    },
+    "pdf": {
+      "mac": "doc.richtext",
+      "harmony": "workspace_pdf",
+      "svgBody": "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 12h8M8 16h8M8 19h4\"/>"
+    },
+    "whiteboard": {
+      "mac": "pencil.and.outline",
+      "harmony": "workspace_whiteboard",
+      "svgBody": "<path d=\"m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14z\"/><path d=\"M3 21h18\"/>"
+    },
+    "mirror": {
+      "mac": "ipad.and.arrow.forward",
+      "harmony": "workspace_mirror",
+      "svgBody": "<rect x=\"3\" y=\"2\" width=\"14\" height=\"20\" rx=\"3\"/><path d=\"M8 18h4M12 8h10m-4-4 4 4-4 4\"/>"
+    }
+  },
+  "connectionStates": [
+    {
+      "id": "disconnected",
+      "string": "stateDisconnected",
+      "color": "tertiary"
+    },
+    {
+      "id": "usbConnected",
+      "string": "stateUSBConnected",
+      "color": "accent"
+    },
+    {
+      "id": "waitingForMode",
+      "string": "stateWaitingForMode",
+      "color": "warning"
+    },
+    {
+      "id": "working",
+      "string": "stateWorking",
+      "color": "success"
+    },
+    {
+      "id": "error",
+      "string": "stateError",
+      "color": "error"
+    }
+  ],
+  "inkPalette": {
+    "ink": "#152441",
+    "red": "#e74c3c",
+    "blue": "#2980b9",
+    "green": "#27ae60",
+    "purple": "#8e44ad",
+    "orange": "#f39c12",
+    "white": "#ffffff",
+    "color7": "#2269ef",
+    "color8": "#e45a4f",
+    "color9": "#1b9a7e",
+    "highlight": "#ffe56f"
+  },
+  "dimensions": {
+    "d120": 120,
+    "d112": 112,
+    "d144": 144,
+    "d208": 208,
+    "d220": 220,
+    "d420": 420,
+    "d320": 320,
+    "d1000": 1000,
+    "d680": 680,
+    "d184": 184,
+    "d360": 360,
+    "d380": 380,
+    "d392": 392,
+    "d1160": 1160,
+    "d800": 800
+  }
+}

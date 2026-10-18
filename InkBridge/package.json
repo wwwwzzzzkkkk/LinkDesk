@@ -1,0 +1,22 @@
+{
+  "name": "inkbridge",
+  "version": "1.6.10",
+  "description": "LinkDesk PDF、白板与同步中继（兼容 InkBridge 协议 v2）",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "local": "node local-server.mjs",
+    "test": "npm run test:protocol",
+    "test:protocol": "node --test tests/inkbridge-protocol-v2.test.mjs tests/stroke-tool-lock.test.mjs",
+    "harmony:build": "bash ../scripts/build-harmony.sh",
+    "harmony:install": "bash ../scripts/install-harmony.sh"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299",
+    "qrcode": "1.5.4",
+    "ws": "8.21.1"
+  }
+}

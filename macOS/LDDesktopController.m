@@ -1,3 +1,4 @@
+#import "include/LDDesktopController.h"
 #import <Cocoa/Cocoa.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <VideoToolbox/VideoToolbox.h>
@@ -61,7 +62,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 @end
 
-@interface LinkDesk : NSObject <NSApplicationDelegate, NSWindowDelegate, SCStreamOutput, SCStreamDelegate> {
+@interface LDDesktopController () <SCStreamOutput, SCStreamDelegate> {
     LDVirtualDisplay *_display;
     SCStream *_stream;
     LDAudioBridge *_audio;
@@ -130,7 +131,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)stop;
 @end
 
-@implementation LinkDesk
+@implementation LDDesktopController
 - (instancetype)init {
     if ((self = [super init])) {
         _listenFD = _clientFD = _controlFD = -1;
@@ -140,7 +141,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         _metricsLock = [NSLock new];
         _captureQueue = dispatch_queue_create("LinkDesk.capture", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INTERACTIVE,0));
         _encodeWake=dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD,0,0,_captureQueue);
-        __weak LinkDesk *weakSelf=self;
+        __weak LDDesktopController *weakSelf=self;
         dispatch_source_set_event_handler(_encodeWake, ^{[weakSelf drainLatestFrame];});
         dispatch_resume(_encodeWake);
         _networkQueue = dispatch_queue_create("LinkDesk.send", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
@@ -177,94 +178,62 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     field.alignment = NSTextAlignmentCenter;
     return field;
 }
-- (void)applicationDidFinishLaunching:(NSNotification *)notification {
+- (BOOL)runDisplaySelfTest {
+    BOOL ok = [self createDisplay:nil];
+    [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:2]];
+    ok = ok && [self selectNativeMode];
+    for (NSInteger index = 0; index < 5 && ok; index++) ok = [self applyScaleIndex:index persist:NO];
+    NSLog(@"SCALE_TEST %@", ok ? @"PASS" : @"FAIL");
+    [self stop];
+    return ok;
+}
+- (void)prepare {
+    if (_timer) return;
     [NSProcessInfo.processInfo disableAutomaticTermination:@"LinkDesk USB standby service"];
-    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 580, 810)
-        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
-        backing:NSBackingStoreBuffered defer:NO];
-    _window.title = @"连屏 LinkDesk";
-    _window.delegate = self;
-    [_window center];
-    NSView *view = _window.contentView;
-    NSTextField *title = [self label:@"让桌面延伸到 MatePad" size:27 weight:NSFontWeightSemibold];
-    title.frame = NSMakeRect(30, 310, 520, 48); [view addSubview:title];
-    NSTextField *subtitle = [self label:@"USB 有线连接 · 独立扩展桌面" size:15 weight:NSFontWeightRegular];
-    subtitle.textColor = NSColor.secondaryLabelColor;
-    subtitle.frame = NSMakeRect(30, 278, 520, 28); [view addSubview:subtitle];
+    // Existing capture operations use these controls as their state holders.
+    // All visible UI is rendered by the shared SwiftUI workspace.
     _status = [self label:@"准备连接" size:20 weight:NSFontWeightMedium];
-    _status.frame = NSMakeRect(30, 218, 520, 36); [view addSubview:_status];
-    _detail = [self label:@"用数据线连接平板，然后打开平板上的「连屏」。" size:13 weight:NSFontWeightRegular];
-    _detail.textColor = NSColor.secondaryLabelColor;
-    _detail.frame = NSMakeRect(35, 137, 510, 76); [view addSubview:_detail];
-    _toggle = [NSButton buttonWithTitle:@"启动有线副屏" target:self action:@selector(toggle:)];
-    _toggle.bezelStyle = NSBezelStyleRounded;
-    _toggle.controlSize = NSControlSizeLarge;
-    _toggle.frame = NSMakeRect(180, 85, 220, 38); [view addSubview:_toggle];
-    NSButton *settings = [NSButton buttonWithTitle:@"排列显示器…" target:self action:@selector(openDisplays:)];
-    settings.bezelStyle = NSBezelStyleRounded;
-    settings.frame = NSMakeRect(125, 34, 140, 30); [view addSubview:settings];
-    NSButton *test = [NSButton buttonWithTitle:@"显示测试画面" target:self action:@selector(showTest:)];
-    test.bezelStyle = NSBezelStyleRounded; test.frame = NSMakeRect(300, 34, 150, 30); [view addSubview:test];
-    _audioHint = [self label:@"连接后可在 Mac 声音输出中选择 MatePad" size:12 weight:NSFontWeightRegular];
-    _audioHint.frame=NSMakeRect(20,10,540,20);_audioHint.textColor=NSColor.secondaryLabelColor;[view addSubview:_audioHint];
-    for (NSView *child in view.subviews) {
-        NSRect frame = child.frame; frame.origin.y += 160; child.frame = frame;
-    }
-    NSTextField *scaleTitle = [self label:@"显示大小" size:17 weight:NSFontWeightMedium];
-    scaleTitle.frame = NSMakeRect(30, 142, 520, 25); [view addSubview:scaleTitle];
+    _detail = [self label:@"用数据线连接平板，在平板 LinkDesk 中选择扩展屏幕。" size:13 weight:NSFontWeightRegular];
+    _toggle = [NSButton buttonWithTitle:@"启动扩展屏幕" target:self action:@selector(toggle:)];
     _scalePicker = [NSSegmentedControl segmentedControlWithLabels:@[@"更大字体", @"较大", @"默认", @"较多空间", @"更多空间"] trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(changeScale:)];
-    _scalePicker.frame = NSMakeRect(30, 91, 520, 38);
-    for (NSInteger i = 0; i < 5; i++) [_scalePicker setWidth:101 forSegment:i];
-    _scalePicker.selectedSegment = _scaleIndex; [view addSubview:_scalePicker];
-    _scaleHint = [self label:@"调整文字和窗口大小，保持高清传输" size:13 weight:NSFontWeightRegular];
-    _scaleHint.textColor = NSColor.secondaryLabelColor;
-    _scaleHint.frame = NSMakeRect(30, 35, 520, 46); [view addSubview:_scaleHint];
+    _scalePicker.selectedSegment = _scaleIndex;
+    _scaleHint = [self label:@"" size:13 weight:NSFontWeightRegular];
+    _fpsPicker = [NSSegmentedControl segmentedControlWithLabels:@[@"60", @"120", @"144"] trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(changeFPS:)];
+    _microphoneToggle = [NSButton checkboxWithTitle:@"平板麦克风" target:self action:@selector(changeMicrophone:)];
+    _microphoneHint = [self label:@"请先在平板中允许使用麦克风" size:12 weight:NSFontWeightRegular];
+    _audioHint = [self label:@"连接后可选择平板扬声器" size:12 weight:NSFontWeightRegular];
+    _audioSyncLabel = [self label:@"" size:12 weight:NSFontWeightRegular];
+    double delay = [NSUserDefaults.standardUserDefaults objectForKey:@"LinkDeskAudioSyncDelay"] ? [NSUserDefaults.standardUserDefaults doubleForKey:@"LinkDeskAudioSyncDelay"] : 20;
+    _audioSyncSlider = [NSSlider sliderWithValue:delay minValue:0 maxValue:150 target:self action:@selector(changeAudioSync:)];
+    [_audio setSyncDelay:delay];
     [self refreshScaleHint];
-    for (NSView *child in view.subviews) {
-        NSRect frame = child.frame; frame.origin.y += 80; child.frame = frame;
-    }
-    NSTextField *fpsLabel = [self label:@"目标帧率" size:15 weight:NSFontWeightMedium];
-    fpsLabel.frame = NSMakeRect(30, 34, 100, 23); [view addSubview:fpsLabel];
-    _fpsPicker = [NSSegmentedControl segmentedControlWithLabels:@[@"60 帧", @"120 帧", @"144 帧"] trackingMode:NSSegmentSwitchTrackingSelectOne target:self action:@selector(changeFPS:)];
-    _fpsPicker.frame = NSMakeRect(150, 27, 400, 35);
-    for (NSInteger i = 0; i < 3; i++) [_fpsPicker setWidth:127 forSegment:i];
-    _fpsPicker.selectedSegment = LDFPS == 120 ? 1 : (LDFPS == 144 ? 2 : 0);
-    _fpsPicker.toolTip = @"保持 2880 × 1920。切换会重新连接，实际帧率取决于两端性能。";
-    [view addSubview:_fpsPicker];
-    for (NSView *child in view.subviews) { NSRect f=child.frame;f.origin.y+=50;child.frame=f; }
-    double audioDelay=[NSUserDefaults.standardUserDefaults objectForKey:@"LinkDeskAudioSyncDelay"] ? [NSUserDefaults.standardUserDefaults doubleForKey:@"LinkDeskAudioSyncDelay"] : 20;
-    [_audio setSyncDelay:audioDelay];
-    _audioSyncLabel=[self label:[NSString stringWithFormat:@"双端同步：Mac 延后 %.0f 毫秒",audioDelay] size:12 weight:NSFontWeightRegular];
-    _audioSyncLabel.frame=NSMakeRect(20,20,230,20);[view addSubview:_audioSyncLabel];
-    _audioSyncSlider=[NSSlider sliderWithValue:audioDelay minValue:0 maxValue:150 target:self action:@selector(changeAudioSync:)];
-    _audioSyncSlider.frame=NSMakeRect(265,18,270,24);[view addSubview:_audioSyncSlider];
-    for (NSView *child in view.subviews) { NSRect f=child.frame;f.origin.y+=120;child.frame=f; }
-    NSButton *tabletSpeaker=[NSButton buttonWithTitle:@"使用平板扬声器" target:self action:@selector(useTabletSpeaker:)];
-    tabletSpeaker.frame=NSMakeRect(25,78,170,30);tabletSpeaker.bezelStyle=NSBezelStyleRounded;[view addSubview:tabletSpeaker];
-    NSButton *macSpeaker=[NSButton buttonWithTitle:@"恢复 Mac 扬声器" target:self action:@selector(useMacSpeaker:)];
-    macSpeaker.frame=NSMakeRect(205,78,170,30);macSpeaker.bezelStyle=NSBezelStyleRounded;[view addSubview:macSpeaker];
-    _microphoneToggle=[NSButton checkboxWithTitle:@"使用平板麦克风作为 Mac 输入" target:self action:@selector(changeMicrophone:)];
-    _microphoneToggle.frame=NSMakeRect(30,44,510,26);[view addSubview:_microphoneToggle];
-    _microphoneHint=[self label:@"请先在平板连屏中允许使用麦克风" size:12 weight:NSFontWeightRegular];
-    _microphoneHint.frame=NSMakeRect(25,10,530,26);_microphoneHint.textColor=NSColor.secondaryLabelColor;[view addSubview:_microphoneHint];
-    if (!_backgroundAgent) {
-        [_window makeKeyAndOrderFront:nil];
-        [NSApp activateIgnoringOtherApps:YES];
-    }
     _timer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(updateStats:) userInfo:nil repeats:YES];
     [self startControlListener];
     _standbyTimer = [NSTimer scheduledTimerWithTimeInterval:5 target:self selector:@selector(probeStandbyUSB) userInfo:nil repeats:YES];
     [self probeStandbyUSB];
     if ([NSProcessInfo.processInfo.arguments containsObject:@"--start"]) [self toggle:nil];
 }
-- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)visible {
-    if (!visible) {
-        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-        [_window makeKeyAndOrderFront:nil];
-        [NSApp activateIgnoringOtherApps:YES];
-    }
-    return YES;
-}
+- (void)shutdown { [_timer invalidate]; _timer = nil; [_standbyTimer invalidate]; _standbyTimer = nil; [self stopControlListener]; [self stop]; }
+- (BOOL)active { return _active; }
+- (BOOL)starting { return _starting; }
+- (BOOL)usbReady { return atomic_load(&_standbyReady); }
+- (NSString *)status { return _status.stringValue ?: _phase; }
+- (NSString *)statusDetail { return _detail.stringValue ?: @""; }
+- (NSString *)audioStatus { return _audioHint.stringValue ?: @""; }
+- (NSString *)microphoneStatus { return _microphoneHint.stringValue ?: @""; }
+- (NSInteger)scaleIndex { return _scaleIndex; }
+- (NSInteger)targetFPS { return LDFPS; }
+- (double)audioDelay { return _audioSyncSlider.doubleValue; }
+- (BOOL)microphoneEnabled { return _microphoneToggle.state == NSControlStateValueOn; }
+- (void)toggleDesktop { [self toggle:nil]; }
+- (void)selectScale:(NSInteger)index { _scalePicker.selectedSegment = index; [self changeScale:_scalePicker]; }
+- (void)selectFrameRate:(NSInteger)fps { _fpsPicker.selectedSegment = fps == 120 ? 1 : fps == 144 ? 2 : 0; [self changeFPS:_fpsPicker]; }
+- (void)enableMicrophone:(BOOL)enabled { _microphoneToggle.state = enabled ? NSControlStateValueOn : NSControlStateValueOff; [self changeMicrophone:_microphoneToggle]; }
+- (void)selectTabletSpeaker { [self useTabletSpeaker:nil]; }
+- (void)restoreMacSpeaker { [self useMacSpeaker:nil]; }
+- (void)selectAudioDelay:(double)delay { _audioSyncSlider.doubleValue = delay; [self changeAudioSync:_audioSyncSlider]; }
+- (void)openDisplaySettings { [self openDisplays:nil]; }
+- (void)showDisplayTest { [self showTest:nil]; }
 - (void)refreshScaleHint {
     uint32_t width = LDLogicalWidths[_scaleIndex];
     _scaleHint.stringValue = [NSString stringWithFormat:@"相当于 %u × %u 的工作空间\n高清传输保持 2880 × 1920", width, width * 2 / 3];
@@ -376,8 +345,6 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)openDisplays:(id)sender {
     [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.Displays-Settings.extension"]];
 }
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return YES; }
-- (void)applicationWillTerminate:(NSNotification *)notification { [self stopControlListener]; [self stop]; }
 - (BOOL)createDisplay:(NSError **)error {
     Class descriptorClass = NSClassFromString(@"CGVirtualDisplayDescriptor");
     Class displayClass = NSClassFromString(@"CGVirtualDisplay");
@@ -432,8 +399,10 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     NSTask *task = [NSTask new];
     NSString *bundled=[NSBundle.mainBundle pathForResource:@"hdc" ofType:nil inDirectory:@"tools"];
     NSString *localTool = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/LinkDesk/tools/hdc"];
+    NSURL *studio = [NSWorkspace.sharedWorkspace URLForApplicationWithBundleIdentifier:@"com.huawei.devecostudio.ds"];
+    NSString *installedSDKTool = studio ? [[studio URLByAppendingPathComponent:@"Contents/sdk/default/openharmony/toolchains/hdc"] path] : @"";
     NSString *tool = nil;
-    for (NSString *candidate in @[bundled ?: @"", localTool, HDC]) {
+    for (NSString *candidate in @[bundled ?: @"", localTool, HDC, installedSDKTool]) {
         if ([NSFileManager.defaultManager isExecutableFileAtPath:candidate]) { tool = candidate; break; }
     }
     if (!tool) { *success = NO; return @"USB 连接工具缺失，请安装 DevEco Studio 或恢复 LinkDesk 本机 USB 工具。"; }
@@ -917,6 +886,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     }
     [_testTimer invalidate]; _testTimer = nil; [_testWindow close]; _testWindow = nil; _testMarker = nil;
     [_microphone stop];
+    _microphoneToggle.state = NSControlStateValueOff;
     [_audio stop];
     _active = NO; _starting = NO;
     [_networkLock lock]; ++_generation;
@@ -938,29 +908,3 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     [self showStatus:@"副屏已停止" detail:@"扩展显示器已移除，窗口由 macOS 收回。"];
 }
 @end
-
-int main(int argc, const char *argv[]) {
-    @autoreleasepool {
-        NSApplication *app = NSApplication.sharedApplication;
-        // Use the tablet artwork directly for the running application's Dock icon.
-        NSString *iconPath = [NSBundle.mainBundle pathForResource:@"linkdesk-icon" ofType:@"png"];
-        NSImage *icon = iconPath ? [[NSImage alloc] initWithContentsOfFile:iconPath] : nil;
-        if (icon) app.applicationIconImage = icon;
-        LinkDesk *delegate = [LinkDesk new];
-        if ([NSProcessInfo.processInfo.arguments containsObject:@"--self-test"]) {
-            BOOL ok = [delegate createDisplay:nil];
-            [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:2]];
-            ok = ok && [delegate selectNativeMode];
-            for (NSInteger index = 0; index < 5 && ok; index++) ok = [delegate applyScaleIndex:index persist:NO];
-            NSLog(@"SCALE_TEST %@", ok ? @"PASS" : @"FAIL");
-            NSLog(@"SELF_TEST %@ screenCapturePermission=%d", ok ? @"PASS" : @"FAIL", CGPreflightScreenCaptureAccess());
-            [delegate stop]; return ok ? 0 : 1;
-        }
-        BOOL backgroundAgent = [NSProcessInfo.processInfo.arguments containsObject:@"--background-agent"];
-        [app setActivationPolicy:backgroundAgent ? NSApplicationActivationPolicyAccessory : NSApplicationActivationPolicyRegular]; app.delegate = delegate;
-        NSMenu *menu = [NSMenu new]; NSMenuItem *item = [NSMenuItem new]; [menu addItem:item];
-        NSMenu *submenu = [NSMenu new]; [submenu addItemWithTitle:@"退出连屏" action:@selector(terminate:) keyEquivalent:@"q"]; item.submenu = submenu; app.mainMenu = menu;
-        [app run];
-    }
-    return 0;
-}

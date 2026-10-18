@@ -1,0 +1,1058 @@
+{
+  "schemaVersion": 1,
+  "defaultLocale": "zh-Hans",
+  "strings": {
+    "productName": {
+      "zh-Hans": "LinkDesk",
+      "en": "LinkDesk"
+    },
+    "productSubtitle": {
+      "zh-Hans": "你的跨屏工作空间",
+      "en": "Your workspace across screens"
+    },
+    "workspaces": {
+      "zh-Hans": "工作空间",
+      "en": "Workspaces"
+    },
+    "homeTitle": {
+      "zh-Hans": "工作台",
+      "en": "Workspace"
+    },
+    "displayTitle": {
+      "zh-Hans": "扩展屏幕",
+      "en": "Extended Display"
+    },
+    "pdfTitle": {
+      "zh-Hans": "PDF 批注",
+      "en": "PDF Annotation"
+    },
+    "whiteboardTitle": {
+      "zh-Hans": "实时白板",
+      "en": "Live Whiteboard"
+    },
+    "mirrorTitle": {
+      "zh-Hans": "平板投屏",
+      "en": "Tablet Mirroring"
+    },
+    "homeSubtitle": {
+      "zh-Hans": "让 Mac 与 MatePad 一起工作。",
+      "en": "Bring your Mac and MatePad together."
+    },
+    "displaySubtitle": {
+      "zh-Hans": "把 MatePad 变成 Mac 的高清扩展屏幕。",
+      "en": "Use your MatePad as an extended Mac display."
+    },
+    "pdfSubtitle": {
+      "zh-Hans": "在平板上书写，在 Mac 上同步阅读与整理。",
+      "en": "Write on your tablet, read and organize on your Mac."
+    },
+    "whiteboardSubtitle": {
+      "zh-Hans": "一块画布，让想法自由延伸。",
+      "en": "One canvas. Room for every idea."
+    },
+    "mirrorSubtitle": {
+      "zh-Hans": "将平板上的笔记、演示和灵感带到 Mac。",
+      "en": "Bring tablet notes and presentations to your Mac."
+    },
+    "heroTitle": {
+      "zh-Hans": "让灵感，在屏幕间流动。",
+      "en": "Ideas flow across screens."
+    },
+    "heroSubtitle": {
+      "zh-Hans": "扩展桌面，随手批注，或一起构思。",
+      "en": "Extend your desktop, annotate, or think together."
+    },
+    "connectionHint": {
+      "zh-Hans": "扩展屏幕与平板投屏使用 USB；PDF 和白板也支持 Wi-Fi。",
+      "en": "Use USB for display and mirroring; PDF and whiteboard also support Wi-Fi."
+    },
+    "pairingCode": {
+      "zh-Hans": "配对码",
+      "en": "Pairing code"
+    },
+    "pairingCodeValue": {
+      "zh-Hans": "配对码 {0}",
+      "en": "Pairing code {0}"
+    },
+    "pairingTitle": {
+      "zh-Hans": "连接与配对",
+      "en": "Connect & Pair"
+    },
+    "pairingSubtitle": {
+      "zh-Hans": "选择连接方式，使用相同的配对码。",
+      "en": "Choose a connection and use the same pairing code."
+    },
+    "connectTablet": {
+      "zh-Hans": "连接平板",
+      "en": "Connect Tablet"
+    },
+    "connectMac": {
+      "zh-Hans": "连接 Mac",
+      "en": "Connect to Mac"
+    },
+    "connect": {
+      "zh-Hans": "连接",
+      "en": "Connect"
+    },
+    "reconnect": {
+      "zh-Hans": "重新连接",
+      "en": "Reconnect"
+    },
+    "done": {
+      "zh-Hans": "完成",
+      "en": "Done"
+    },
+    "cancel": {
+      "zh-Hans": "取消",
+      "en": "Cancel"
+    },
+    "hide": {
+      "zh-Hans": "隐藏",
+      "en": "Hide"
+    },
+    "close": {
+      "zh-Hans": "关闭",
+      "en": "Close"
+    },
+    "backHome": {
+      "zh-Hans": "返回工作台",
+      "en": "Back to Workspace"
+    },
+    "appearance": {
+      "zh-Hans": "外观",
+      "en": "Appearance"
+    },
+    "themeAutomatic": {
+      "zh-Hans": "跟随系统",
+      "en": "System"
+    },
+    "themeLight": {
+      "zh-Hans": "浅色",
+      "en": "Light"
+    },
+    "themeDark": {
+      "zh-Hans": "深色",
+      "en": "Dark"
+    },
+    "themeHelp": {
+      "zh-Hans": "跟随 Mac 系统外观，或选择两端同步的浅色／深色主题。",
+      "en": "Follow your Mac appearance, or sync a light or dark theme."
+    },
+    "themeAccessibility": {
+      "zh-Hans": "切换外观，两端同步",
+      "en": "Change appearance on both devices"
+    },
+    "stateDisconnected": {
+      "zh-Hans": "未连接",
+      "en": "Disconnected"
+    },
+    "stateUSBConnected": {
+      "zh-Hans": "USB 已连接",
+      "en": "USB connected"
+    },
+    "stateWaitingForMode": {
+      "zh-Hans": "等待平板选择模式",
+      "en": "Choose a mode on your tablet"
+    },
+    "stateWorking": {
+      "zh-Hans": "工作中",
+      "en": "Working"
+    },
+    "stateError": {
+      "zh-Hans": "异常",
+      "en": "Connection issue"
+    },
+    "transportWifi": {
+      "zh-Hans": "Wi-Fi 已连接",
+      "en": "Wi-Fi connected"
+    },
+    "transportUSB": {
+      "zh-Hans": "USB",
+      "en": "USB"
+    },
+    "transportWireless": {
+      "zh-Hans": "Wi-Fi",
+      "en": "Wi-Fi"
+    },
+    "pdfEmptyTitle": {
+      "zh-Hans": "从一份 PDF 开始",
+      "en": "Start with a PDF"
+    },
+    "pdfEmptyDescription": {
+      "zh-Hans": "在 Mac 打开文档，在平板上自然书写。",
+      "en": "Open a PDF on your Mac and write naturally on your tablet."
+    },
+    "openPDF": {
+      "zh-Hans": "打开 PDF…",
+      "en": "Open PDF…"
+    },
+    "waitPDFTitle": {
+      "zh-Hans": "等待 Mac 打开 PDF",
+      "en": "Waiting for a PDF"
+    },
+    "waitPDFDescription": {
+      "zh-Hans": "在 Mac 打开文档后，即可在此阅读与批注。",
+      "en": "Open a PDF on your Mac to read and annotate here."
+    },
+    "mirrorEmptyTitle": {
+      "zh-Hans": "把平板画面带到 Mac",
+      "en": "Bring your tablet to your Mac"
+    },
+    "mirrorEmptyDescription": {
+      "zh-Hans": "保持 USB 连接，启动后在平板允许录屏。",
+      "en": "Connect with USB, then allow screen capture on your tablet."
+    },
+    "startMirror": {
+      "zh-Hans": "开始平板投屏",
+      "en": "Start Mirroring"
+    },
+    "stopMirror": {
+      "zh-Hans": "停止平板投屏",
+      "en": "Stop Mirroring"
+    },
+    "startDisplay": {
+      "zh-Hans": "启动扩展",
+      "en": "Start Display"
+    },
+    "stopDisplay": {
+      "zh-Hans": "停止扩展",
+      "en": "Stop Display"
+    },
+    "displayEmptyTitle": {
+      "zh-Hans": "连接你的 MatePad",
+      "en": "Connect your MatePad"
+    },
+    "displayEmptyDescription": {
+      "zh-Hans": "连接 USB 数据线，再选择扩展屏幕。",
+      "en": "Connect with USB, then select Extended Display."
+    },
+    "recentFiles": {
+      "zh-Hans": "最近使用",
+      "en": "Recent Files"
+    },
+    "displaySettings": {
+      "zh-Hans": "显示",
+      "en": "Display"
+    },
+    "displayScale": {
+      "zh-Hans": "工作空间大小",
+      "en": "Workspace Size"
+    },
+    "displayScaleDescription": {
+      "zh-Hans": "选择适合阅读或多任务的显示比例。",
+      "en": "Choose a scale for reading or multitasking."
+    },
+    "frameRate": {
+      "zh-Hans": "目标帧率",
+      "en": "Target Frame Rate"
+    },
+    "frameRateDescription": {
+      "zh-Hans": "更高帧率取决于 Mac、平板与连接性能。",
+      "en": "Higher rates depend on your Mac, tablet, and connection."
+    },
+    "frameRateValue": {
+      "zh-Hans": "{0} 帧/秒",
+      "en": "{0} fps"
+    },
+    "arrangeDisplays": {
+      "zh-Hans": "排列显示器…",
+      "en": "Arrange Displays…"
+    },
+    "testDisplay": {
+      "zh-Hans": "显示测试画面",
+      "en": "Show Test Pattern"
+    },
+    "audioSettings": {
+      "zh-Hans": "声音与麦克风",
+      "en": "Audio & Microphone"
+    },
+    "tabletSpeaker": {
+      "zh-Hans": "平板扬声器",
+      "en": "Tablet Speaker"
+    },
+    "useTablet": {
+      "zh-Hans": "使用平板",
+      "en": "Use Tablet"
+    },
+    "restoreMac": {
+      "zh-Hans": "恢复 Mac",
+      "en": "Restore Mac"
+    },
+    "tabletMicrophone": {
+      "zh-Hans": "平板麦克风",
+      "en": "Tablet Microphone"
+    },
+    "microphoneDescription": {
+      "zh-Hans": "允许平板麦克风作为 Mac 输入。",
+      "en": "Use the tablet microphone as Mac input."
+    },
+    "audioDelay": {
+      "zh-Hans": "Mac 声音延后",
+      "en": "Mac Audio Delay"
+    },
+    "audioDelayDescription": {
+      "zh-Hans": "调整音画同步。",
+      "en": "Adjust audio and video alignment."
+    },
+    "milliseconds": {
+      "zh-Hans": "{0} ms",
+      "en": "{0} ms"
+    },
+    "chooseMode": {
+      "zh-Hans": "选择工作空间",
+      "en": "Choose a Workspace"
+    },
+    "usbHint": {
+      "zh-Hans": "使用 USB 数据线连接并解锁平板。",
+      "en": "Connect and unlock your tablet using USB."
+    },
+    "scanPairing": {
+      "zh-Hans": "扫码连接",
+      "en": "Scan to Pair"
+    },
+    "hostAddress": {
+      "zh-Hans": "Mac 地址",
+      "en": "Mac Address"
+    },
+    "hostPlaceholder": {
+      "zh-Hans": "输入 Mac 地址",
+      "en": "Enter your Mac address"
+    },
+    "pairingPlaceholder": {
+      "zh-Hans": "输入六位配对码",
+      "en": "Enter the six-character pairing code"
+    },
+    "invalidPairing": {
+      "zh-Hans": "请输入六位字母或数字配对码。",
+      "en": "Enter a six-character pairing code using letters and numbers."
+    },
+    "genericError": {
+      "zh-Hans": "连接遇到问题，请检查数据线或网络后重试。",
+      "en": "Check your cable or network, then retry."
+    },
+    "connectionMethod": {
+      "zh-Hans": "连接方式",
+      "en": "Connection"
+    },
+    "automatic": {
+      "zh-Hans": "自动选择",
+      "en": "Automatic"
+    },
+    "usbOnly": {
+      "zh-Hans": "仅 USB",
+      "en": "USB Only"
+    },
+    "wifiOnly": {
+      "zh-Hans": "仅 Wi-Fi",
+      "en": "Wi-Fi Only"
+    },
+    "inkTools": {
+      "zh-Hans": "书写工具",
+      "en": "Writing Tools"
+    },
+    "collapseTools": {
+      "zh-Hans": "收起工具栏",
+      "en": "Collapse Toolbar"
+    },
+    "expandTools": {
+      "zh-Hans": "展开工具栏",
+      "en": "Expand Toolbar"
+    },
+    "returnPDF": {
+      "zh-Hans": "回传批注",
+      "en": "Return Annotated PDF"
+    },
+    "searchPDF": {
+      "zh-Hans": "搜索 PDF",
+      "en": "Search PDF"
+    },
+    "searchPlaceholder": {
+      "zh-Hans": "搜索 PDF 文字",
+      "en": "Search PDF text"
+    },
+    "noResults": {
+      "zh-Hans": "无结果",
+      "en": "No results"
+    },
+    "previousMatch": {
+      "zh-Hans": "上一个匹配",
+      "en": "Previous Match"
+    },
+    "nextMatch": {
+      "zh-Hans": "下一个匹配",
+      "en": "Next Match"
+    },
+    "closeSearch": {
+      "zh-Hans": "关闭搜索",
+      "en": "Close Search"
+    },
+    "pen": {
+      "zh-Hans": "画笔",
+      "en": "Pen"
+    },
+    "eraser": {
+      "zh-Hans": "橡皮",
+      "en": "Eraser"
+    },
+    "highlighter": {
+      "zh-Hans": "荧光笔",
+      "en": "Highlighter"
+    },
+    "undo": {
+      "zh-Hans": "撤销",
+      "en": "Undo"
+    },
+    "redo": {
+      "zh-Hans": "重做",
+      "en": "Redo"
+    },
+    "clearAnnotations": {
+      "zh-Hans": "清空批注",
+      "en": "Clear Annotations"
+    },
+    "clearWhiteboard": {
+      "zh-Hans": "清空白板",
+      "en": "Clear Whiteboard"
+    },
+    "penWidth": {
+      "zh-Hans": "画笔粗细",
+      "en": "Pen Width"
+    },
+    "penColor": {
+      "zh-Hans": "画笔颜色",
+      "en": "Pen Color"
+    },
+    "eraserSettings": {
+      "zh-Hans": "橡皮设置",
+      "en": "Eraser Settings"
+    },
+    "opacity": {
+      "zh-Hans": "不透明度",
+      "en": "Opacity"
+    },
+    "width": {
+      "zh-Hans": "粗细",
+      "en": "Width"
+    },
+    "pixelValue": {
+      "zh-Hans": "{0} px",
+      "en": "{0} px"
+    },
+    "percentValue": {
+      "zh-Hans": "{0}%",
+      "en": "{0}%"
+    },
+    "macAndTablet": {
+      "zh-Hans": "MAC + MATEPAD",
+      "en": "MAC + MATEPAD"
+    },
+    "navigation": {
+      "zh-Hans": "主导航",
+      "en": "Main Navigation"
+    },
+    "connectionStatus": {
+      "zh-Hans": "连接状态",
+      "en": "Connection Status"
+    },
+    "stop": {
+      "zh-Hans": "停止",
+      "en": "Stop"
+    },
+    "allowMicrophone": {
+      "zh-Hans": "允许 Mac 使用平板麦克风",
+      "en": "Allow Tablet Microphone"
+    },
+    "disableMicrophone": {
+      "zh-Hans": "关闭平板麦克风",
+      "en": "Disable Tablet Microphone"
+    },
+    "microphoneOff": {
+      "zh-Hans": "平板麦克风：关闭",
+      "en": "Tablet microphone: off"
+    },
+    "microphoneSending": {
+      "zh-Hans": "麦克风正在通过 USB 发送到 Mac",
+      "en": "Sending microphone audio to Mac over USB"
+    },
+    "microphoneMacHint": {
+      "zh-Hans": "请在 Mac 中开启平板麦克风",
+      "en": "Enable the tablet microphone on Mac"
+    },
+    "microphoneDenied": {
+      "zh-Hans": "未允许麦克风，可在设置中重新授权",
+      "en": "Allow microphone access in Settings"
+    },
+    "microphoneError": {
+      "zh-Hans": "无法开启麦克风，请检查权限",
+      "en": "Check microphone permission"
+    },
+    "microphoneForeground": {
+      "zh-Hans": "返回应用后请重新允许麦克风",
+      "en": "Allow microphone access again after returning"
+    },
+    "lowLatencyOn": {
+      "zh-Hans": "低延迟显示：开",
+      "en": "Low Latency: On"
+    },
+    "lowLatencyOff": {
+      "zh-Hans": "低延迟显示：关",
+      "en": "Low Latency: Off"
+    },
+    "receiverHint": {
+      "zh-Hans": "保持数据线连接，在 Mac 中启动扩展屏幕。",
+      "en": "Keep USB connected and start the display on Mac."
+    },
+    "capturePermissionHint": {
+      "zh-Hans": "请先在 Mac 上允许录屏",
+      "en": "Allow screen capture on Mac"
+    },
+    "macNotResponding": {
+      "zh-Hans": "Mac 未响应，请确认电脑仍在运行",
+      "en": "Mac is not responding; check it is running"
+    },
+    "usbChannelHint": {
+      "zh-Hans": "等待 Mac USB 通道，请检查数据线与授权",
+      "en": "Check your USB cable and device authorization"
+    },
+    "connectingDisplay": {
+      "zh-Hans": "正在连接 Mac",
+      "en": "Connecting to Mac"
+    },
+    "diagnosticCode": {
+      "zh-Hans": "连接已中断，正在重试。诊断码：{0}",
+      "en": "Reconnecting. Diagnostic code: {0}"
+    },
+    "receiverMetrics": {
+      "zh-Hans": "USB · {0} × {1} · 实时 {2} 帧/秒 · 目标 {3} 帧/秒",
+      "en": "USB · {0} × {1} · {2} fps · target {3} fps"
+    },
+    "receiverProcessing": {
+      "zh-Hans": "最近一帧平板处理 {0} ms",
+      "en": "Tablet processing: {0} ms"
+    },
+    "receiverStatistics": {
+      "zh-Hans": "近 1 秒统计，静止画面会减少出帧",
+      "en": "Last-second statistics; static content reduces frame output"
+    },
+    "audioPlaying": {
+      "zh-Hans": "正在播放 Mac 声音",
+      "en": "Playing Mac audio"
+    },
+    "audioSelectHint": {
+      "zh-Hans": "在 Mac 声音输出中选择 MatePad 扬声器",
+      "en": "Select MatePad Speaker in Mac audio output"
+    },
+    "scaleLarger": {
+      "zh-Hans": "更大字体",
+      "en": "Larger Text"
+    },
+    "scaleLarge": {
+      "zh-Hans": "较大",
+      "en": "Large"
+    },
+    "scaleDefault": {
+      "zh-Hans": "默认",
+      "en": "Default"
+    },
+    "scaleMore": {
+      "zh-Hans": "较多空间",
+      "en": "More Space"
+    },
+    "scaleMost": {
+      "zh-Hans": "更多空间",
+      "en": "Most Space"
+    },
+    "roundTripTitle": {
+      "zh-Hans": "华为笔记往返",
+      "en": "Huawei Notes Round Trip"
+    },
+    "roundTripDescription": {
+      "zh-Hans": "发送 PDF 到华为笔记，批注后通过分享菜单回传 LinkDesk。",
+      "en": "Send a PDF to Huawei Notes, annotate, and share it back to LinkDesk."
+    },
+    "sendToNotes": {
+      "zh-Hans": "发送 PDF 到华为笔记…",
+      "en": "Send PDF to Huawei Notes…"
+    },
+    "searchHelp": {
+      "zh-Hans": "搜索 PDF 文字（⌘F）",
+      "en": "Search PDF text (⌘F)"
+    },
+    "searchUnavailable": {
+      "zh-Hans": "打开 PDF 后可搜索文字",
+      "en": "Open a PDF to search text"
+    },
+    "modePicker": {
+      "zh-Hans": "工作区模式",
+      "en": "Workspace Mode"
+    },
+    "modePickerHelp": {
+      "zh-Hans": "在 PDF 批注与实时白板之间切换",
+      "en": "Switch between PDF Annotation and Live Whiteboard"
+    },
+    "cancelTransfer": {
+      "zh-Hans": "取消 PDF 传送",
+      "en": "Cancel PDF Transfer"
+    },
+    "retryTransfer": {
+      "zh-Hans": "重新发送 PDF",
+      "en": "Resend PDF"
+    },
+    "switching": {
+      "zh-Hans": "切换中",
+      "en": "Switching"
+    },
+    "connected": {
+      "zh-Hans": "已连接",
+      "en": "Connected"
+    },
+    "chooseConnection": {
+      "zh-Hans": "选择连接方式后，Mac 会持续搜索并自动切换。",
+      "en": "Choose a connection; your Mac will keep searching and switch automatically."
+    },
+    "scanHint": {
+      "zh-Hans": "首次连接可扫码；已安装的平板客户端会自动加入房间。",
+      "en": "Scan to pair for the first time; paired tablets reconnect automatically."
+    },
+    "discoveredDevices": {
+      "zh-Hans": "已发现设备",
+      "en": "Discovered Devices"
+    },
+    "recentEmpty": {
+      "zh-Hans": "暂无历史记录",
+      "en": "No Recent Files"
+    },
+    "sendPDF": {
+      "zh-Hans": "发送 PDF 到平板批注…",
+      "en": "Send PDF to Tablet…"
+    },
+    "savePDF": {
+      "zh-Hans": "另存为 PDF…",
+      "en": "Save PDF As…"
+    },
+    "searchMenu": {
+      "zh-Hans": "搜索 PDF…",
+      "en": "Search PDF…"
+    },
+    "zoomIn": {
+      "zh-Hans": "放大",
+      "en": "Zoom In"
+    },
+    "zoomOut": {
+      "zh-Hans": "缩小",
+      "en": "Zoom Out"
+    },
+    "whiteboardOrigin": {
+      "zh-Hans": "回到白板原点",
+      "en": "Return to Canvas Origin"
+    },
+    "fitWindow": {
+      "zh-Hans": "适合窗口",
+      "en": "Fit to Window"
+    },
+    "productInitial": {
+      "zh-Hans": "L",
+      "en": "L"
+    },
+    "penWidthLevels": {
+      "zh-Hans": "4 档",
+      "en": "4 levels"
+    },
+    "inkFeatureHint": {
+      "zh-Hans": "PDF 批注 · 无限白板 · 双端同步",
+      "en": "PDF annotation · Live whiteboard · Shared workspace"
+    },
+    "stylusHint": {
+      "zh-Hans": "触控笔悬停定位 · 压感书写 · 实时同步",
+      "en": "Stylus hover · Pressure sensitivity · Live sync"
+    },
+    "usbLowLatency": {
+      "zh-Hans": "USB 超低延时连接",
+      "en": "Low-latency USB connection"
+    },
+    "usbAutoHint": {
+      "zh-Hans": "保持数据线连接，Mac 会自动建立有线通道",
+      "en": "Keep USB connected; your Mac sets up the connection automatically"
+    },
+    "automaticHint": {
+      "zh-Hans": "优先 USB，无数据线时自动发现同 Wi-Fi 下的 Mac",
+      "en": "Prefer USB; discover your Mac over Wi-Fi when unplugged"
+    },
+    "usbOnlyHint": {
+      "zh-Hans": "USB 模式不使用 Wi-Fi，保持数据线连接即可",
+      "en": "USB mode uses the cable connection"
+    },
+    "wifiHint": {
+      "zh-Hans": "确保平板与 Mac 处于同一 Wi-Fi 网络",
+      "en": "Connect your tablet and Mac to the same Wi-Fi network"
+    },
+    "macPDFHint": {
+      "zh-Hans": "Mac 端需先启动LinkDesk服务并打开 PDF",
+      "en": "Open LinkDesk and a PDF on your Mac"
+    },
+    "automaticHostPlaceholder": {
+      "zh-Hans": "自动发现 Mac（也可手动输入 IP）",
+      "en": "Discover Mac automatically or enter an address"
+    },
+    "scanMac": {
+      "zh-Hans": "扫描 Mac 二维码",
+      "en": "Scan Mac QR Code"
+    },
+    "autoConnectMac": {
+      "zh-Hans": "自动连接 Mac",
+      "en": "Connect Automatically"
+    },
+    "usbConnectMac": {
+      "zh-Hans": "通过 USB 连接 Mac",
+      "en": "Connect over USB"
+    },
+    "wifiConnectMac": {
+      "zh-Hans": "通过 Wi-Fi 连接 Mac",
+      "en": "Connect over Wi-Fi"
+    },
+    "returnAccessibility": {
+      "zh-Hans": "选择已批注 PDF 并回传到 Mac",
+      "en": "Select an annotated PDF and return it to Mac"
+    },
+    "mirrorAccessibility": {
+      "zh-Hans": "通过 USB 投屏到 Mac",
+      "en": "Mirror to Mac over USB"
+    },
+    "stopMirrorAccessibility": {
+      "zh-Hans": "停止投屏到 Mac",
+      "en": "Stop mirroring to Mac"
+    },
+    "eraserRange": {
+      "zh-Hans": "当前擦除范围",
+      "en": "Eraser Range"
+    },
+    "eraserRing": {
+      "zh-Hans": "擦除时显示灰色范围圆环",
+      "en": "Show a gray ring while erasing"
+    },
+    "secondaryMenu": {
+      "zh-Hans": "工具选项",
+      "en": "Tool Options"
+    },
+    "highlighterHold": {
+      "zh-Hans": "停顿 2 秒自动拉直",
+      "en": "Hold for 2 seconds to straighten"
+    },
+    "pressureEraseOn": {
+      "zh-Hans": "重按临时擦除 开",
+      "en": "Pressure Erasing: On"
+    },
+    "pressureEraseOff": {
+      "zh-Hans": "重按临时擦除 关",
+      "en": "Pressure Erasing: Off"
+    },
+    "sensitivityLow": {
+      "zh-Hans": "低",
+      "en": "Low"
+    },
+    "sensitivityMedium": {
+      "zh-Hans": "中",
+      "en": "Medium"
+    },
+    "sensitivityHigh": {
+      "zh-Hans": "高",
+      "en": "High"
+    },
+    "confirm": {
+      "zh-Hans": "确定",
+      "en": "Confirm"
+    },
+    "clearPDFConfirm": {
+      "zh-Hans": "确定要清空全部 PDF 批注吗？清空后仍可撤销。",
+      "en": "Clear all PDF annotations? You can undo this."
+    },
+    "clearWhiteboardConfirm": {
+      "zh-Hans": "确定要清空白板吗？清空后仍可撤销。",
+      "en": "Clear the whiteboard? You can undo this."
+    },
+    "mirrorForegroundHint": {
+      "zh-Hans": "全局投屏保活失败，请保持LinkDesk在前台",
+      "en": "Keep LinkDesk in the foreground to continue mirroring"
+    },
+    "notesFallback": {
+      "zh-Hans": "华为笔记不可用，已交给系统 PDF 应用",
+      "en": "Huawei Notes is unavailable; opened with the system PDF app"
+    },
+    "mirrorStopped": {
+      "zh-Hans": "已停止投屏",
+      "en": "Mirroring stopped"
+    },
+    "returnedMac": {
+      "zh-Hans": "已回传到 Mac",
+      "en": "Returned to Mac"
+    },
+    "notesOpened": {
+      "zh-Hans": "已在华为笔记打开，批注后请导出并分享到LinkDesk",
+      "en": "Opened in Huawei Notes; export and share back to LinkDesk after annotating"
+    },
+    "returnSaveHint": {
+      "zh-Hans": "批注版已回传，请在 Mac 选择保存位置",
+      "en": "Annotated PDF returned; choose a save location on Mac"
+    },
+    "fileSizeUnsupported": {
+      "zh-Hans": "文件大小不受支持",
+      "en": "Unsupported file size"
+    },
+    "fileReadIncomplete": {
+      "zh-Hans": "文件读取不完整",
+      "en": "Could not read the entire file"
+    },
+    "scanUnavailable": {
+      "zh-Hans": "无法启动系统扫码服务",
+      "en": "Could not start the scanner"
+    },
+    "scanInvalid": {
+      "zh-Hans": "未识别到有效的LinkDesk连接二维码",
+      "en": "No valid LinkDesk pairing QR code found"
+    },
+    "pdfDownloading": {
+      "zh-Hans": "正在下载到平板…",
+      "en": "Downloading to tablet…"
+    },
+    "pdfReturning": {
+      "zh-Hans": "正在回传到 Mac…",
+      "en": "Returning to Mac…"
+    },
+    "mirrorRunning": {
+      "zh-Hans": "正在投屏到 Mac",
+      "en": "Mirroring to Mac"
+    },
+    "notesOpening": {
+      "zh-Hans": "正在用华为笔记打开…",
+      "en": "Opening Huawei Notes…"
+    },
+    "noReturnTask": {
+      "zh-Hans": "没有等待回传的 PDF 任务",
+      "en": "No PDF is waiting to be returned"
+    },
+    "switchUSBFirst": {
+      "zh-Hans": "请先切换到 USB 连接",
+      "en": "Switch to USB first"
+    },
+    "waitConnection": {
+      "zh-Hans": "等待连接",
+      "en": "Waiting for connection"
+    },
+    "lowLatency": {
+      "zh-Hans": "低延迟显示",
+      "en": "Low Latency"
+    },
+    "versionInfo": {
+      "zh-Hans": "版本 {0} · 协议 v{1}",
+      "en": "Version {0} · Protocol v{1}"
+    },
+    "sensitivityValue": {
+      "zh-Hans": "灵敏度 {0}",
+      "en": "Sensitivity {0}"
+    },
+    "mirrorUSBFailure": {
+      "zh-Hans": "平板当前不是 USB 连接",
+      "en": "The tablet is not using USB"
+    },
+    "mirrorStartFailure": {
+      "zh-Hans": "投屏启动失败 ({0})",
+      "en": "Mirroring could not start ({0})"
+    },
+    "mirrorStartHint": {
+      "zh-Hans": "{0}，请确认 Mac 端LinkDesk已打开",
+      "en": "{0}. Check LinkDesk is open on your Mac"
+    },
+    "mirrorReturnHint": {
+      "zh-Hans": "{0}，可返回LinkDesk控制投屏",
+      "en": "{0}. Return to LinkDesk to control mirroring"
+    },
+    "externalAppError": {
+      "zh-Hans": "打开外部应用失败：{0}",
+      "en": "Could not open the external app: {0}"
+    },
+    "selectReturnError": {
+      "zh-Hans": "选择批注文件失败：{0}",
+      "en": "Could not select the annotated PDF: {0}"
+    },
+    "returnError": {
+      "zh-Hans": "回传失败：{0}",
+      "en": "Return failed: {0}"
+    },
+    "scanRecognized": {
+      "zh-Hans": "已识别配对码 {0}，正在自动选择 USB / Wi-Fi",
+      "en": "Pairing code {0} found; choosing USB / Wi-Fi"
+    },
+    "annotatedSuffix": {
+      "zh-Hans": "_已批注.pdf",
+      "en": "_annotated.pdf"
+    },
+    "failureMarker": {
+      "zh-Hans": "失败",
+      "en": "failed"
+    },
+    "unavailableMarker": {
+      "zh-Hans": "无法",
+      "en": "unable"
+    },
+    "insufficientMarker": {
+      "zh-Hans": "不足",
+      "en": "insufficient"
+    },
+    "glyphPen": {
+      "zh-Hans": "✎",
+      "en": "✎"
+    },
+    "glyphUndo": {
+      "zh-Hans": "↶",
+      "en": "↶"
+    },
+    "glyphRedo": {
+      "zh-Hans": "↷",
+      "en": "↷"
+    },
+    "glyphZoomOut": {
+      "zh-Hans": "−",
+      "en": "−"
+    },
+    "glyphZoomIn": {
+      "zh-Hans": "+",
+      "en": "+"
+    },
+    "glyphClear": {
+      "zh-Hans": "⌫",
+      "en": "⌫"
+    },
+    "glyphExpand": {
+      "zh-Hans": "⌄",
+      "en": "⌄"
+    },
+    "penReady": {
+      "zh-Hans": "手写笔待命",
+      "en": "Stylus ready"
+    },
+    "tabletCaptureFailure": {
+      "zh-Hans": "平板未能开始录屏",
+      "en": "The tablet could not start screen capture"
+    },
+    "sendPDFTitle": {
+      "zh-Hans": "发送 PDF 到平板批注",
+      "en": "Send PDF to Tablet"
+    },
+    "sendToTablet": {
+      "zh-Hans": "发送到平板",
+      "en": "Send to Tablet"
+    },
+    "sendingPDF": {
+      "zh-Hans": "正在发送到平板…",
+      "en": "Sending to tablet…"
+    },
+    "sentPDF": {
+      "zh-Hans": "已发送到平板，等待外部应用打开…",
+      "en": "Sent to tablet; waiting for the PDF app…"
+    },
+    "restorePDFHint": {
+      "zh-Hans": "自动恢复失败，可从“最近文档”重新打开",
+      "en": "Reopen the PDF from Recent Files"
+    },
+    "restoredInk": {
+      "zh-Hans": "已恢复上次完整笔划",
+      "en": "Previous strokes restored"
+    },
+    "receivingPDF": {
+      "zh-Hans": "正在接收平板批注版…",
+      "en": "Receiving annotated PDF…"
+    },
+    "returnPDFFailure": {
+      "zh-Hans": "批注文件回传失败，可在平板重试",
+      "en": "Retry returning the annotated PDF on the tablet"
+    },
+    "saveReturnPDF": {
+      "zh-Hans": "保存平板批注版",
+      "en": "Save Annotated PDF"
+    },
+    "saveToMac": {
+      "zh-Hans": "保存到 Mac",
+      "en": "Save to Mac"
+    },
+    "returnNotSaved": {
+      "zh-Hans": "批注版已接收，但尚未保存",
+      "en": "Annotated PDF received; not saved yet"
+    },
+    "exportPDFFailure": {
+      "zh-Hans": "导出失败，原 PDF 未被修改",
+      "en": "Export failed; the original PDF was preserved"
+    },
+    "openFileError": {
+      "zh-Hans": "无法打开 {0}",
+      "en": "Could not open {0}"
+    },
+    "saveSuccess": {
+      "zh-Hans": "已保存 {0}",
+      "en": "Saved {0}"
+    },
+    "saveError": {
+      "zh-Hans": "保存失败：{0}",
+      "en": "Save failed: {0}"
+    },
+    "saveAsSuccess": {
+      "zh-Hans": "已另存为 {0}",
+      "en": "Saved as {0}"
+    },
+    "exportSuffix": {
+      "zh-Hans": "-批注.pdf",
+      "en": "-annotated.pdf"
+    },
+    "exportDefaultName": {
+      "zh-Hans": "批注.pdf",
+      "en": "annotated.pdf"
+    },
+    "penSummary": {
+      "zh-Hans": "压感笔 {0}",
+      "en": "Pressure pen {0}"
+    },
+    "eraserSummary": {
+      "zh-Hans": "橡皮擦 {0}",
+      "en": "Eraser {0}"
+    },
+    "liveViewDisabled": {
+      "zh-Hans": "系统未启用实况窗",
+      "en": "Live View is disabled"
+    },
+    "liveViewEntitlement": {
+      "zh-Hans": "应用尚未获得实况窗权益",
+      "en": "Live View is not enabled for this app"
+    },
+    "liveViewStartError": {
+      "zh-Hans": "实况窗启动失败 ({0})",
+      "en": "Live View could not start ({0})"
+    },
+    "liveViewUpdateError": {
+      "zh-Hans": "实况窗更新失败 ({0})",
+      "en": "Live View could not update ({0})"
+    },
+    "liveViewUnavailable": {
+      "zh-Hans": "实况窗不可用 ({0})",
+      "en": "Live View unavailable ({0})"
+    },
+    "mirrorIdle": {
+      "zh-Hans": "当前未投屏",
+      "en": "Mirroring is off"
+    },
+    "returnToApp": {
+      "zh-Hans": "返回LinkDesk",
+      "en": "Return to LinkDesk"
+    },
+    "mirrorActiveShort": {
+      "zh-Hans": "投屏中",
+      "en": "Mirroring"
+    },
+    "mirrorIdleShort": {
+      "zh-Hans": "未投屏",
+      "en": "Not mirroring"
+    },
+    "speakerDescription": {
+      "zh-Hans": "将 Mac 的声音播放到平板。",
+      "en": "Play Mac audio through your tablet."
+    }
+  }
+}

@@ -1,8 +1,9 @@
 {
   "name": "entry",
   "version": "0.1.0",
-  "description": "连屏原生显示客户端",
+  "description": "\u8fde\u5c4f\u539f\u751f\u663e\u793a\u5ba2\u6237\u7aef",
   "dependencies": {
-    "liblinkdesk.so": "file:./src/main/cpp/types/liblinkdesk"
+    "liblinkdesk.so": "file:./src/main/cpp/types/liblinkdesk",
+    "libscreenmirror.so": "file:./src/main/cpp/types/libscreenmirror"
   }
 }
