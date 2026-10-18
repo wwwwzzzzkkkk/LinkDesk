@@ -17,7 +17,7 @@ Mac 使用原生侧栏；平板使用统一工作台和悬浮书写工具栏。�
 
 Mac 统一版已构建并使用原固定签名安装到 Mac mini，协议与原生绘制回归通过。鸿蒙已更新原调试签名，合并包成功覆盖安装并启动；统一首页和深浅色双向同步已实机检查。LiveView 需要单独开通华为平台权益。
 
-统一版尚未作为正式 Release 发布。现有 Releases 和 Homebrew 仍提供 0.6.4；不要把它们当作此合并版本。
+统一版 [0.7.0 正式下载](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v0.7.0) 提供 Apple Silicon Mac 安装包。Homebrew 用户运行 `brew update && brew upgrade --cask linkdesk`。鸿蒙个人调试签名与设备绑定，公开源码中不提供个人签名 HAP；请在 DevEco Studio 中自行签名安装。Mac 发行包使用原固定开发证书，尚未经过 Apple Developer ID 公证。
 
 ## 构建与安装
 

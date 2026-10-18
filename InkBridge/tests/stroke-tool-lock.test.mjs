@@ -169,7 +169,7 @@ test("Mac and HarmonyOS expose automatic, Wi-Fi, and USB transport switching", (
   assert.match(manager, /enum ConnectionPreference[\s\S]*case automatic[\s\S]*case wifi[\s\S]*case usb/);
   assert.match(manager, /case \.automatic: desired = isReady \? \.usb : \.wifi/);
   assert.match(manager, /arguments: \["-t", usb\.id, "rport", "tcp:3210", "tcp:3210"\]/);
-  assert.match(content, /Picker\("连接方式", selection: \$usbRelay\.preference\)/);
+  assert.match(content, /Picker\(L10n\.connectionMethod, selection: \$usbRelay\.preference\)/);
   assert.match(relay, /func sendTransportRequest[\s\S]*type: "transport:request"/);
   assert.match(launcher, /func startIfNeeded\(\)[\s\S]*launchRelay\(\)[\s\S]*isCheckingExistingService = true/);
   assert.match(arkTS, /data\.type === 'transport'[\s\S]*requestTransportSwitch/);
@@ -219,22 +219,22 @@ test("Mac native toolbar keeps real mouse hit testing", () => {
   assert.match(configurator, /isMovableByWindowBackground = false/);
 });
 
-test("Mac recovery toast morphs from a ball and dismisses automatically", () => {
+test("Mac recovery toast uses shared motion tokens and dismisses automatically", () => {
   const content = source("MacPDFAnnotator/Sources/ContentView.swift");
   const workspace = source("MacPDFAnnotator/Sources/PDFWorkspace.swift");
   assert.match(content, /MacStatusToastMorphModifier\(progress: 0\)/);
-  assert.match(content, /scaleEffect\([\s\S]*x: 0\.20 \+ 0\.80 \* value[\s\S]*y: 0\.72 \+ 0\.28 \* value/);
+  assert.match(content, /scaleEffect\([\s\S]*x: DT\.motion\.menuScale \+ \(1 - DT\.motion\.menuScale\) \* value[\s\S]*y: DT\.motion\.menuScale \+ \(1 - DT\.motion\.menuScale\) \* value/);
   assert.match(content, /value: workspace\.exportStatus\.isEmpty/);
-  assert.match(workspace, /private func showExportStatus[\s\S]*isFailure \? 4\.2 : 2\.8/);
-  assert.match(workspace, /restoredDrawing[\s\S]*showExportStatus\("已恢复上次完整笔划"\)/);
+  assert.match(workspace, /private func showExportStatus[\s\S]*isFailure \? DT\.motion\.errorNotice : DT\.motion\.notice/);
+  assert.match(workspace, /restoredDrawing[\s\S]*showExportStatus\(L10n\.restoredInk\)/);
 });
 
 test("Mac search outside-click monitor is bounded and cleaned up", () => {
   const content = source("MacPDFAnnotator/Sources/ContentView.swift");
   assert.match(content, /SearchOutsideClickMonitor\(onOutsideClick: workspace\.closeSearch\)/);
   assert.doesNotMatch(content, /currentEvent\?\.eventNumber/);
-  assert.match(content, /asyncAfter\(deadline: \.now\(\) \+ 0\.25/);
-  assert.match(content, /bounds\.insetBy\(dx: -6, dy: -6\)\.contains/);
+  assert.match(content, /asyncAfter\(deadline: \.now\(\) \+ DT\.motion\.menuEnter/);
+  assert.match(content, /bounds\.insetBy\(dx: -DT\.spacing\.s8, dy: -DT\.spacing\.s8\)\.contains/);
   assert.match(content, /static func dismantleNSView[\s\S]*stopMonitoring\(\)/);
   assert.match(content, /return event/);
 });
@@ -276,10 +276,10 @@ test("HarmonyOS round trip opens Huawei Notes and prepares native LiveView mirro
   assert.match(liveView, /LAYOUT_TYPE_PROGRESS/);
   assert.match(liveView, /nodeIcons: \['inkbridge_liveview_start\.svg', 'inkbridge_liveview_finish\.svg'\]/);
   assert.match(liveView, /serviceButtons:/);
-  assert.match(liveView, /'停止投屏' : '开始投屏'/);
-  assert.match(liveView, /name: '返回LinkDesk'/);
+  assert.match(liveView, /Strings\.stopMirror : Strings\.startMirror/);
+  assert.match(liveView, /name: Strings\.returnToApp/);
   assert.match(liveView, /OperationType\.START_ABILITIES/);
-  assert.match(liveView, /1003500005[\s\S]*应用尚未获得实况窗权益/);
+  assert.match(liveView, /1003500005[\s\S]*Strings\.liveViewEntitlement/);
   assert.match(ability, /want\.parameters\?\.liveViewAction/);
   assert.match(bridge, /submitLiveViewAction[\s\S]*registerLiveViewAction/);
   assert.match(arkTS, /handleLiveViewAction[\s\S]*toggleScreenMirror/);
