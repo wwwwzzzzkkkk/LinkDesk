@@ -1,5 +1,6 @@
 #include "audio_receiver.h"
 #include "microphone_sender.h"
+#include "microphone_control.h"
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -43,6 +44,7 @@ class Receiver {
 public:
     static Receiver &Get() { static Receiver instance; return instance; }
     ~Receiver() { Stop(); }
+    void SetMicrophoneRequested(bool enabled){microphoneControl_.SetRequested(enabled);}
     void SetMicrophoneEnabled(bool enabled){if(enabled)microphone_.Start();else microphone_.Stop();}
     void Start(uint64_t surface, uint64_t windowId = 0) {
         Stop();
@@ -59,12 +61,14 @@ public:
         timedRenderRejected_ = false; timedSubmissions_ = 0; lastDecodeUs_ = 0; lastReceiveUs_ = 0; lastSubmitUs_ = 0;
         surface_ = surface; windowId_ = windowId; frames_ = 0; bytes_ = 0; error_ = 0; hostRequestState_ = 0; active_ = true;
         audio_.Start();
+        microphoneControl_.Start();
         worker_ = std::thread([this] { Loop(); });
         hostThread_ = std::thread([this] { RequestHostLoop(); });
     }
     void Stop() {
         active_ = false; cv_.notify_all(); hostCv_.notify_all();
         microphone_.Stop();
+        microphoneControl_.Stop();
         audio_.Stop();
         { std::lock_guard<std::mutex> lock(socketMutex_); if (fd_ >= 0) shutdown(fd_, SHUT_RDWR); }
         if (worker_.joinable()) worker_.join();
@@ -73,10 +77,10 @@ public:
     }
     std::string Stats() {
         uint32_t refresh = 0;
-        if (OH_NativeDisplayManager_GetDefaultDisplayRefreshRate(&refresh) == DISPLAY_MANAGER_OK) screenHz_ = refresh;
-        return "{\"microphoneState\":" + std::to_string(microphone_.State()) + ",\"hostRequestState\":" + std::to_string(hostRequestState_.load()) + ",\"audioState\":" + std::to_string(audio_.State()) + ",\"audioFrames\":" + std::to_string(audio_.Played()) + ",\"state\":" + std::to_string(state_.load()) + ",\"frames\":" + std::to_string(frames_.load()) +
+        screenHz_ = OH_NativeDisplayManager_GetDefaultDisplayRefreshRate(&refresh) == DISPLAY_MANAGER_OK ? refresh : 0;
+        return "{\"microphoneRequested\":" + std::string(microphoneControl_.Requested() ? "true" : "false") + ",\"microphoneState\":" + std::to_string(microphone_.State()) + ",\"hostRequestState\":" + std::to_string(hostRequestState_.load()) + ",\"audioState\":" + std::to_string(audio_.State()) + ",\"audioFrames\":" + std::to_string(audio_.Played()) + ",\"state\":" + std::to_string(state_.load()) + ",\"frames\":" + std::to_string(frames_.load()) +
             ",\"bytes\":" + std::to_string(bytes_.load()) + ",\"error\":" + std::to_string(error_.load()) +
-            ",\"width\":" + std::to_string(width_.load()) + ",\"height\":" + std::to_string(height_.load()) + ",\"targetFPS\":" + std::to_string(targetFPS_.load()) + ",\"vsyncHz\":" + std::to_string(vsyncHz_.load()) +
+            ",\"width\":" + std::to_string(width_.load()) + ",\"height\":" + std::to_string(height_.load()) + ",\"targetFPS\":" + std::to_string(targetFPS_.load()) + ",\"vsyncHz\":" + std::to_string(vsyncHz_.load()) + ",\"screenHz\":" + std::to_string(screenHz_.load()) +
             ",\"latestMode\":" + (latestMode_.load() ? "true" : "false") + ",\"timedSupported\":" + (timedRenderRejected_.load() ? "false" : "true") +
             ",\"timedSubmissions\":" + std::to_string(timedSubmissions_.load()) + ",\"receiveSubmitUs\":" + std::to_string(lastReceiveUs_.load()) +
             ",\"decodeUs\":" + std::to_string(lastDecodeUs_.load()) + ",\"submitUs\":" + std::to_string(lastSubmitUs_.load()) + "}";
@@ -105,6 +109,7 @@ private:
     bool codecStarted_ = false;
     AudioReceiver audio_;
     MicrophoneSender microphone_;
+    MicrophoneControl microphoneControl_;
     std::thread worker_, hostThread_;
     std::mutex socketMutex_, inputMutex_;
     std::condition_variable cv_;
@@ -121,7 +126,12 @@ private:
 
     void RequestHostLoop() {
         unsigned attempts = 0;
-        while (active_ && state_ != 3 && hostRequestState_ != 3) {
+        while (active_ && hostRequestState_ != 3) {
+            if (state_ == 3) {
+                std::unique_lock<std::mutex> lock(hostMutex_);
+                hostCv_.wait_for(lock, std::chrono::seconds(1), [this] { return !active_; });
+                continue;
+            }
             int fd = socket(AF_INET, SOCK_STREAM, 0);
             if (fd >= 0) {
                 timeval timeout{0, 500000};
@@ -142,7 +152,7 @@ private:
             }
             if (++attempts >= 5 && hostRequestState_ == 0) hostRequestState_ = 4;
             std::unique_lock<std::mutex> lock(hostMutex_);
-            hostCv_.wait_for(lock, std::chrono::seconds(1), [this] { return !active_ || state_ == 3; });
+            hostCv_.wait_for(lock, std::chrono::seconds(1), [this] { return !active_; });
         }
         OH_LOG_Print(LOG_APP, LOG_INFO, 0x3301, "LinkDesk", "CONTROL_START state=%{public}d video=%{public}d", hostRequestState_.load(), state_.load());
     }
@@ -283,6 +293,8 @@ private:
         OH_AVFormat_SetDoubleValue(format, OH_MD_KEY_FRAME_RATE, fps);
         OH_AVFormat_SetIntValue(format, OH_MD_KEY_MAX_INPUT_SIZE, MAX_FRAME);
         OH_AVFormat_SetIntValue(format, OH_MD_KEY_VIDEO_ENABLE_LOW_LATENCY, 1);
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x3301, "LinkDesk", "DECODER_LATENCY low_latency=%{public}d",
+            capability && OH_AVCapability_IsFeatureSupported(capability, VIDEO_LOW_LATENCY));
         OH_AVErrCode result = OH_VideoDecoder_Configure(codec_, format);
         OH_AVFormat_Destroy(format);
         if (result != AV_ERR_OK) { error_ = result; return false; }
@@ -387,6 +399,12 @@ napi_value SetLatest(napi_env env, napi_callback_info info) {
     if (argc != 1 || napi_get_value_bool(env, argv[0], &enabled) != napi_ok) { napi_throw_type_error(env, nullptr, "Expected a boolean"); return nullptr; }
     Receiver::Get().SetLatestMode(enabled); napi_value out; napi_get_undefined(env, &out); return out;
 }
+napi_value SetMicrophoneRequested(napi_env env,napi_callback_info info){
+    size_t argc=1;napi_value argv[1];napi_get_cb_info(env,info,&argc,argv,nullptr,nullptr);
+    bool enabled=false;
+    if(argc!=1||napi_get_value_bool(env,argv[0],&enabled)!=napi_ok){napi_throw_type_error(env,nullptr,"Expected boolean");return nullptr;}
+    Receiver::Get().SetMicrophoneRequested(enabled);napi_value out;napi_get_undefined(env,&out);return out;
+}
 napi_value SetMicrophone(napi_env env,napi_callback_info info){
     size_t argc=1;napi_value argv[1];napi_get_cb_info(env,info,&argc,argv,nullptr,nullptr);bool enabled=false;
     if(argc!=1||napi_get_value_bool(env,argv[0],&enabled)!=napi_ok){napi_throw_type_error(env,nullptr,"Expected boolean");return nullptr;}
@@ -398,9 +416,10 @@ napi_value Init(napi_env env, napi_value exports) {
         {"stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"stats", nullptr, Stats, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setLatestMode", nullptr, SetLatest, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"setMicrophoneEnabled", nullptr, SetMicrophone, nullptr, nullptr, nullptr, napi_default, nullptr}
+        {"setMicrophoneEnabled", nullptr, SetMicrophone, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setMicrophoneRequested", nullptr, SetMicrophoneRequested, nullptr, nullptr, nullptr, napi_default, nullptr}
     };
-    napi_define_properties(env, exports, 5, properties); return exports;
+    napi_define_properties(env, exports, sizeof(properties) / sizeof(properties[0]), properties); return exports;
 }
 napi_module module{1, 0, nullptr, Init, "linkdesk", nullptr, {0}};
 __attribute__((constructor)) void Register() { napi_module_register(&module); }

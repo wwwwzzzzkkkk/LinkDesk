@@ -24,6 +24,12 @@ export class DT {
   static clear(dark: boolean): string { return dark ? "#00000000" : "#00000000"; }
   static scrim(dark: boolean): string { return dark ? "#000000" : "#19283C"; }
   static selection(dark: boolean): string { return dark ? "#2C4973" : "#D7E7FF"; }
+  static panelColor0(dark: boolean): string { return dark ? "#20FFFFFF" : "#20FFFFFF"; }
+  static panelColor1(dark: boolean): string { return dark ? "#00FFFFFF" : "#00FFFFFF"; }
+  static panelColor2(dark: boolean): string { return dark ? "#08000000" : "#08000000"; }
+  static panelColor3(dark: boolean): string { return dark ? "#407888A0" : "#407888A0"; }
+  static panelColor4(dark: boolean): string { return dark ? "#B3FFFFFF" : "#B3FFFFFF"; }
+  static panelColor5(dark: boolean): string { return dark ? "#22000000" : "#22000000"; }
   static readonly fontCaption = "12fp";
   static readonly fontBody = "16fp";
   static readonly fontLabel = "20fp";
@@ -102,6 +108,19 @@ export class DT {
   static readonly dimensionsD392 = 392;
   static readonly dimensionsD1160 = 1160;
   static readonly dimensionsD800 = 800;
+  static readonly dimensionsPanelValue3 = 3;
+  static readonly dimensionsPanelValue6 = 6;
+  static readonly dimensionsPanelValue10 = 10;
+  static readonly dimensionsPanelValue11 = 11;
+  static readonly dimensionsPanelValue12 = 12;
+  static readonly dimensionsPanelValue13 = 13;
+  static readonly dimensionsPanelValue14 = 14;
+  static readonly dimensionsPanelValue18 = 18;
+  static readonly dimensionsPanelValue24 = 24;
+  static readonly dimensionsPanelValue32 = 32;
+  static readonly dimensionsPanelValue48 = 48;
+  static readonly dimensionsPanelValue224 = 224;
+  static readonly dimensionsPanelValue336 = 336;
   static readonly durationFeedback: number = 120;
   static readonly durationMenuEnter: number = 240;
   static readonly durationMenuExit: number = 180;
@@ -109,6 +128,7 @@ export class DT {
   static readonly durationNone: number = 0;
   static readonly durationNotice: number = 2800;
   static readonly durationErrorNotice: number = 4200;
+  static readonly durationPanelFade: number = 160;
   static readonly opacityMuted: number = 0.6;
   static readonly opacitySubtle: number = 0.08;
   static readonly opacityBorder: number = 0.16;
@@ -410,6 +430,17 @@ export class Strings {
       case "mirrorActiveShort": return english ? "Mirroring" : "投屏中";
       case "mirrorIdleShort": return english ? "Not mirroring" : "未投屏";
       case "speakerDescription": return english ? "Play Mac audio through your tablet." : "将 Mac 的声音播放到平板。";
+      case "panelDrag": return english ? "Drag display controls" : "拖动控制面板";
+      case "panelActualFPS": return english ? "Live frame rate" : "实时帧率";
+      case "panelFPSDescription": return english ? "Live {0} fps, target {1} fps" : "实时 {0} 帧/秒，目标 {1} 帧/秒";
+      case "panelMicError": return english ? "Microphone error" : "麦克风异常";
+      case "panelMicOff": return english ? "Microphone off" : "麦克风已关闭";
+      case "panelMicSending": return english ? "Microphone streaming" : "麦克风传输中";
+      case "panelMicWaiting": return english ? "Microphone waiting for Mac" : "麦克风等待 Mac";
+      case "panelTurnOn": return english ? "Enable" : "开启";
+      case "panelTurnOff": return english ? "Disable" : "关闭";
+      case "panelExpand": return english ? "Expand display controls" : "展开扩展屏幕控制面板";
+      case "panelScreenRefresh": return english ? "Actual display refresh rate {0} Hz" : "屏幕实际刷新率 {0} Hz";
       default: return key;
     }
   }
@@ -676,6 +707,17 @@ export class Strings {
   static get mirrorActiveShort(): string { return Strings.value("mirrorActiveShort"); }
   static get mirrorIdleShort(): string { return Strings.value("mirrorIdleShort"); }
   static get speakerDescription(): string { return Strings.value("speakerDescription"); }
+  static get panelDrag(): string { return Strings.value("panelDrag"); }
+  static get panelActualFPS(): string { return Strings.value("panelActualFPS"); }
+  static get panelFPSDescription(): string { return Strings.value("panelFPSDescription"); }
+  static get panelMicError(): string { return Strings.value("panelMicError"); }
+  static get panelMicOff(): string { return Strings.value("panelMicOff"); }
+  static get panelMicSending(): string { return Strings.value("panelMicSending"); }
+  static get panelMicWaiting(): string { return Strings.value("panelMicWaiting"); }
+  static get panelTurnOn(): string { return Strings.value("panelTurnOn"); }
+  static get panelTurnOff(): string { return Strings.value("panelTurnOff"); }
+  static get panelExpand(): string { return Strings.value("panelExpand"); }
+  static get panelScreenRefresh(): string { return Strings.value("panelScreenRefresh"); }
 }
 
 export enum ConnectionState {

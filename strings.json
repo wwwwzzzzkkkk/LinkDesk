@@ -1053,6 +1053,50 @@
     "speakerDescription": {
       "zh-Hans": "将 Mac 的声音播放到平板。",
       "en": "Play Mac audio through your tablet."
+    },
+    "panelDrag": {
+      "zh-Hans": "拖动控制面板",
+      "en": "Drag display controls"
+    },
+    "panelActualFPS": {
+      "zh-Hans": "实时帧率",
+      "en": "Live frame rate"
+    },
+    "panelFPSDescription": {
+      "zh-Hans": "实时 {0} 帧/秒，目标 {1} 帧/秒",
+      "en": "Live {0} fps, target {1} fps"
+    },
+    "panelMicError": {
+      "zh-Hans": "麦克风异常",
+      "en": "Microphone error"
+    },
+    "panelMicOff": {
+      "zh-Hans": "麦克风已关闭",
+      "en": "Microphone off"
+    },
+    "panelMicSending": {
+      "zh-Hans": "麦克风传输中",
+      "en": "Microphone streaming"
+    },
+    "panelMicWaiting": {
+      "zh-Hans": "麦克风等待 Mac",
+      "en": "Microphone waiting for Mac"
+    },
+    "panelTurnOn": {
+      "zh-Hans": "开启",
+      "en": "Enable"
+    },
+    "panelTurnOff": {
+      "zh-Hans": "关闭",
+      "en": "Disable"
+    },
+    "panelExpand": {
+      "zh-Hans": "展开扩展屏幕控制面板",
+      "en": "Expand display controls"
+    },
+    "panelScreenRefresh": {
+      "zh-Hans": "屏幕实际刷新率 {0} Hz",
+      "en": "Actual display refresh rate {0} Hz"
     }
   }
 }

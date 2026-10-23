@@ -23,7 +23,13 @@
       "video": "#000000",
       "clear": "#00000000",
       "scrim": "#19283C",
-      "selection": "#D7E7FF"
+      "selection": "#D7E7FF",
+      "panelColor0": "#20FFFFFF",
+      "panelColor1": "#00FFFFFF",
+      "panelColor2": "#08000000",
+      "panelColor3": "#407888A0",
+      "panelColor4": "#B3FFFFFF",
+      "panelColor5": "#22000000"
     },
     "dark": {
       "accent": "#78ACFF",
@@ -46,7 +52,13 @@
       "video": "#000000",
       "clear": "#00000000",
       "scrim": "#000000",
-      "selection": "#2C4973"
+      "selection": "#2C4973",
+      "panelColor0": "#20FFFFFF",
+      "panelColor1": "#00FFFFFF",
+      "panelColor2": "#08000000",
+      "panelColor3": "#407888A0",
+      "panelColor4": "#B3FFFFFF",
+      "panelColor5": "#22000000"
     }
   },
   "typography": {
@@ -143,7 +155,8 @@
       "collapse": 520,
       "none": 0,
       "notice": 2800,
-      "errorNotice": 4200
+      "errorNotice": 4200,
+      "panelFade": 160
     },
     "curve": {
       "standard": [
@@ -259,6 +272,19 @@
     "d380": 380,
     "d392": 392,
     "d1160": 1160,
-    "d800": 800
+    "d800": 800,
+    "panelValue3": 3,
+    "panelValue6": 6,
+    "panelValue10": 10,
+    "panelValue11": 11,
+    "panelValue12": 12,
+    "panelValue13": 13,
+    "panelValue14": 14,
+    "panelValue18": 18,
+    "panelValue24": 24,
+    "panelValue32": 32,
+    "panelValue48": 48,
+    "panelValue224": 224,
+    "panelValue336": 336
   }
 }

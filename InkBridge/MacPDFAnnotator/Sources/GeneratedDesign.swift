@@ -33,6 +33,12 @@ enum DT {
   static var clear: Color { color("#00000000", "#00000000") }
   static var scrim: Color { color("#19283C", "#000000") }
   static var selection: Color { color("#D7E7FF", "#2C4973") }
+  static var panelColor0: Color { color("#20FFFFFF", "#20FFFFFF") }
+  static var panelColor1: Color { color("#00FFFFFF", "#00FFFFFF") }
+  static var panelColor2: Color { color("#08000000", "#08000000") }
+  static var panelColor3: Color { color("#407888A0", "#407888A0") }
+  static var panelColor4: Color { color("#B3FFFFFF", "#B3FFFFFF") }
+  static var panelColor5: Color { color("#22000000", "#22000000") }
   enum font {
     static let caption: CGFloat = 12
     static let body: CGFloat = 14
@@ -120,6 +126,19 @@ enum DT {
     static let d392: CGFloat = 392
     static let d1160: CGFloat = 1160
     static let d800: CGFloat = 800
+    static let panelValue3: CGFloat = 3
+    static let panelValue6: CGFloat = 6
+    static let panelValue10: CGFloat = 10
+    static let panelValue11: CGFloat = 11
+    static let panelValue12: CGFloat = 12
+    static let panelValue13: CGFloat = 13
+    static let panelValue14: CGFloat = 14
+    static let panelValue18: CGFloat = 18
+    static let panelValue24: CGFloat = 24
+    static let panelValue32: CGFloat = 32
+    static let panelValue48: CGFloat = 48
+    static let panelValue224: CGFloat = 224
+    static let panelValue336: CGFloat = 336
   }
   enum motion {
     static let feedback: Double = 0.12
@@ -129,6 +148,7 @@ enum DT {
     static let none: Double = 0.0
     static let notice: Double = 2.8
     static let errorNotice: Double = 4.2
+    static let panelFade: Double = 0.16
     static let muted: Double = 0.6
     static let subtle: Double = 0.08
     static let border: Double = 0.16
@@ -435,6 +455,17 @@ enum L10n {
     case "mirrorActiveShort": return english ? "Mirroring" : "投屏中"
     case "mirrorIdleShort": return english ? "Not mirroring" : "未投屏"
     case "speakerDescription": return english ? "Play Mac audio through your tablet." : "将 Mac 的声音播放到平板。"
+    case "panelDrag": return english ? "Drag display controls" : "拖动控制面板"
+    case "panelActualFPS": return english ? "Live frame rate" : "实时帧率"
+    case "panelFPSDescription": return english ? "Live {0} fps, target {1} fps" : "实时 {0} 帧/秒，目标 {1} 帧/秒"
+    case "panelMicError": return english ? "Microphone error" : "麦克风异常"
+    case "panelMicOff": return english ? "Microphone off" : "麦克风已关闭"
+    case "panelMicSending": return english ? "Microphone streaming" : "麦克风传输中"
+    case "panelMicWaiting": return english ? "Microphone waiting for Mac" : "麦克风等待 Mac"
+    case "panelTurnOn": return english ? "Enable" : "开启"
+    case "panelTurnOff": return english ? "Disable" : "关闭"
+    case "panelExpand": return english ? "Expand display controls" : "展开扩展屏幕控制面板"
+    case "panelScreenRefresh": return english ? "Actual display refresh rate {0} Hz" : "屏幕实际刷新率 {0} Hz"
     default: return key
     }
   }
@@ -701,6 +732,17 @@ enum L10n {
   static var mirrorActiveShort: String { value("mirrorActiveShort") }
   static var mirrorIdleShort: String { value("mirrorIdleShort") }
   static var speakerDescription: String { value("speakerDescription") }
+  static var panelDrag: String { value("panelDrag") }
+  static var panelActualFPS: String { value("panelActualFPS") }
+  static var panelFPSDescription: String { value("panelFPSDescription") }
+  static var panelMicError: String { value("panelMicError") }
+  static var panelMicOff: String { value("panelMicOff") }
+  static var panelMicSending: String { value("panelMicSending") }
+  static var panelMicWaiting: String { value("panelMicWaiting") }
+  static var panelTurnOn: String { value("panelTurnOn") }
+  static var panelTurnOff: String { value("panelTurnOff") }
+  static var panelExpand: String { value("panelExpand") }
+  static var panelScreenRefresh: String { value("panelScreenRefresh") }
 }
 
 enum ConnectionState: String, CaseIterable {

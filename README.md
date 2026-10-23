@@ -2,7 +2,7 @@
 
 # LinkDesk
 
-Mac 与 MatePad 的跨屏工作空间。统一版 **0.7.0** 把扩展屏幕、PDF 批注、无限白板、平板投屏和华为笔记往返放进同一个 LinkDesk。
+Mac 与 MatePad 的跨屏工作空间。统一版 **0.7.1** 把扩展屏幕、PDF 批注、无限白板、平板投屏和华为笔记往返放进同一个 LinkDesk。
 
 | 工作空间 | 用途 | 连接 |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ Mac 使用原生侧栏；平板使用统一工作台和悬浮书写工具栏。�
 
 Mac 统一版已构建并使用原固定签名安装到 Mac mini，协议与原生绘制回归通过。鸿蒙已更新原调试签名，合并包成功覆盖安装并启动；统一首页和深浅色双向同步已实机检查。LiveView 需要单独开通华为平台权益。
 
-统一版 [0.7.0 正式下载](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v0.7.0) 提供 Apple Silicon Mac 安装包。Homebrew 用户运行 `brew update && brew upgrade --cask linkdesk`。鸿蒙个人调试签名与设备绑定，公开源码中不提供个人签名 HAP；请在 DevEco Studio 中自行签名安装。Mac 发行包使用原固定开发证书，尚未经过 Apple Developer ID 公证。
+统一版 [0.7.1 正式下载](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v0.7.1) 提供 Apple Silicon Mac 安装包。Homebrew 用户运行 `brew update && brew upgrade --cask linkdesk`。鸿蒙个人调试签名与设备绑定，公开源码中不提供个人签名 HAP；请在 DevEco Studio 中自行签名安装。Mac 发行包使用原固定开发证书，尚未经过 Apple Developer ID 公证。
 
 ## 构建与安装
 
@@ -49,7 +49,7 @@ bash scripts/install-harmony.sh
 - 白板：两端切换“实时白板”，画布没有边界，缩放范围 25%–800%。
 - 华为笔记：文件菜单“发送 PDF 到平板批注…”，平板优先打开华为笔记；完成后通过分享菜单回传 LinkDesk，Mac 保存批注副本。
 - 平板投屏：保持 USB 连接，在任一端启动并在平板允许系统录屏。进入平板扩展屏幕前会停止平板投屏。
-- 麦克风每次默认关闭；平板和 Mac 两端均需手动启用。离开平板前台立即停止拾音。
+- 麦克风每次默认关闭；在平板或 Mac 任一端启用即通过 USB 同步，Mac 声音设置切换到平板输入也会启用。平板首次使用仍需授予系统录音权限；拒绝授权、离开前台或退出副屏会停止拾音并同步关闭。麦克风双向同步需要两端均更新到此实现。
 
 首次使用扬声器或麦克风，需要已有 LinkDesk Core Audio 驱动；驱动无需因本次 UI／工作区合并而重新安装。驱动安装会请求管理员授权并短暂重启音频服务，见 [安装说明](docs/INSTALL.md)。
 

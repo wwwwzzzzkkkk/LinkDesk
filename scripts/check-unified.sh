@@ -13,3 +13,12 @@ xcrun swiftc "$SOURCES/RelayMessage.swift" "$SOURCES/WhiteboardHistoryVisibility
 "$RESULTS/whiteboard-history"
 xcrun clang -fobjc-arc -fsanitize=address,undefined -g "$ROOT/tests/test-microphone-ring.m" -framework Foundation -framework CoreAudio -framework AudioToolbox -o "$RESULTS/microphone-ring"
 "$RESULTS/microphone-ring"
+
+xcrun clang -fobjc-arc -fsanitize=address,undefined -g "$ROOT/tests/test-microphone-control.m" -framework Foundation -framework CoreAudio -framework AudioToolbox -o "$RESULTS/microphone-control"
+"$RESULTS/microphone-control"
+xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-microphone-sync.cpp" -o "$RESULTS/microphone-sync"
+"$RESULTS/microphone-sync"
+xcrun clang -fobjc-arc -fsanitize=address,undefined -g "$ROOT/tests/test-pipeline-budget.m" -framework Foundation -o "$RESULTS/pipeline-budget"
+"$RESULTS/pipeline-budget"
+xcrun clang -fsanitize=address,undefined -g "$ROOT/tests/test-frame-pacing.c" -o "$RESULTS/frame-pacing"
+"$RESULTS/frame-pacing"

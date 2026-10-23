@@ -49,7 +49,7 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
     _Atomic(bool) _running,_enabled;
     int _listener,_client;
     dispatch_group_t _worker;
-    AudioDeviceID _device,_fallback;
+    AudioDeviceID _device,_fallback,_lastInput;
     AudioDeviceIOProcID _proc;
     LDMicRing *_ring;
 }
@@ -60,11 +60,37 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
 - (NSString *)status{[_lock lock];NSString *s=_message;[_lock unlock];return s;}
 - (void)message:(NSString *)s{[_lock lock];_message=s;[_lock unlock];}
 - (void)restoreInput{if(_device&&InputDevice()==_device)SetInput(_fallback);}
+- (BOOL)enabled { return atomic_load(&_enabled); }
+- (BOOL)running { return atomic_load(&_running); }
+- (void)updateRoute {
+    if (!atomic_load(&_running) || !_device) return;
+    AudioDeviceID input = InputDevice();
+    if (input == _lastInput) return;
+    AudioDeviceID previous = _lastInput;
+    _lastInput = input;
+    if (input == _device && !self.enabled) {
+        [_lock lock];
+        if (previous && previous != _device) _fallback = previous;
+        [_lock unlock];
+        [self setEnabled:YES];
+    }
+    else if (input != _device && self.enabled) [self setEnabled:NO];
+}
+- (char)controlReplyForCommand:(const char *)command length:(size_t)length {
+    if (length != 8) return 'E';
+    if (!memcmp(command, "LDMICON1", 8)) [self setEnabled:YES];
+    else if (!memcmp(command, "LDMICOFF", 8)) [self setEnabled:NO];
+    else if (memcmp(command, "LDMICGET", 8)) return 'E';
+    return self.running ? (self.enabled ? '1' : '0') : 'E';
+}
 - (void)setEnabled:(BOOL)enabled{
-    [_lock lock];atomic_store(&_enabled,enabled);atomic_store(&_ring->enabled,false);
-    [self restoreInput];
+    [_lock lock];
+    if ((enabled && !atomic_load(&_running)) || atomic_load(&_enabled) == enabled) { [_lock unlock]; return; }
+    atomic_store(&_enabled,enabled);atomic_store(&_ring->enabled,false);
+    if (enabled) { AudioDeviceID input = InputDevice(); if (input != _device) _fallback = input; }
+    else [self restoreInput];
     if(_client>=0)shutdown(_client,SHUT_RDWR);[_lock unlock];
-    [self message:enabled?@"平板麦克风：等待平板允许麦克风":@"平板麦克风：关闭"];
+    [self message:enabled?@"平板麦克风：正在同步平板授权":@"平板麦克风：关闭"];
 }
 - (BOOL)start{
     [self stop];
@@ -79,7 +105,7 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
     if(!_device){[self message:@"平板麦克风：需安装麦克风驱动"];return NO;}
     a.mSelector=kAudioDevicePropertyStreamFormat;a.mScope=kAudioDevicePropertyScopeOutput;AudioStreamBasicDescription f={0};size=sizeof(f);
     if(AudioObjectGetPropertyData(_device,&a,0,NULL,&size,&f)||f.mSampleRate!=48000||f.mBitsPerChannel!=32||f.mChannelsPerFrame!=2||!(f.mFormatFlags&kAudioFormatFlagIsFloat)){[self message:@"平板麦克风：驱动格式不支持"];return NO;}
-    _fallback=InputDevice();if(_fallback==_device)_fallback=0;
+    _lastInput=InputDevice();_fallback=_lastInput;if(_fallback==_device)_fallback=0;
     if(AudioDeviceCreateIOProcID(_device,RenderMic,_ring,&_proc)||AudioDeviceStart(_device,_proc)){[self stop];[self message:@"平板麦克风：无法启动驱动"];return NO;}
     int fd=socket(AF_INET,SOCK_STREAM,0);if(fd<0){[self stop];return NO;}
     int one=1;setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&one,sizeof(one));
@@ -120,7 +146,7 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
     }
 }
 - (void)stop{
-    atomic_store(&_running,false);atomic_store(&_ring->enabled,false);
+    atomic_store(&_running,false);atomic_store(&_enabled,false);atomic_store(&_ring->enabled,false);
     [_lock lock];if(_client>=0)shutdown(_client,SHUT_RDWR);int listener=_listener;_listener=-1;[_lock unlock];
     if(listener>=0){shutdown(listener,SHUT_RDWR);close(listener);}
     dispatch_group_wait(_worker,DISPATCH_TIME_FOREVER);[self restoreInput];

@@ -10,16 +10,19 @@ import { wantConstant } from '@kit.AbilityKit';
 import { RoundTripBridge } from '../roundtrip/RoundTripBridge';
 
 export default class EntryAbility extends UIAbility {
-  onForeground(): void { PlatformUI.foreground(); }
+  onForeground(): void { DisplayContext.foreground = true; PlatformUI.foreground(); }
 
   onBackground(): void {
+    DisplayContext.foreground = false;
     PlatformUI.background();
     DisplayContext.microphoneAllowed = false;
+    linkdesk.setMicrophoneRequested(false);
     linkdesk.setMicrophoneEnabled(false);
   }
   onDestroy(): void {
     PlatformUI.stop();
     LinkDeskTheme.stop();
+    linkdesk.setMicrophoneRequested(false);
     linkdesk.setMicrophoneEnabled(false);
     linkdesk.stop();
     screenMirror.stop();

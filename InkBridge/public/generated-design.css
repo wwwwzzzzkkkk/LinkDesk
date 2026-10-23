@@ -21,6 +21,12 @@
   --ld-clear: #00000000;
   --ld-scrim: #19283C;
   --ld-selection: #D7E7FF;
+  --ld-panelColor0: #FFFFFF20;
+  --ld-panelColor1: #FFFFFF00;
+  --ld-panelColor2: #00000008;
+  --ld-panelColor3: #7888A040;
+  --ld-panelColor4: #FFFFFFB3;
+  --ld-panelColor5: #00000022;
 }
 :root[data-linkdesk-theme="light"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="light"] .pdf-scroll { background: var(--ld-canvas); }
@@ -49,6 +55,12 @@
   --ld-clear: #00000000;
   --ld-scrim: #000000;
   --ld-selection: #2C4973;
+  --ld-panelColor0: #FFFFFF20;
+  --ld-panelColor1: #FFFFFF00;
+  --ld-panelColor2: #00000008;
+  --ld-panelColor3: #7888A040;
+  --ld-panelColor4: #FFFFFFB3;
+  --ld-panelColor5: #00000022;
 }
 :root[data-linkdesk-theme="dark"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="dark"] .pdf-scroll { background: var(--ld-canvas); }

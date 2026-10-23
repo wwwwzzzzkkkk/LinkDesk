@@ -10,6 +10,7 @@
 #import <unistd.h>
 #import <stdatomic.h>
 #import "LDPipelineBudget.h"
+#import "LDFramePacing.h"
 #import "LDAudioBridge.h"
 #import "LDMicrophoneBridge.h"
 #import <CoreAudio/CoreAudio.h>
@@ -54,7 +55,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     [@"连屏 LinkDesk" drawAtPoint:NSMakePoint(50, self.bounds.size.height - 110) withAttributes:heading];
     NSDictionary *body = @{NSFontAttributeName:[NSFont systemFontOfSize:22], NSForegroundColorAttributeName:NSColor.lightGrayColor};
     [@"这是独立的 Mac 扩展桌面" drawAtPoint:NSMakePoint(50, self.bounds.size.height - 170) withAttributes:body];
-    [@"HiDPI · 2880 × 1920 高清传输" drawAtPoint:NSMakePoint(50, self.bounds.size.height - 210) withAttributes:body];
+    [[NSString stringWithFormat:@"HiDPI · %u × %u 高清传输", LDWidth, LDHeight] drawAtPoint:NSMakePoint(50, self.bounds.size.height - 210) withAttributes:body];
     NSArray<NSColor *> *colors = @[NSColor.systemBlueColor, NSColor.systemPurpleColor, NSColor.systemPinkColor, NSColor.systemOrangeColor, NSColor.systemGreenColor];
     CGFloat w = (self.bounds.size.width - 100) / colors.count;
     for (NSUInteger i = 0; i < colors.count; i++) { [colors[i] setFill]; NSRectFill(NSMakeRect(50+i*w, 130, w, 110)); }
@@ -74,7 +75,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     NSTextField *_audioHint;
     VTCompressionSessionRef _encoder;
     CMSampleBufferRef _latestFrame;
-    dispatch_source_t _encodeWake;
+    dispatch_source_t _encodeWake, _framePacer;
+    double _nextFrameDeadline;
+    uint64_t _latestFrameReceivedUs;
     NSLock *_networkLock;
     int _listenFD, _clientFD;
     uint64_t _framesSent, _bytesSent;
@@ -83,7 +86,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     unsigned _generation;
     uint64_t _clientEpoch;
     NSString *_target;
-    dispatch_queue_t _captureQueue, _networkQueue;
+    dispatch_queue_t _captureQueue, _encodeQueue, _networkQueue;
     dispatch_group_t _acceptGroup;
     dispatch_group_t _feedbackGroup;
     BOOL _baseline, _hasFeedback;
@@ -144,6 +147,11 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         __weak LDDesktopController *weakSelf=self;
         dispatch_source_set_event_handler(_encodeWake, ^{[weakSelf drainLatestFrame];});
         dispatch_resume(_encodeWake);
+        _encodeQueue = dispatch_queue_create("LinkDesk.encode", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INTERACTIVE,0));
+        _framePacer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,_captureQueue);
+        dispatch_source_set_timer(_framePacer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
+        dispatch_source_set_event_handler(_framePacer, ^{[weakSelf drainLatestFrame];});
+        dispatch_resume(_framePacer);
         _networkQueue = dispatch_queue_create("LinkDesk.send", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
         _acceptGroup = dispatch_group_create();
         _feedbackGroup = dispatch_group_create();
@@ -236,7 +244,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)showDisplayTest { [self showTest:nil]; }
 - (void)refreshScaleHint {
     uint32_t width = LDLogicalWidths[_scaleIndex];
-    _scaleHint.stringValue = [NSString stringWithFormat:@"相当于 %u × %u 的工作空间\n高清传输保持 2880 × 1920", width, width * 2 / 3];
+    _scaleHint.stringValue = [NSString stringWithFormat:@"相当于 %u × %u 的工作空间\n传输 %u × %u", width, width * 2 / 3, LDWidth, LDHeight];
 }
 - (void)changeFPS:(NSSegmentedControl *)sender {
     NSInteger index = sender.selectedSegment;
@@ -302,7 +310,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [NSUserDefaults.standardUserDefaults setInteger:match forKey:@"LinkDeskScaleIndex"];
     } else {
         _scalePicker.selectedSegment = -1;
-        _scaleHint.stringValue = [NSString stringWithFormat:@"系统自定义：%zu × %zu\n高清传输保持 2880 × 1920", CGDisplayModeGetWidth(mode), CGDisplayModeGetHeight(mode)];
+        _scaleHint.stringValue = [NSString stringWithFormat:@"系统自定义：%zu × %zu\n传输 %u × %u", CGDisplayModeGetWidth(mode), CGDisplayModeGetHeight(mode), LDWidth, LDHeight];
     }
     CFRelease(mode);
 }
@@ -476,6 +484,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                         if (!self->_active && !self->_starting && atomic_load(&self->_standbyReady)) [self toggle:nil];
                     });
                 }
+            }
+            if (count == sizeof(command) && memcmp(command, "LDSTART1", 8)) {
+                reply = [self->_microphone controlReplyForCommand:command length:sizeof(command)];
             }
             send(client, &reply, 1, MSG_NOSIGNAL);
             close(client);
@@ -668,18 +679,22 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ExpectedFrameRate, (__bridge CFNumberRef)@(LDFPS));
             // A full-resolution IDR every second creates periodic encode/USB stalls.
             // Connections still explicitly force an immediate keyframe for recovery.
-            NSInteger keyframeSeconds = self->_useHEVC ? 5 : 1;
+            NSInteger keyframeSeconds = 10;
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_MaxKeyFrameInterval, (__bridge CFNumberRef)@(LDFPS * keyframeSeconds));
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, (__bridge CFNumberRef)@(keyframeSeconds));
             if(self->_useHEVC&&!lowLatency) {
                 if(@available(macOS 15.0,*)) {
-                    OSStatus look=VTSessionSetProperty(self->_encoder,CFSTR("SuggestedLookAheadFrameCount"),(__bridge CFNumberRef)@0);
+                    OSStatus look=VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_SuggestedLookAheadFrameCount,(__bridge CFNumberRef)@0);
                     NSLog(@"MOTION_ENCODER lookahead_zero=%d",(int)look);
                 }
             }
             VTCompressionSessionPrepareToEncodeFrames(self->_encoder);
             SCStreamConfiguration *config = [SCStreamConfiguration new];
-            config.width = LDWidth; config.height = LDHeight; config.minimumFrameInterval = CMTimeMake(1, LDFPS);
+            config.width = LDWidth; config.height = LDHeight; config.minimumFrameInterval = CMTimeMake(1, 144);
+            // Capture fresh changes independently of the send cadence. A 60 Hz minimum
+            // applied to an irregular ~100 Hz source otherwise quantizes down to ~50 Hz.
+            uint64_t interval = NSEC_PER_SEC / LDFPS;
+            dispatch_source_set_timer(self->_framePacer, dispatch_time(DISPATCH_TIME_NOW, interval), interval, interval / 20);
             config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
             // Three capture surfaces avoid starving the hardware encoder's retained input surfaces.
             NSInteger depth = self->_useHEVC ? 6 : 3;
@@ -721,38 +736,58 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     // Keep a single freshest raw frame while the pipeline is busy. Never queue captures.
     if(_latestFrame) { CFRelease(_latestFrame); if(_logMetrics){[_metricsLock lock];_skipCount++;[_metricsLock unlock];} }
     _latestFrame=(CMSampleBufferRef)CFRetain(sample);
+    _latestFrameReceivedUs = (uint64_t)(CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) * 1000000.0);
     [self drainLatestFrame];
 }
 - (void)drainLatestFrame {
     // Invoked only on the capture queue, including coalesced ACK wakeups.
     if(!_latestFrame||!_encoder)return;
+    double now = NSProcessInfo.processInfo.systemUptime;
+    if (now + 0.0005 < _nextFrameDeadline) return;
     if(![_networkLock tryLock])return;
     CMSampleBufferRef sample=_latestFrame;
     BOOL connected = _clientFD >= 0;
     // Reserve BEFORE entering VideoToolbox, including the first frame before ACKs exist.
     // Drop only raw capture frames; never discard a referenced compressed frame.
-    NSUInteger flightLimit = LDFPS > 60 ? (NSUInteger)ceil(LDFPS * 0.06) : 2;
-    uint64_t pts = (uint64_t)CMTimeConvertScale(CMSampleBufferGetPresentationTimeStamp(sample), 1000000, kCMTimeRoundingMethod_Default).value;
-    LDFrameTicket *ticket = connected ? [_pipelineBudget reserve:pts now:NSProcessInfo.processInfo.systemUptime limit:flightLimit] : nil;
+    // Allow normal codec parallelism while bounding high-refresh work to ~40 ms.
+    NSUInteger flightLimit = MAX(3, (NSUInteger)ceil(LDFPS * 0.040));
+    // SCK presentation timestamps can be a VSYNC in the future. ACK timing
+    // must use our actual capture-arrival clock, not that predictive timestamp.
+    uint64_t pts = _latestFrameReceivedUs;
+    double captureAge = CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) - pts / 1000000.0;
+    if (captureAge > MAX(0.045, 2.0 / LDFPS)) {
+        // Never spend encoder/USB time on a stale raw frame after congestion.
+        _latestFrame = NULL; CFRelease(sample); [_networkLock unlock]; return;
+    }
+    LDFrameTicket *ticket = connected ? [_pipelineBudget reserve:pts now:NSProcessInfo.processInfo.systemUptime limit:flightLimit maxAge:0.045] : nil;
     BOOL force = _forceKeyframe;
     if (ticket) { _forceKeyframe = NO; ticket.requestedKeyframe=force; }
     [_networkLock unlock];
     if(!ticket)return;
     _latestFrame=NULL;
-    CVImageBufferRef buffer=CMSampleBufferGetImageBuffer(sample);
-    NSDictionary *properties = force ? @{(__bridge NSString *)kVTEncodeFrameOptionKey_ForceKeyFrame:@YES} : nil;
-    VTEncodeInfoFlags info = 0;
-    double submitBegan=NSProcessInfo.processInfo.systemUptime;
-    OSStatus encodeStatus = VTCompressionSessionEncodeFrameWithOutputHandler(_encoder, buffer, CMSampleBufferGetPresentationTimeStamp(sample), CMTimeMake(1, LDFPS), (__bridge CFDictionaryRef)properties, &info,
-        ^(OSStatus status, VTEncodeInfoFlags flags, CMSampleBufferRef output) {
-            [self encodingFinished:ticket status:status flags:flags sample:output];
-        });
-    if(_logMetrics){double ms=(NSProcessInfo.processInfo.systemUptime-submitBegan)*1000;[_metricsLock lock];_submitMs+=ms;_submitMaxMs=MAX(_submitMaxMs,ms);_submitCount++;[_metricsLock unlock];}
-    CFRelease(sample);
-    if (encodeStatus != noErr || (info & kVTEncodeInfo_FrameDropped)) {
-        // Idempotent if a synchronous dropped/error callback already released it.
-        [self encodingFinished:ticket status:encodeStatus flags:kVTEncodeInfo_FrameDropped sample:NULL];
-    }
+    _nextFrameDeadline = LDAdvanceFrameDeadline(now, _nextFrameDeadline, 1.0 / LDFPS);
+    // VideoToolbox may synchronously block for a complete frame. Keep it off
+    // ScreenCaptureKit's callback queue; reservations still bound the whole pipeline.
+    dispatch_async(_encodeQueue, ^{
+        [self->_networkLock lock];
+        BOOL current = self->_clientFD >= 0 && [self->_pipelineBudget contains:ticket];
+        [self->_networkLock unlock];
+        if (!current || !self->_encoder) { CFRelease(sample); return; }
+        CVImageBufferRef buffer=CMSampleBufferGetImageBuffer(sample);
+        NSDictionary *properties = force ? @{(__bridge NSString *)kVTEncodeFrameOptionKey_ForceKeyFrame:@YES} : nil;
+        VTEncodeInfoFlags info = 0;
+        double submitBegan=NSProcessInfo.processInfo.systemUptime;
+        OSStatus encodeStatus = VTCompressionSessionEncodeFrameWithOutputHandler(self->_encoder, buffer, CMSampleBufferGetPresentationTimeStamp(sample), CMTimeMake(1, LDFPS), (__bridge CFDictionaryRef)properties, &info,
+            ^(OSStatus status, VTEncodeInfoFlags flags, CMSampleBufferRef output) {
+                [self encodingFinished:ticket status:status flags:flags sample:output];
+            });
+        if(self->_logMetrics){double ms=(NSProcessInfo.processInfo.systemUptime-submitBegan)*1000;[self->_metricsLock lock];self->_submitMs+=ms;self->_submitMaxMs=MAX(self->_submitMaxMs,ms);self->_submitCount++;[self->_metricsLock unlock];}
+        CFRelease(sample);
+        if (encodeStatus != noErr || (info & kVTEncodeInfo_FrameDropped)) {
+            // Idempotent if a synchronous dropped/error callback already released it.
+            [self encodingFinished:ticket status:encodeStatus flags:kVTEncodeInfo_FrameDropped sample:NULL];
+        }
+    });
 }
 - (void)encodingFinished:(LDFrameTicket *)ticket status:(OSStatus)status flags:(VTEncodeInfoFlags)flags sample:(CMSampleBufferRef)sample {
     [_networkLock lock];
@@ -767,7 +802,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (void)encoded:(CMSampleBufferRef)sample ticket:(LDFrameTicket *)ticket {
     if (_logMetrics) {
-        double age = (CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) - CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))) * 1000;
+        double age = (CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) - ticket.pts / 1000000.0) * 1000;
         [_metricsLock lock]; _encodeCount++; _encodeAgeTotal += age; [_metricsLock unlock];
     }
     // Encoding admission already bounds this connection's complete pipeline.
@@ -802,8 +837,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [payload appendBytes:start length:4]; [payload appendBytes:bytes + offset length:n]; offset += n;
     }
     NSMutableData *packet = [NSMutableData new]; append32(packet, (uint32_t)payload.length); append32(packet, sync ? 1 : 0);
-    CMTime pts = CMSampleBufferGetPresentationTimeStamp(sample);
-    uint64_t timestamp = (uint64_t)CMTimeConvertScale(pts, 1000000, kCMTimeRoundingMethod_Default).value;
+    uint64_t timestamp = ticket.pts;
     append64(packet, timestamp);
     [packet appendData:payload];
     double enqueuedAt=NSProcessInfo.processInfo.systemUptime;
@@ -855,6 +889,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)updateStats:(NSTimer *)timer {
     if (!_active) return;
     [_audio updateRoute]; _audioHint.stringValue = _audio.status;
+    [_microphone updateRoute];
+    _microphoneToggle.state = _microphone.enabled ? NSControlStateValueOn : NSControlStateValueOff;
     _microphoneHint.stringValue = _microphone.status;
     [self syncSystemScale];
     if (![_networkLock tryLock]) return;
@@ -866,7 +902,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     [_networkLock unlock];
     if (_logMetrics && connected) {
         [_metricsLock lock];
-        NSLog(@"HFR_METRICS capture=%llu encoded=%llu skipped=%llu capture_age_ms=%.2f encoded_age_ms=%.2f decoded_fps=%.1f encode_wait_ms=%.2f send_ms=%.2f max_send_ms=%.2f queue_ms=%.2f max_packet_kib=%.1f submit_ms=%.2f max_submit_ms=%.2f", _captureCount, _encodeCount, _skipCount,
+        NSLog(@"HFR_METRICS capture=%llu encoded=%llu skipped=%llu presentation_offset_ms=%.2f encoded_age_ms=%.2f decoded_fps=%.1f encode_wait_ms=%.2f send_ms=%.2f max_send_ms=%.2f queue_ms=%.2f max_packet_kib=%.1f submit_ms=%.2f max_submit_ms=%.2f", _captureCount, _encodeCount, _skipCount,
             _captureCount ? _captureAgeTotal / _captureCount : 0, _encodeCount ? _encodeAgeTotal / _encodeCount : 0, decodedFPS, _encodeCount ? _encodeWaitTotal / _encodeCount : 0, _sendCount ? _sendMs/_sendCount : 0, _sendMaxMs, _sendCount ? _queueMs/_sendCount : 0, _maxPacketBytes/1024.0, _submitCount ? _submitMs/_submitCount : 0, _submitMaxMs);
         _submitCount=0;_submitMs=_submitMaxMs=0;
         _sendCount=0;_sendMs=_sendMaxMs=_queueMs=0;_maxPacketBytes=0;
@@ -874,7 +910,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [_metricsLock unlock];
     }
     _status.stringValue = connected ? @"USB 已连接" : @"副屏已创建，等待平板";
-    _detail.stringValue = connected ? [NSString stringWithFormat:@"2880 × 1920 · 目标 %u 帧/秒\n%@ · 已发送 %llu 帧\n静止画面会减少出帧。", LDFPS,
+    _detail.stringValue = connected ? [NSString stringWithFormat:@"%u × %u · 目标 %u 帧/秒\n%@ · 已发送 %llu 帧\n静止画面会减少出帧。", LDWidth, LDHeight, LDFPS,
         feedback ? [NSString stringWithFormat:@"屏幕 %u Hz · 解码约 %.0f 帧/秒", refresh, decodedFPS] : @"等待显示反馈", frames]
         : @"打开平板上的「连屏」。若重新插拔过数据线，请停止后再次启动副屏。";
 }
@@ -896,10 +932,14 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     [_networkLock unlock];
     dispatch_group_wait(_acceptGroup, DISPATCH_TIME_FOREVER);
     dispatch_group_wait(_feedbackGroup, DISPATCH_TIME_FOREVER);
+    dispatch_source_set_timer(_framePacer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
     SCStream *oldStream = _stream; _stream = nil;
     [oldStream stopCaptureWithCompletionHandler:^(NSError *error) {}];
     dispatch_sync(_captureQueue, ^{
         if(self->_latestFrame){CFRelease(self->_latestFrame);self->_latestFrame=NULL;}
+        self->_nextFrameDeadline = 0;
+    });
+    dispatch_sync(_encodeQueue, ^{
         if (self->_encoder) { VTCompressionSessionCompleteFrames(self->_encoder, kCMTimeInvalid); VTCompressionSessionInvalidate(self->_encoder); CFRelease(self->_encoder); self->_encoder = NULL; }
     });
     dispatch_sync(_networkQueue, ^{});
