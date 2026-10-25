@@ -14,6 +14,8 @@
 #import "LDAudioBridge.h"
 #import "LDMicrophoneBridge.h"
 #import <CoreAudio/CoreAudio.h>
+#import "LDCursorBridge.h"
+#import <objc/message.h>
 
 // These private CoreGraphics declarations are isolated here. Resolve at runtime.
 @interface LDDisplayDescriptor : NSObject
@@ -66,6 +68,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 @interface LDDesktopController () <SCStreamOutput, SCStreamDelegate> {
     LDVirtualDisplay *_display;
     SCStream *_stream;
+    SCStreamConfiguration *_streamConfiguration;
+    LDCursorBridge *_cursorBridge;
     LDAudioBridge *_audio;
     LDMicrophoneBridge *_microphone;
     NSButton *_microphoneToggle;
@@ -102,12 +106,15 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     NSWindow *_testWindow;
     CADisplayLink *_testTimer;
     CALayer *_testMarker;
+    NSPoint _testOrigin;
     NSSegmentedControl *_scalePicker;
     NSTextField *_scaleHint;
     NSInteger _scaleIndex;
     BOOL _scaleReady;
     NSSegmentedControl *_fpsPicker;
     BOOL _useHEVC;
+    BOOL _hdrRequested, _hdrActive, _loggedHDRFrame, _loggedHDROutput, _hdrCaptureValidated;
+    _Atomic(bool) _tabletHDR10;
     uint64_t _lastStatsAck;
     double _lastStatsTime, _decodedFPS;
     uint32_t _tabletRefreshHz;
@@ -159,6 +166,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         _pipelineBudget = [LDPipelineBudget new];
         _audio = [LDAudioBridge new];
         _microphone = [LDMicrophoneBridge new];
+        _cursorBridge = [LDCursorBridge new];
 
         _phase = @"准备连接";
         id savedScale = [NSUserDefaults.standardUserDefaults objectForKey:@"LinkDeskScaleIndex"];
@@ -169,6 +177,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         NSUInteger fpsArgument = [arguments indexOfObject:@"--fps"];
         if (fpsArgument != NSNotFound && fpsArgument + 1 < arguments.count) requestedFPS = [arguments[fpsArgument + 1] integerValue];
         LDFPS = (requestedFPS == 120 || requestedFPS == 144) ? (uint32_t)requestedFPS : 60;
+        _hdrRequested = [NSUserDefaults.standardUserDefaults boolForKey:@"LinkDeskHDR"] || [arguments containsObject:@"--hdr"];
         _useHEVC = LDFPS > 60;
     }
     return self;
@@ -233,6 +242,24 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (NSInteger)targetFPS { return LDFPS; }
 - (double)audioDelay { return _audioSyncSlider.doubleValue; }
 - (BOOL)microphoneEnabled { return _microphoneToggle.state == NSControlStateValueOn; }
+- (BOOL)hdrEnabled { return _hdrRequested; }
+- (BOOL)hdrAvailable {
+    if(@available(macOS 15.0,*)){
+        NSMethodSignature *signature=[NSClassFromString(@"CGVirtualDisplayMode") instanceMethodSignatureForSelector:NSSelectorFromString(@"setTransferFunction:")];
+        return atomic_load(&_tabletHDR10)&&signature.numberOfArguments==3&&!strcmp([signature getArgumentTypeAtIndex:2],@encode(unsigned int));
+    }
+    return NO;
+}
+- (void)enableHDR:(BOOL)enabled {
+    if(enabled && !self.hdrAvailable)return;
+    if(_hdrRequested==enabled)return;
+    BOOL restart=_active||_starting;
+    BOOL resumeMicrophone=self.microphoneEnabled;
+    if(restart)[self stop];
+    _hdrRequested=enabled;
+    [NSUserDefaults.standardUserDefaults setBool:enabled forKey:@"LinkDeskHDR"];
+    if(restart){_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];}
+}
 - (void)toggleDesktop { [self toggle:nil]; }
 - (void)selectScale:(NSInteger)index { _scalePicker.selectedSegment = index; [self changeScale:_scalePicker]; }
 - (void)selectFrameRate:(NSInteger)fps { _fpsPicker.selectedSegment = fps == 120 ? 1 : fps == 144 ? 2 : 0; [self changeFPS:_fpsPicker]; }
@@ -252,10 +279,11 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     uint32_t fps = index == 1 ? 120 : (index == 2 ? 144 : 60);
     if (fps == LDFPS) return;
     BOOL restart = _active || _starting;
+    BOOL resumeMicrophone=self.microphoneEnabled;
     if (restart) [self stop];
     LDFPS = fps; _useHEVC = fps > 60;
     [NSUserDefaults.standardUserDefaults setInteger:fps forKey:@"LinkDeskTargetFPS"];
-    if (restart) [self toggle:nil];
+    if (restart) {_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];}
 }
 - (BOOL)applyScaleIndex:(NSInteger)index persist:(BOOL)persist {
     if (!_display || index < 0 || index > 4) return NO;
@@ -326,6 +354,23 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         _testWindow.releasedWhenClosed = NO;
         _testWindow.title = @"LinkDesk 扩展桌面测试"; _testWindow.contentView = [LDTestView new];
         _testWindow.contentView.wantsLayer = YES;
+        if([NSProcessInfo.processInfo.arguments containsObject:@"--hdr-test"]){
+            // Known linear-light patches above reference white, not an SDR image
+            // relabelled as HDR. This scene is only used by the hardware test.
+            float pixels[6*4];float levels[]={0.05,0.25,1,2,4,8};
+            for(int i=0;i<6;i++){pixels[i*4]=pixels[i*4+1]=pixels[i*4+2]=levels[i];pixels[i*4+3]=1;}
+            NSData *bytes=[NSData dataWithBytes:pixels length:sizeof(pixels)];
+            CGDataProviderRef provider=CGDataProviderCreateWithCFData((__bridge CFDataRef)bytes);
+            CGColorSpaceRef color=CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearITUR_2020);
+            CGImageRef image=CGImageCreate(6,1,32,128,sizeof(pixels),color,kCGBitmapByteOrder32Little|kCGBitmapFloatComponents|kCGImageAlphaPremultipliedLast,provider,NULL,NO,kCGRenderingIntentDefault);
+            CALayer *patches=[CALayer layer];patches.frame=CGRectMake(50,280,frame.size.width-100,100);patches.contents=(__bridge id)image;
+            patches.contentsFormat=kCAContentsFormatRGBA16Float;
+            if(@available(macOS 26.0,*)){patches.preferredDynamicRange=CADynamicRangeHigh;patches.contentsHeadroom=8;}
+            else if(@available(macOS 14.0,*))patches.wantsExtendedDynamicRangeContent=YES;
+            if(@available(macOS 15.0,*))patches.toneMapMode=CAToneMapModeNever;
+            [_testWindow.contentView.layer addSublayer:patches];
+            CGImageRelease(image);CGColorSpaceRelease(color);CGDataProviderRelease(provider);
+        }
         _testMarker = [CALayer layer];
         _testMarker.bounds = CGRectMake(0, 0, 20, 25);
         _testMarker.position = CGPointMake(60, 82);
@@ -343,6 +388,12 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         movement.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
         movement.preferredFrameRateRange = CAFrameRateRangeMake(60, 144, 144);
         [_testMarker addAnimation:movement forKey:@"high-refresh-motion"];
+        if ([NSProcessInfo.processInfo.arguments containsObject:@"--window-motion"]) {
+            _testOrigin=frame.origin;
+            _testTimer=[_testWindow.contentView displayLinkWithTarget:self selector:@selector(moveTestWindow:)];
+            _testTimer.preferredFrameRateRange=CAFrameRateRangeMake(60,144,144);
+            [_testTimer addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+        }
 }
 - (void)animateTest:(CADisplayLink *)link {
     CGFloat x = 60 + fmod(NSProcessInfo.processInfo.systemUptime * 160, MAX(1, _testWindow.contentView.bounds.size.width - 120));
@@ -352,6 +403,25 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (void)openDisplays:(id)sender {
     [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.Displays-Settings.extension"]];
+}
+- (void)moveTestWindow:(CADisplayLink *)link {
+    // Reproducible large-area compositing workload; no synthetic input events.
+    BOOL fast=[NSProcessInfo.processInfo.arguments containsObject:@"--fast-motion"];
+    double phase=NSProcessInfo.processInfo.systemUptime*(fast?9:2.5);
+    [_testWindow setFrameOrigin:NSMakePoint(_testOrigin.x+(fast?220:120)*(1+sin(phase)),_testOrigin.y+(fast?80:40)*sin(phase*0.7))];
+}
+- (id)displayModeWidth:(uint32_t)width height:(uint32_t)height modeClass:(Class)modeClass {
+    id mode=[[modeClass alloc] initWithWidth:width height:height refreshRate:LDFPS];
+    if(_hdrActive){
+        SEL setter=NSSelectorFromString(@"setTransferFunction:");
+        NSMethodSignature *signature=[mode methodSignatureForSelector:setter];
+        // The existing virtual-display API uses uint32 value 1 for extended
+        // luminance/PQ modes on the tested OS. Reject an incompatible private ABI.
+        if(signature.numberOfArguments==3&&!strcmp([signature getArgumentTypeAtIndex:2],@encode(unsigned int))){
+            ((void(*)(id,SEL,unsigned int))objc_msgSend)(mode,setter,1);
+        }
+    }
+    return mode;
 }
 - (BOOL)createDisplay:(NSError **)error {
     Class descriptorClass = NSClassFromString(@"CGVirtualDisplayDescriptor");
@@ -368,6 +438,11 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         descriptor.redPrimary = CGPointMake(0.64, 0.33);
         descriptor.greenPrimary = CGPointMake(0.30, 0.60);
         descriptor.bluePrimary = CGPointMake(0.15, 0.06);
+        if(_hdrActive){
+            descriptor.redPrimary=CGPointMake(0.680,0.320);
+            descriptor.greenPrimary=CGPointMake(0.265,0.690);
+            descriptor.bluePrimary=CGPointMake(0.150,0.060);
+        }
         descriptor.vendorID = 0x4c44; descriptor.productID = 0x132; descriptor.serialNum = 1320061;
         descriptor.queue = dispatch_get_main_queue();
         _display = [[displayClass alloc] initWithDescriptor:descriptor];
@@ -376,14 +451,14 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         // macOS requires both the logical size and its 2x size in the mode table;
         // otherwise the generated HiDPI variant is listed but unusable by the desktop.
         NSMutableArray *advertisedModes = [NSMutableArray new];
-        [advertisedModes addObject:[[modeClass alloc] initWithWidth:1920 height:1280 refreshRate:LDFPS]];
+        [advertisedModes addObject:[self displayModeWidth:1920 height:1280 modeClass:modeClass]];
         for (NSInteger i = 0; i < 4; i++) {
             uint32_t width = LDLogicalWidths[i];
-            [advertisedModes addObject:[[modeClass alloc] initWithWidth:width height:width * 2 / 3 refreshRate:LDFPS]];
+            [advertisedModes addObject:[self displayModeWidth:width height:width * 2 / 3 modeClass:modeClass]];
         }
         for (NSInteger i = 0; i < 5; i++) {
             uint32_t width = LDLogicalWidths[i] * 2;
-            [advertisedModes addObject:[[modeClass alloc] initWithWidth:width height:width * 2 / 3 refreshRate:LDFPS]];
+            [advertisedModes addObject:[self displayModeWidth:width height:width * 2 / 3 modeClass:modeClass]];
         }
         settings.modes = advertisedModes;
         if (!_display || ![_display applySettings:settings]) { _display = nil; return NO; }
@@ -451,6 +526,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             self->_standbyProbeInFlight = NO;
+            if(![self->_standbyTarget isEqualToString:(forwarded?target:nil)])atomic_store(&self->_tabletHDR10,false);
             self->_standbyTarget = forwarded ? target : nil;
             atomic_store(&self->_standbyReady, forwarded && target != nil);
         });
@@ -485,7 +561,18 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                     });
                 }
             }
-            if (count == sizeof(command) && memcmp(command, "LDSTART1", 8)) {
+            BOOL hdrCaps=count==sizeof(command)&&(!memcmp(command,"LDCAPH10",8)||!memcmp(command,"LDCAPSDR",8));
+            if(hdrCaps){
+                BOOL supported=!memcmp(command,"LDCAPH10",8);
+                BOOL previous=atomic_exchange(&self->_tabletHDR10,supported);reply='1';
+                if(previous!=supported)dispatch_async(dispatch_get_main_queue(),^{
+                    if(self->_hdrRequested&&self->_active&&self->_hdrActive!=supported){
+                        BOOL resumeMicrophone=self.microphoneEnabled;[self stop];
+                        self->_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];
+                    }
+                });
+            }
+            if (!hdrCaps && count == sizeof(command) && memcmp(command, "LDSTART1", 8)) {
                 reply = [self->_microphone controlReplyForCommand:command length:sizeof(command)];
             }
             send(client, &reply, 1, MSG_NOSIGNAL);
@@ -528,6 +615,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24832", @"tcp:24832"] success:&ok];
         if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24833", @"tcp:24833"] success:&ok];
         if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24835", @"tcp:24835"] success:&ok];
+        if (target) [self runHDC:@[@"-t", target, @"rport", @"tcp:24836", @"tcp:24836"] success:&ok];
         NSString *forwards = target ? [self runHDC:@[@"-t", target, @"fport", @"ls"] success:&ok] : @"";
         BOOL ready = NO;
         for (NSString *line in [forwards componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
@@ -541,6 +629,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 return;
             }
             self->_target = target;
+            self->_hdrActive = self->_hdrRequested && self.hdrAvailable;
+            self->_useHEVC = LDFPS>60 || self->_hdrActive;
+            self->_loggedHDRFrame=self->_loggedHDROutput=self->_hdrCaptureValidated=NO;
             if (![self createDisplay:nil] || ![self startListener]) {
                 [self stop]; [self showStatus:@"无法创建副屏" detail:@"请查看日志：虚拟显示器创建失败，或本地连接端口已被占用。"];
                 return;
@@ -579,7 +670,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             int yes = 1; setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes));
             setsockopt(client, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
             struct timeval timeout = {1, 0}; setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-            NSMutableData *header = [NSMutableData dataWithBytes:self->_useHEVC ? "LDH1" : "LDV1" length:4];
+            BOOL receiptMetrics=[NSProcessInfo.processInfo.arguments containsObject:@"--receipt-metrics"];
+            NSMutableData *header = [NSMutableData dataWithBytes:self->_hdrActive ? "LDQ1" : (self->_useHEVC ? (receiptMetrics?"LDH2":"LDH1") : (receiptMetrics?"LDV2":"LDV1")) length:4];
             append32(header, LDWidth); append32(header, LDHeight); append32(header, LDFPS);
             [self->_networkLock lock];
             if (generation != self->_generation) { close(client); [self->_networkLock unlock]; break; }
@@ -597,17 +689,22 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             int feedbackFD = self->_clientFD >= 0 ? dup(client) : -1;
             [self->_networkLock unlock];
             if (feedbackFD >= 0) dispatch_group_async(self->_feedbackGroup, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-                uint8_t ack[16]; size_t received = 0;
+                uint8_t ack[16]; size_t received = 0; double receiptTotal=0,receiptMax=0;unsigned receiptSamples=0;
                 while (YES) {
                     ssize_t n = recv(feedbackFD, ack + received, sizeof(ack) - received, 0);
                     if (n < 0 && errno == EINTR) continue;
                     if (n <= 0) break;
                     received += n; if (received < sizeof(ack)) continue; received = 0;
-                    if (memcmp(ack, "LDA1", 4)) break;
+                    BOOL receipt=memcmp(ack,"LDR1",4)==0;
+                    if (!receipt && memcmp(ack, "LDA1", 4)) break;
                     uint64_t timestamp; memcpy(&timestamp, ack + 8, 8); timestamp = CFSwapInt64BigToHost(timestamp);
                     uint32_t refresh; memcpy(&refresh, ack + 4, 4); refresh = ntohl(refresh);
                     double now = CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock()));
                     double ms = (now - timestamp / 1000000.0) * 1000;
+                    if(receipt){
+                        if(ms>=0&&ms<10000){receiptTotal+=ms;receiptMax=MAX(receiptMax,ms);if(++receiptSamples==120){NSLog(@"TRANSFER_RTT samples=120 mean_ms=%.2f max_ms=%.2f",receiptTotal/120,receiptMax);receiptSamples=0;receiptTotal=receiptMax=0;}}
+                        continue;
+                    }
                     [self->_networkLock lock];
                     if (self->_clientFD == client && clientEpoch == self->_clientEpoch && generation == self->_generation) {
                         self->_framesAcked++; self->_hasFeedback = YES;
@@ -654,6 +751,12 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             SCDisplay *source = nil;
             for (SCDisplay *candidate in content.displays) if (candidate.displayID == self->_display.displayID) source = candidate;
             if (!source || error) { [self stop]; [self showStatus:@"无法采集扩展桌面" detail:error.localizedDescription ?: @"系统尚未暴露新显示器，请重新启动副屏。"] ; return; }
+            if(self->_hdrActive){
+                double potential=0;
+                for(NSScreen *screen in NSScreen.screens)if([screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue]==self->_display.displayID)potential=screen.maximumPotentialExtendedDynamicRangeColorComponentValue;
+                NSLog(@"HDR_SOURCE potential_headroom=%.2f",potential);
+                if(potential<=1){[self stop];[self showStatus:@"HDR 虚拟屏不可用" detail:@"系统没有提供扩展亮度，请关闭 HDR 后重新连接。" ];return;}
+            }
             NSMutableDictionary *spec = [@{(__bridge NSString *)kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder:@YES} mutableCopy];
             BOOL lowLatency=!self->_baseline && !self->_useHEVC;
             if (lowLatency) spec[(__bridge NSString *)kVTVideoEncoderSpecification_EnableLowLatencyRateControl] = @YES;
@@ -669,13 +772,21 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse);
             // The selected low-latency encoder does not support MaxFrameDelayCount or
             // PrioritizeEncodingSpeedOverQuality. Bound transport via render ACKs instead.
-            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ProfileLevel, self->_useHEVC ? kVTProfileLevel_HEVC_Main_AutoLevel : kVTProfileLevel_H264_High_AutoLevel);
+            OSStatus profile=VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ProfileLevel, self->_useHEVC ? (self->_hdrActive?kVTProfileLevel_HEVC_Main10_AutoLevel:kVTProfileLevel_HEVC_Main_AutoLevel) : kVTProfileLevel_H264_High_AutoLevel);
+            if(self->_hdrActive){
+                OSStatus prim=VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_ColorPrimaries,kCVImageBufferColorPrimaries_ITU_R_2020);
+                OSStatus transfer=VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_TransferFunction,kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ);
+                OSStatus matrix=VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_YCbCrMatrix,kCVImageBufferYCbCrMatrix_ITU_R_2020);
+                VTSessionSetProperty(self->_encoder,kVTCompressionPropertyKey_HDRMetadataInsertionMode,kVTHDRMetadataInsertionMode_Auto);
+                NSLog(@"HDR_ENCODER main10=%d primaries=%d transfer=%d matrix=%d",(int)profile,(int)prim,(int)transfer,(int)matrix);
+                if(profile||prim||transfer||matrix){[self stop];[self showStatus:@"HDR 编码不可用" detail:@"请关闭 HDR 后重新连接。当前没有把 SDR 标记为 HDR。" ];return;}
+            }
             if (self->_useHEVC) {
                 OSStatus delay = VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_MaxFrameDelayCount, (__bridge CFNumberRef)@(1));
                 OSStatus speed = VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, kCFBooleanTrue);
                 NSLog(@"LinkDesk HEVC low-delay setup: delay=%d speed=%d", (int)delay, (int)speed);
             }
-            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(self->_useHEVC ? LDFPS * 450000 : 26000000));
+            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(LDFPS > 60 ? LDFPS * 450000 : 26000000));
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ExpectedFrameRate, (__bridge CFNumberRef)@(LDFPS));
             // A full-resolution IDR every second creates periodic encode/USB stalls.
             // Connections still explicitly force an immediate keyframe for recovery.
@@ -690,12 +801,19 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             }
             VTCompressionSessionPrepareToEncodeFrames(self->_encoder);
             SCStreamConfiguration *config = [SCStreamConfiguration new];
+            if(self->_hdrActive){
+                if(@available(macOS 15.0,*)){
+                    config=[SCStreamConfiguration streamConfigurationWithPreset:SCStreamConfigurationPresetCaptureHDRStreamCanonicalDisplay];
+                    config.captureDynamicRange=SCCaptureDynamicRangeHDRCanonicalDisplay;
+                    config.colorSpaceName=kCGColorSpaceITUR_2100_PQ;
+                }
+            }
             config.width = LDWidth; config.height = LDHeight; config.minimumFrameInterval = CMTimeMake(1, 144);
             // Capture fresh changes independently of the send cadence. A 60 Hz minimum
             // applied to an irregular ~100 Hz source otherwise quantizes down to ~50 Hz.
             uint64_t interval = NSEC_PER_SEC / LDFPS;
             dispatch_source_set_timer(self->_framePacer, dispatch_time(DISPATCH_TIME_NOW, interval), interval, interval / 20);
-            config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+            config.pixelFormat = self->_hdrActive?kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
             // Three capture surfaces avoid starving the hardware encoder's retained input surfaces.
             NSInteger depth = self->_useHEVC ? 6 : 3;
             NSArray *arguments = NSProcessInfo.processInfo.arguments;
@@ -704,6 +822,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             config.queueDepth = depth; config.showsCursor = YES; config.capturesAudio = NO;
             SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:source excludingWindows:@[]];
             self->_stream = [[SCStream alloc] initWithFilter:filter configuration:config delegate:self];
+            self->_streamConfiguration = config;
             NSError *outputError = nil;
             if (![self->_stream addStreamOutput:self type:SCStreamOutputTypeScreen sampleHandlerQueue:self->_captureQueue error:&outputError]) {
                 [self stop]; [self showStatus:@"采集初始化失败" detail:outputError.localizedDescription]; return;
@@ -713,9 +832,25 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                     if (generation != self->_generation) return;
                     [self stop]; [self showStatus:@"采集失败" detail:captureError.localizedDescription];
                 });
-                else if ([NSProcessInfo.processInfo.arguments containsObject:@"--test-pattern"]) {
-                    dispatch_async(dispatch_get_main_queue(), ^{ if (generation == self->_generation) [self showTest:nil]; });
-                }
+                else dispatch_async(dispatch_get_main_queue(), ^{
+                    if (generation != self->_generation) return;
+                    if (![NSProcessInfo.processInfo.arguments containsObject:@"--video-cursor"]) {
+                        [self->_cursorBridge startForDisplay:self->_display.displayID modeChanged:^(BOOL separated) {
+                            if (generation != self->_generation || !self->_stream) return;
+                            self->_streamConfiguration.showsCursor = !separated;
+                            [self->_stream updateConfiguration:self->_streamConfiguration completionHandler:^(NSError *updateError) {
+                                if (updateError) {
+                                    NSLog(@"CURSOR_MODE configuration failed: %@", updateError.localizedDescription);
+                                    if (separated) dispatch_async(dispatch_get_main_queue(), ^{
+                                        if (generation == self->_generation) [self->_cursorBridge stop];
+                                    });
+                                }
+                            }];
+                            NSLog(@"CURSOR_MODE separated=%d", separated);
+                        }];
+                    }
+                    if ([NSProcessInfo.processInfo.arguments containsObject:@"--test-pattern"]) [self showTest:nil];
+                });
             }];
         });
     }];
@@ -729,6 +864,28 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     NSNumber *status = attachments.firstObject[SCStreamFrameInfoStatus];
     if (status && status.integerValue != SCFrameStatusComplete) return;
     CVImageBufferRef buffer = CMSampleBufferGetImageBuffer(sample); if (!buffer) return;
+    if(_hdrActive&&!_loggedHDRFrame){
+        _loggedHDRFrame=YES;
+        id primaries=CFBridgingRelease(CVBufferCopyAttachment(buffer,kCVImageBufferColorPrimariesKey,NULL));
+        id transfer=CFBridgingRelease(CVBufferCopyAttachment(buffer,kCVImageBufferTransferFunctionKey,NULL));
+        id matrix=CFBridgingRelease(CVBufferCopyAttachment(buffer,kCVImageBufferYCbCrMatrixKey,NULL));
+        _hdrCaptureValidated=CVPixelBufferGetPixelFormatType(buffer)==kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange&&[primaries isEqual:(__bridge id)kCVImageBufferColorPrimaries_ITU_R_2020]&&[transfer isEqual:(__bridge id)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ]&&[matrix isEqual:(__bridge id)kCVImageBufferYCbCrMatrix_ITU_R_2020];
+        NSLog(@"HDR_CAPTURE pixel=%x primaries=%@ transfer=%@ matrix=%@ valid=%d",CVPixelBufferGetPixelFormatType(buffer),primaries,transfer,matrix,_hdrCaptureValidated);
+        if(!_hdrCaptureValidated){
+            dispatch_async(dispatch_get_main_queue(),^{if(stream==self->_stream){[self stop];[self showStatus:@"HDR 采集格式不可用" detail:@"系统未提供正确的 10-bit PQ 帧，请关闭 HDR 后重试。" ];}});
+        }
+    }
+    if(_hdrActive&&!_hdrCaptureValidated)return;
+    if(_hdrActive&&_logMetrics&&CVPixelBufferGetPixelFormatType(buffer)==kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange){
+        static double lastHDRPeak=0;double time=NSProcessInfo.processInfo.systemUptime;
+        if(time-lastHDRPeak>5){
+            lastHDRPeak=time;uint16_t peak=0;CVPixelBufferLockBaseAddress(buffer,kCVPixelBufferLock_ReadOnly);
+            const uint8_t *base=CVPixelBufferGetBaseAddressOfPlane(buffer,0);size_t stride=CVPixelBufferGetBytesPerRowOfPlane(buffer,0),w=CVPixelBufferGetWidthOfPlane(buffer,0),h=CVPixelBufferGetHeightOfPlane(buffer,0);
+            if(base)for(size_t y=0;y<h;y+=8){const uint16_t *row=(const uint16_t*)(base+y*stride);for(size_t x=0;x<w;x+=8)peak=MAX(peak,row[x]>>6);}
+            CVPixelBufferUnlockBaseAddress(buffer,kCVPixelBufferLock_ReadOnly);
+            NSLog(@"HDR_LUMA peak_code10=%u",peak);
+        }
+    }
     if (_logMetrics) {
         double age = (CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) - CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))) * 1000;
         [_metricsLock lock]; _captureCount++; _captureAgeTotal += age; [_metricsLock unlock];
@@ -759,7 +916,12 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         // Never spend encoder/USB time on a stale raw frame after congestion.
         _latestFrame = NULL; CFRelease(sample); [_networkLock unlock]; return;
     }
-    LDFrameTicket *ticket = connected ? [_pipelineBudget reserve:pts now:NSProcessInfo.processInfo.systemUptime limit:flightLimit maxAge:0.045] : nil;
+    // High-refresh full-window motion needs normal codec/USB/decode parallelism.
+    // A 45 ms age gate oscillated down to ~60 fps, making each delta frame larger.
+    // Keep the hard 5/6-frame cap and raw-frame freshness limit; only relax this
+    // tail-pressure threshold. The strict switch is for reproducible comparisons.
+    double maxFlightAge=(LDFPS>60 && ![NSProcessInfo.processInfo.arguments containsObject:@"--strict-budget"])?0.070:0.045;
+    LDFrameTicket *ticket = connected ? [_pipelineBudget reserve:pts now:NSProcessInfo.processInfo.systemUptime limit:flightLimit maxAge:maxFlightAge] : nil;
     BOOL force = _forceKeyframe;
     if (ticket) { _forceKeyframe = NO; ticket.requestedKeyframe=force; }
     [_networkLock unlock];
@@ -811,6 +973,13 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     BOOL sync = ![attachments.firstObject[(__bridge NSString *)kCMSampleAttachmentKey_NotSync] boolValue];
     NSMutableData *payload = [NSMutableData new]; const uint8_t start[] = {0, 0, 0, 1};
     CMFormatDescriptionRef format = CMSampleBufferGetFormatDescription(sample);
+    if(_hdrActive&&!_loggedHDROutput){
+        _loggedHDROutput=YES;
+        NSDictionary *extensions=(__bridge NSDictionary*)CMFormatDescriptionGetExtensions(format);
+        NSData *hvcc=extensions[(__bridge NSString*)kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms][@"hvcC"];
+        const uint8_t *data=hvcc.bytes;
+        NSLog(@"HDR_ENCODE profile=%u bits=%u primaries=%@ transfer=%@ matrix=%@",hvcc.length>18?data[1]&31:0,hvcc.length>18?8+(data[17]&7):0,extensions[(__bridge NSString*)kCMFormatDescriptionExtension_ColorPrimaries],extensions[(__bridge NSString*)kCMFormatDescriptionExtension_TransferFunction],extensions[(__bridge NSString*)kCMFormatDescriptionExtension_YCbCrMatrix]);
+    }
     int nalLength = 4;
     if (sync) {
         size_t count = 0;
@@ -915,6 +1084,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         : @"打开平板上的「连屏」。若重新插拔过数据线，请停止后再次启动副屏。";
 }
 - (void)stop {
+    [_cursorBridge stop];
     _scaleReady = NO;
     if (_display) {
         CGRect bounds = CGDisplayBounds(_display.displayID);

@@ -22,3 +22,7 @@ xcrun clang -fobjc-arc -fsanitize=address,undefined -g "$ROOT/tests/test-pipelin
 "$RESULTS/pipeline-budget"
 xcrun clang -fsanitize=address,undefined -g "$ROOT/tests/test-frame-pacing.c" -o "$RESULTS/frame-pacing"
 "$RESULTS/frame-pacing"
+xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-cursor-channel.cpp" -o "$RESULTS/cursor-channel"
+"$RESULTS/cursor-channel"
+xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-stream-format.cpp" -o "$RESULTS/stream-format"
+"$RESULTS/stream-format"

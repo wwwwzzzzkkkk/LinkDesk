@@ -2,6 +2,7 @@ import { accessibility } from '@kit.AccessibilityKit';
 import { window } from '@kit.ArkUI';
 import { DT } from './GeneratedDesign';
 import { LinkDeskTheme } from '../LinkDeskTheme';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 // Presentation only. No transport, decoder or theme persistence changes.
 export class PlatformUI {
@@ -36,12 +37,17 @@ export class PlatformUI {
     PlatformUI.barQueue = PlatformUI.barQueue.then(async () => {
       const main = PlatformUI.main;
       if (!main) return;
+      // Each operation is independent: unsupported navigation/status configuration
+      // must not skip the gesture indicator request. Layout alone does not hide it.
+      try { main.setImmersiveModeEnabledState(immersive); }
+      catch (error) { hilog.warn(0x3301, 'LinkDesk', 'IMMERSIVE layout %{public}s', JSON.stringify(error)); }
+      try { await main.setSpecificSystemBarEnabled('navigationIndicator', !immersive, false); }
+      catch (error) { hilog.warn(0x3301, 'LinkDesk', 'IMMERSIVE indicator %{public}s', JSON.stringify(error)); }
       try {
-        await main.setWindowLayoutFullScreen(immersive);
         const bars: Array<'status' | 'navigation'> = immersive ? [] : ['status', 'navigation'];
         await main.setWindowSystemBarEnable(bars);
-        await main.setSpecificSystemBarEnabled('navigationIndicator', !immersive, false);
-      } catch (_) { /* Split/floating windows may retain system-owned bars. */ }
+      } catch (error) { hilog.warn(0x3301, 'LinkDesk', 'IMMERSIVE bars %{public}s', JSON.stringify(error)); }
+      hilog.info(0x3301, 'LinkDesk', 'IMMERSIVE applied=%{public}s layout=%{public}s', String(immersive), String(main.getImmersiveModeEnabledState()));
       if (!immersive) LinkDeskTheme.refreshWindowStyle();
     }).catch(() => {});
   }

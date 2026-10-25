@@ -189,6 +189,11 @@ struct LinkDeskWorkspaceView: View {
             Button(L10n.arrangeDisplays) { desktop.engine.openDisplaySettings() }
             Button(L10n.testDisplay) { desktop.engine.showDisplayTest() }.disabled(!desktop.engine.active)
           }
+          Divider()
+          SettingRow(title: L10n.hdrTitle, detail: desktop.engine.hdrAvailable ? L10n.hdrDescription : L10n.hdrUnavailable) {
+            Toggle(L10n.hdrTitle, isOn: Binding(get: { desktop.engine.hdrEnabled }, set: { value in desktop.perform { $0.enableHDR(value) } }))
+              .labelsHidden().disabled(!desktop.engine.hdrAvailable && !desktop.engine.hdrEnabled)
+          }
         }
       }
       SurfacePanel {

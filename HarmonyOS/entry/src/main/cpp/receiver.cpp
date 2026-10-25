@@ -1,6 +1,9 @@
 #include "audio_receiver.h"
 #include "microphone_sender.h"
 #include "microphone_control.h"
+#include "cursor_receiver.h"
+#include "hdr_capabilities.h"
+#include "stream_format.h"
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -19,6 +22,7 @@
 #include <napi/native_api.h>
 #include <hilog/log.h>
 #include <native_window/external_window.h>
+#include <native_buffer/native_buffer.h>
 #include <native_vsync/native_vsync.h>
 #include <window_manager/oh_display_manager.h>
 #include <multimedia/player_framework/native_avbuffer.h>
@@ -46,8 +50,11 @@ public:
     ~Receiver() { Stop(); }
     void SetMicrophoneRequested(bool enabled){microphoneControl_.SetRequested(enabled);}
     void SetMicrophoneEnabled(bool enabled){if(enabled)microphone_.Start();else microphone_.Stop();}
+    std::string Cursor(){return cursor_.Read();}
     void Start(uint64_t surface, uint64_t windowId = 0) {
         Stop();
+        hdrCapabilities_=HdrCapabilities::Query();
+        OH_LOG_Print(LOG_APP,LOG_INFO,0x3301,"LinkDesk","HDR_CAP formats=%{public}s profiles=%{public}s hdr10=%{public}d dolby_decoder=%{public}d",hdrCapabilities_.formats.c_str(),hdrCapabilities_.profiles.c_str(),hdrCapabilities_.HDR10(),hdrCapabilities_.dolbyDecoder);
         for (const char *mime : {OH_AVCODEC_MIMETYPE_VIDEO_AVC, OH_AVCODEC_MIMETYPE_VIDEO_HEVC}) {
             OH_AVCapability *cap = OH_AVCodec_GetCapabilityByCategory(mime, false, HARDWARE);
             OH_AVRange range{};
@@ -59,9 +66,11 @@ public:
             }
         }
         timedRenderRejected_ = false; timedSubmissions_ = 0; lastDecodeUs_ = 0; lastReceiveUs_ = 0; lastSubmitUs_ = 0;
+        hdrDecoded_=false;
         surface_ = surface; windowId_ = windowId; frames_ = 0; bytes_ = 0; error_ = 0; hostRequestState_ = 0; active_ = true;
         audio_.Start();
         microphoneControl_.Start();
+        cursor_.Start();
         worker_ = std::thread([this] { Loop(); });
         hostThread_ = std::thread([this] { RequestHostLoop(); });
     }
@@ -69,6 +78,7 @@ public:
         active_ = false; cv_.notify_all(); hostCv_.notify_all();
         microphone_.Stop();
         microphoneControl_.Stop();
+        cursor_.Stop();
         audio_.Stop();
         { std::lock_guard<std::mutex> lock(socketMutex_); if (fd_ >= 0) shutdown(fd_, SHUT_RDWR); }
         if (worker_.joinable()) worker_.join();
@@ -83,7 +93,8 @@ public:
             ",\"width\":" + std::to_string(width_.load()) + ",\"height\":" + std::to_string(height_.load()) + ",\"targetFPS\":" + std::to_string(targetFPS_.load()) + ",\"vsyncHz\":" + std::to_string(vsyncHz_.load()) + ",\"screenHz\":" + std::to_string(screenHz_.load()) +
             ",\"latestMode\":" + (latestMode_.load() ? "true" : "false") + ",\"timedSupported\":" + (timedRenderRejected_.load() ? "false" : "true") +
             ",\"timedSubmissions\":" + std::to_string(timedSubmissions_.load()) + ",\"receiveSubmitUs\":" + std::to_string(lastReceiveUs_.load()) +
-            ",\"decodeUs\":" + std::to_string(lastDecodeUs_.load()) + ",\"submitUs\":" + std::to_string(lastSubmitUs_.load()) + "}";
+            ",\"decodeUs\":" + std::to_string(lastDecodeUs_.load()) + ",\"submitUs\":" + std::to_string(lastSubmitUs_.load()) +
+            ",\"hdrAvailable\":"+(hdrCapabilities_.HDR10()?"true":"false")+",\"hdrActive\":"+(hdrDecoded_.load()?"true":"false")+"}";
     }
     uint64_t Frames() const { return frames_.load(); }
     void SetLatestMode(bool enabled) {
@@ -99,6 +110,10 @@ private:
     std::atomic<uint32_t> width_{1920}, height_{1280};
     std::atomic<uint32_t> targetFPS_{60}, vsyncHz_{0}, screenHz_{0};
     bool hevc_ = false;
+    bool receiptMetrics_ = false;
+    bool hdrSession_=false;
+    std::atomic<bool> hdrDecoded_{false};
+    std::atomic<bool> hdrSignalValid_{false},hdrBuffer10_{false};
     OH_NativeVSync *vsync_ = nullptr;
     std::mutex vsyncMutex_;
     uint64_t surface_ = 0;
@@ -110,6 +125,8 @@ private:
     AudioReceiver audio_;
     MicrophoneSender microphone_;
     MicrophoneControl microphoneControl_;
+    CursorReceiver cursor_;
+    HdrCapabilities hdrCapabilities_;
     std::thread worker_, hostThread_;
     std::mutex socketMutex_, inputMutex_;
     std::condition_variable cv_;
@@ -131,6 +148,14 @@ private:
                 std::unique_lock<std::mutex> lock(hostMutex_);
                 hostCv_.wait_for(lock, std::chrono::seconds(1), [this] { return !active_; });
                 continue;
+            }
+            // Capabilities arrive before LDSTART1, allowing a safe HDR/SDR choice.
+            int caps=socket(AF_INET,SOCK_STREAM,0);
+            if(caps>=0){
+                timeval timeout{0,300000};setsockopt(caps,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));setsockopt(caps,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+                sockaddr_in address{};address.sin_family=AF_INET;address.sin_port=htons(CONTROL_PORT);address.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
+                if(connect(caps,reinterpret_cast<sockaddr*>(&address),sizeof(address))==0){const char *command=hdrCapabilities_.HDR10()?"LDCAPH10":"LDCAPSDR";char reply=0;if(send(caps,command,8,MSG_NOSIGNAL)==8)recv(caps,&reply,1,0);}
+                close(caps);
             }
             int fd = socket(AF_INET, SOCK_STREAM, 0);
             if (fd >= 0) {
@@ -192,7 +217,16 @@ private:
         if (self->fd_ >= 0) shutdown(self->fd_, SHUT_RDWR);
         OH_LOG_Print(LOG_APP, LOG_ERROR, 0x3301, "LinkDesk", "Decoder error %{public}d", error);
     }
-    static void OnChanged(OH_AVCodec *, OH_AVFormat *, void *) {}
+    static void OnChanged(OH_AVCodec *, OH_AVFormat *format, void *context) {
+        auto *self=static_cast<Receiver*>(context);int32_t prim=-1,transfer=-1,matrix=-1,pixel=-1;
+        OH_AVFormat_GetIntValue(format,OH_MD_KEY_COLOR_PRIMARIES,&prim);
+        OH_AVFormat_GetIntValue(format,OH_MD_KEY_TRANSFER_CHARACTERISTICS,&transfer);
+        OH_AVFormat_GetIntValue(format,OH_MD_KEY_MATRIX_COEFFICIENTS,&matrix);
+        OH_AVFormat_GetIntValue(format,OH_MD_KEY_PIXEL_FORMAT,&pixel);
+        self->hdrSignalValid_=self->hdrSession_&&prim==9&&transfer==16&&matrix==9;
+        self->hdrDecoded_=self->hdrSignalValid_.load()&&self->hdrBuffer10_.load();
+        OH_LOG_Print(LOG_APP,LOG_INFO,0x3301,"LinkDesk","HDR_OUTPUT requested=%{public}d active=%{public}d primaries=%{public}d transfer=%{public}d matrix=%{public}d pixel=%{public}d",self->hdrSession_,self->hdrDecoded_.load(),prim,transfer,matrix,pixel);
+    }
     static void OnInput(OH_AVCodec *, uint32_t index, OH_AVBuffer *buffer, void *context) {
         auto *self = static_cast<Receiver *>(context);
         { std::lock_guard<std::mutex> lock(self->inputMutex_); self->inputs_.push({index, buffer}); }
@@ -224,7 +258,24 @@ private:
             }
         } else result = OH_VideoDecoder_RenderOutputBuffer(codec, index);
         if (result == AV_ERR_OK) {
-            self->frames_++; self->state_ = 3;
+            uint64_t frame=++self->frames_; self->state_ = 3;
+            if(self->hdrSession_&&frame%30==10&&!self->hdrBuffer10_&&self->window_){
+                OHNativeWindowBuffer *flushed=nullptr;int fence=-1;float matrix[16]{};
+                int got=OH_NativeWindow_GetLastFlushedBufferV2(self->window_,&flushed,&fence,matrix);
+                if(got==0&&flushed){
+                    OH_NativeBuffer *native=nullptr;
+                    if(OH_NativeBuffer_FromNativeWindowBuffer(flushed,&native)==0&&native){
+                        OH_NativeBuffer_Config config{};OH_NativeBuffer_GetConfig(native,&config);
+                        OH_NativeBuffer_ColorSpace color=OH_COLORSPACE_NONE;int colorResult=OH_NativeBuffer_GetColorSpace(native,&color);
+                        bool ten=config.format==NATIVEBUFFER_PIXEL_FMT_YCBCR_P010||config.format==NATIVEBUFFER_PIXEL_FMT_YCRCB_P010||config.format==NATIVEBUFFER_PIXEL_FMT_RGBA_1010102;
+                        self->hdrBuffer10_=ten&&colorResult==0&&(color==OH_COLORSPACE_BT2020_PQ_LIMIT||color==OH_COLORSPACE_BT2020_PQ_FULL);
+                        self->hdrDecoded_=self->hdrSignalValid_.load()&&self->hdrBuffer10_.load();
+                        OH_LOG_Print(LOG_APP,LOG_INFO,0x3301,"LinkDesk","HDR_BUFFER format=%{public}d color=%{public}d color_result=%{public}d ten_bit=%{public}d active=%{public}d",config.format,color,colorResult,ten,self->hdrDecoded_.load());
+                    }
+                    OH_NativeWindow_NativeObjectUnreference(flushed);
+                }else OH_LOG_Print(LOG_APP,LOG_INFO,0x3301,"LinkDesk","HDR_BUFFER query=%{public}d",got);
+                if(fence>=0)close(fence);
+            }
             int64_t renderedNs = LocalTimeNs();
             if (timing.submittedNs > 0 && decodedNs >= timing.submittedNs) {
                 int64_t decodeUs = (decodedNs - timing.submittedNs) / 1000;
@@ -278,6 +329,12 @@ private:
     }
     bool Configure(uint32_t width, uint32_t height, uint32_t fps) {
         if (surface_ && (OH_NativeWindow_CreateNativeWindowFromSurfaceId(surface_, &window_) != 0 || !window_)) { error_ = -101; return false; }
+        if(hdrSession_){
+            if(!hdrCapabilities_.HDR10()){error_=-110;return false;}
+            int color=window_?OH_NativeWindow_SetColorSpace(window_,OH_COLORSPACE_BT2020_PQ_LIMIT):0;
+            OH_LOG_Print(LOG_APP,LOG_INFO,0x3301,"LinkDesk","HDR_SURFACE bt2020_pq=%{public}d",color);
+            if(color){error_=color;return false;}
+        }
         const char *mime = hevc_ ? OH_AVCODEC_MIMETYPE_VIDEO_HEVC : OH_AVCODEC_MIMETYPE_VIDEO_AVC;
         OH_AVCapability *capability = OH_AVCodec_GetCapabilityByCategory(mime, false, HARDWARE);
         const char *name = capability ? OH_AVCapability_GetName(capability) : nullptr;
@@ -293,6 +350,12 @@ private:
         OH_AVFormat_SetDoubleValue(format, OH_MD_KEY_FRAME_RATE, fps);
         OH_AVFormat_SetIntValue(format, OH_MD_KEY_MAX_INPUT_SIZE, MAX_FRAME);
         OH_AVFormat_SetIntValue(format, OH_MD_KEY_VIDEO_ENABLE_LOW_LATENCY, 1);
+        if(hdrSession_){
+            OH_AVFormat_SetIntValue(format,OH_MD_KEY_COLOR_PRIMARIES,9);
+            OH_AVFormat_SetIntValue(format,OH_MD_KEY_TRANSFER_CHARACTERISTICS,16);
+            OH_AVFormat_SetIntValue(format,OH_MD_KEY_MATRIX_COEFFICIENTS,9);
+            OH_AVFormat_SetIntValue(format,OH_MD_KEY_RANGE_FLAG,0);
+        }
         OH_LOG_Print(LOG_APP, LOG_INFO, 0x3301, "LinkDesk", "DECODER_LATENCY low_latency=%{public}d",
             capability && OH_AVCapability_IsFeatureSupported(capability, VIDEO_LOW_LATENCY));
         OH_AVErrCode result = OH_VideoDecoder_Configure(codec_, format);
@@ -330,6 +393,8 @@ private:
         return result == AV_ERR_OK;
     }
     void Cleanup() {
+        hdrDecoded_=false;
+        hdrSignalValid_=false;hdrBuffer10_=false;
         StopVsync();
         if (codec_) {
             if (codecStarted_) OH_VideoDecoder_Stop(codec_);
@@ -344,10 +409,10 @@ private:
         if (!Connect()) return;
         uint8_t header[16];
         if (!Read(header, sizeof(header))) return;
-        uint32_t width = U32(header + 4), height = U32(header + 8), fps = U32(header + 12);
-        bool supportedSize = (width == 1920 && height == 1280) || (width == 2880 && height == 1920);
-        hevc_ = memcmp(header, "LDH1", 4) == 0;
-        if ((!hevc_ && memcmp(header, "LDV1", 4)) || !supportedSize || (fps != 60 && fps != 120 && fps != 144)) { error_ = -100; return; }
+        DesktopStreamFormat format;
+        if(!DesktopStreamFormat::Parse(header,format)){error_=-100;return;}
+        uint32_t width=format.width,height=format.height,fps=format.fps;
+        hdrSession_=format.hdr10;hevc_=format.hevc;receiptMetrics_=format.receiptMetrics;
         targetFPS_ = fps;
         width_ = width; height_ = height;
         state_ = 2;
@@ -358,6 +423,11 @@ private:
             uint32_t length = U32(packet), flags = U32(packet + 4);
             if (!length || length > MAX_FRAME || flags > 1) { error_ = -107; break; }
             std::vector<uint8_t> data(length); if (!Read(data.data(), data.size())) break;
+            if(receiptMetrics_){
+                uint8_t receipt[16]={'L','D','R','1'};memcpy(receipt+8,packet+8,8);
+                std::lock_guard<std::mutex> lock(socketMutex_);
+                if(fd_>=0&&send(fd_,receipt,sizeof(receipt),MSG_DONTWAIT|MSG_NOSIGNAL)!=sizeof(receipt))break;
+            }
             if (!haveKeyframe && !(flags & 1)) continue;
             haveKeyframe = true;
             if (!Decode(data, flags, static_cast<int64_t>(U64(packet + 8)), LocalTimeNs())) break;
@@ -393,6 +463,7 @@ napi_value Start(napi_env env, napi_callback_info info) {
 }
 napi_value Stop(napi_env env, napi_callback_info) { Receiver::Get().Stop(); napi_value out; napi_get_undefined(env, &out); return out; }
 napi_value Stats(napi_env env, napi_callback_info) { auto stats = Receiver::Get().Stats(); napi_value out; napi_create_string_utf8(env, stats.c_str(), stats.size(), &out); return out; }
+napi_value Cursor(napi_env env, napi_callback_info) { auto value=Receiver::Get().Cursor(); napi_value out; napi_create_string_utf8(env,value.c_str(),value.size(),&out);return out; }
 napi_value SetLatest(napi_env env, napi_callback_info info) {
     size_t argc = 1; napi_value argv[1]; napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
     bool enabled = true;
@@ -416,6 +487,7 @@ napi_value Init(napi_env env, napi_value exports) {
         {"stop", nullptr, Stop, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"stats", nullptr, Stats, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setLatestMode", nullptr, SetLatest, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"cursor", nullptr, Cursor, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setMicrophoneEnabled", nullptr, SetMicrophone, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setMicrophoneRequested", nullptr, SetMicrophoneRequested, nullptr, nullptr, nullptr, napi_default, nullptr}
     };

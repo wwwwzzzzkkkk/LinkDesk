@@ -465,6 +465,9 @@ enum L10n {
     case "panelTurnOn": return english ? "Enable" : "开启"
     case "panelTurnOff": return english ? "Disable" : "关闭"
     case "panelExpand": return english ? "Expand display controls" : "展开扩展屏幕控制面板"
+    case "hdrTitle": return english ? "HDR10 · 10-bit" : "HDR10 · 10-bit"
+    case "hdrDescription": return english ? "Preserve HDR brightness and wide color; may reduce frame rate and reconnects when changed. Native Dolby Vision is not supported." : "保留 HDR 亮度和广色域，可能降低帧率；切换会重连。杜比视界原格式暂不支持。"
+    case "hdrUnavailable": return english ? "Requires macOS 15 or later and a connected tablet supporting HDR10 and HEVC 10-bit." : "需要 macOS 15 或更新系统，并连接支持 HDR10 和 HEVC 10-bit 的平板。"
     case "panelScreenRefresh": return english ? "Actual display refresh rate {0} Hz" : "屏幕实际刷新率 {0} Hz"
     default: return key
     }
@@ -742,6 +745,9 @@ enum L10n {
   static var panelTurnOn: String { value("panelTurnOn") }
   static var panelTurnOff: String { value("panelTurnOff") }
   static var panelExpand: String { value("panelExpand") }
+  static var hdrTitle: String { value("hdrTitle") }
+  static var hdrDescription: String { value("hdrDescription") }
+  static var hdrUnavailable: String { value("hdrUnavailable") }
   static var panelScreenRefresh: String { value("panelScreenRefresh") }
 }
 

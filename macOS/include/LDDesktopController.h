@@ -13,6 +13,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) NSInteger targetFPS;
 @property(nonatomic, readonly) double audioDelay;
 @property(nonatomic, readonly) BOOL microphoneEnabled;
+@property(nonatomic, readonly) BOOL hdrEnabled;
+@property(nonatomic, readonly) BOOL hdrAvailable;
+- (void)enableHDR:(BOOL)enabled;
 - (BOOL)runDisplaySelfTest;
 - (void)prepare;
 - (void)shutdown;

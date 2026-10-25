@@ -7,6 +7,7 @@ import common from '@ohos.app.ability.common';
 import linkdesk from 'liblinkdesk.so';
 import systemDateTime from '@ohos.systemDateTime';
 import { DisplayContext } from '../DisplayContext';
+import { CursorOverlay } from './CursorOverlay';
 
 interface ReceiverStats {
   microphoneState: number;
@@ -29,6 +30,8 @@ interface ReceiverStats {
   receiveSubmitUs: number;
   decodeUs: number;
   submitUs: number;
+  hdrAvailable: boolean;
+  hdrActive: boolean;
 }
 
 interface FrameSample {
@@ -71,6 +74,7 @@ export struct DesktopReceiver {
   @State private processMs: number = 0;
   @State private displayWidth: number = 960;
   @State private displayHeight: number = 640;
+  @State private hdrActive: boolean = false;
 
   private updateFPS(info: ReceiverStats): void {
     const now = systemDateTime.getUptime(systemDateTime.TimeType.STARTUP, false);
@@ -127,6 +131,7 @@ export struct DesktopReceiver {
       this.latestMode = info.latestMode;
       this.timedSupported = info.timedSupported;
       this.processMs = info.receiveSubmitUs / 1000;
+      this.hdrActive = info.hdrActive;
       AppStorage.setOrCreate('LinkDeskReceiverState', this.connectionState());
     }, 500);
   }
@@ -259,7 +264,7 @@ export struct DesktopReceiver {
             .accessibilityText(Strings.get('panelFPSDescription', [this.realtimeFPS.toFixed(0), this.targetFPS.toString()]))
           Column({ space: 2 }) {
             Text(this.screenHz > 0 ? `${this.screenHz} Hz` : '— Hz').fontSize(DT.dimensionsPanelValue13).fontColor(DT.text(this.darkMode))
-            Text(`${this.streamWidth} × ${this.streamHeight}`).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
+            Text(`${this.streamWidth} × ${this.streamHeight}${this.hdrActive ? ' · HDR10' : ''}`).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
           }.alignItems(HorizontalAlign.End)
             .accessibilityText(Strings.get('panelScreenRefresh', [this.screenHz.toString()]))
           Toggle({ type: ToggleType.Button, isOn: this.latestMode }) {
@@ -321,6 +326,7 @@ export struct DesktopReceiver {
       XComponent({ id: 'LinkDeskDisplay', type: XComponentType.SURFACE, controller: this.surface })
         .width(this.displayWidth).height(this.displayHeight)
         .onLoad(() => this.connect()).onDestroy(() => linkdesk.stop())
+      CursorOverlay({ displayWidth: this.displayWidth, displayHeight: this.displayHeight }).zIndex(5)
       if (this.state !== 3) {
         Scroll() {
           Column({ space: DT.spacingS24 }) {
