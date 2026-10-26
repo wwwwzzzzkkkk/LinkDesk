@@ -1,6 +1,6 @@
 import { Strings } from '../design/GeneratedDesign';
 export class KeyboardKeySpec {
-  id: string; code: string; label: string; weight: number; modifier: number; alternate: string; repeatable: boolean;
+  id: string; code: string; label: string; weight: number; modifier: number; alternate: string; repeatable: boolean; sendModifiers: number = 0; holdCode: string = ''; holdModifiers: number = 0;
   constructor(id: string, code: string, label: string, weight: number = 1, modifier: number = 0, alternate: string = '', repeatable: boolean = false) {
     this.id = id; this.code = code; this.label = label; this.weight = weight; this.modifier = modifier; this.alternate = alternate; this.repeatable = repeatable;
   }
@@ -35,22 +35,56 @@ export class KeyboardLayout {
     }
     return rows;
   }
-  static split(side: string): KeyboardRowSpec[] {
-    const k = KeyboardLayout.key;
-    if (side === 'left') return [
-      new KeyboardRowSpec('ln', [k('`', '`', 1, 0, '~'), ...KeyboardLayout.numbers('12345'), k('-', '-', 1, 0, '_')]),
-      new KeyboardRowSpec('lq', [k('tab', '⇥'), ...KeyboardLayout.keys('qwert'), k('[', '[', 1, 0, '{')]),
-      new KeyboardRowSpec('la', [k('capslock', '⇪'), ...KeyboardLayout.keys('asdfg'), k(';', ';', 1, 0, ':')]),
-      new KeyboardRowSpec('lz', [k('shift-left', '⇧', 1.3, 1), ...KeyboardLayout.keys('zxcv'), k(',', ',', 1, 0, '<'), k('/', '/', 1, 0, '?')]),
-      new KeyboardRowSpec('ls', [k('fn', 'fn'), k('ctrl-left', '⌃', 1, 2), k('alt-left', '⌥', 1, 4), k('cmd-left', '⌘', 1.2, 8), k('space-left', 'space', 2.2)])
+  static thumbKey(side: string, code: string, label: string = '', weight: number = 1, modifier: number = 0): KeyboardKeySpec {
+    const key = KeyboardLayout.key(code, label, weight, modifier); key.id = `thumb-${side}-${code}`; return key;
+  }
+  static symbol(label: string, id: string): KeyboardKeySpec {
+    const shifted: Record<string, string> = { '~':'`', '!':'1', '@':'2', '#':'3', '$':'4', '%':'5', '^':'6', '&':'7', '*':'8', '(':'9', ')':'0', '_':'-', '+':'=', '{':'[', '}':']', '|':'\\', ':':';', '"':"'", '<':',', '>':'.', '?':'/' };
+    const key = KeyboardLayout.key(shifted[label] || label, label); key.id = id; key.sendModifiers = shifted[label] ? 1 : 0;
+    if (!shifted[label]) {
+      const alternate = Object.keys(shifted).find((symbol: string) => shifted[symbol] === label);
+      if (alternate) { key.alternate = alternate; key.holdCode = key.code; key.holdModifiers = 1; }
+    }
+    return key;
+  }
+  static thumbLetters(side: string, letters: string, hints: string): KeyboardKeySpec[] {
+    return Array.from(letters).map((code: string, i: number) => {
+      const key = KeyboardLayout.thumbKey(side, code);
+      const hint = hints.charAt(i), alternate = KeyboardLayout.symbol(hint, `hold-${key.id}`);
+      key.alternate = hint; key.holdCode = alternate.code; key.holdModifiers = alternate.sendModifiers; return key;
+    });
+  }
+  // Preserve the reference's thumb letter geometry. Mac controls sit outside it.
+  static split(side: string, profile: string = 'ANSI', page: string = 'letters'): KeyboardRowSpec[] {
+    const left = side === 'left', k = KeyboardLayout.thumbKey;
+    const numberKeys = left ? [k(side, '`', '`'), ...KeyboardLayout.numbers('12345')] : [...KeyboardLayout.numbers('67890'), k(side, 'backspace', '⌫', 1.4)];
+    numberKeys.forEach((key: KeyboardKeySpec) => { key.id = key.code === 'backspace' ? `thumb-${side}-backspace` : `thumb-${side}-number-${key.code}`; });
+    const numbers = new KeyboardRowSpec(`${side}-${profile}-${page}-numbers`, numberKeys);
+    const bottom = new KeyboardRowSpec(`${side}-${profile}-${page}-bottom`, left ?
+      [k(side, 'fn', 'fn', 0.9), k(side, 'ctrl-left', '⌃', 0.9, 2), k(side, 'alt-left', '⌥', 0.9, 4), k(side, 'cmd-left', '⌘', 0.9, 8), k(side, 'space-left', 'space', 2.8)] :
+      [k(side, 'space-right', 'space', 1.9), k(side, 'cmd-right', '⌘', 0.9, 8), k(side, 'alt-right', '⌥', 0.9, 4), k(side, 'left', '←', 0.9), k(side, 'down', '↓', 0.9), k(side, 'up', '↑', 0.9), k(side, 'right', '→', 0.9)]);
+    let groups: KeyboardKeySpec[][];
+    if (page === 'letters') groups = left ? [
+      KeyboardLayout.thumbLetters(side, 'qwert', '12345'), KeyboardLayout.thumbLetters(side, 'asdfg', '~@#$^'), KeyboardLayout.thumbLetters(side, 'zxcv', '_+/-')
+    ] : [
+      KeyboardLayout.thumbLetters(side, 'yuiop', '67890'), KeyboardLayout.thumbLetters(side, 'ghjkl', '%&*()'), KeyboardLayout.thumbLetters(side, 'vbnm', '-=\'?')
     ];
-    return [
-      new KeyboardRowSpec('rn', [k('=', '=', 1, 0, '+'), ...KeyboardLayout.numbers('67890'), k('backspace', '⌫', 1.4)]),
-      new KeyboardRowSpec('rq', [...KeyboardLayout.keys('yuiop'), k(']', ']', 1, 0, '}'), k('\\', '\\', 1, 0, '|')]),
-      new KeyboardRowSpec('ra', [k("'", "'", 1, 0, '"'), ...KeyboardLayout.keys('ghjkl'), k('enter', 'return', 1.4)]),
-      new KeyboardRowSpec('rz', [...KeyboardLayout.keys('vbnm'), k('.', '.', 1, 0, '>'), k('shift-right', '⇧', 1.4, 1)]),
-      new KeyboardRowSpec('rs', [k('space-right', 'space', 2.2), k('cmd-right', '⌘', 1.2, 8), k('left', '←'), k('down', '↓'), k('up', '↑'), k('right', '→')])
+    else {
+      const labels = page === 'numbers' ? (left ? ['12345', '!@#$%', '-=[]'] : ['67890', '^&*()', '/\\\';']) :
+        (left ? ['`~|_\\', '!@#$%', '-+,.'] : ['{}[]?', '^&()/', '"\':;']);
+      groups = labels.map((text: string, row: number) => Array.from(text).map((label: string, i: number) => KeyboardLayout.symbol(label, `thumb-${side}-${page}-${row}-${i}`)));
+    }
+    return [numbers,
+      new KeyboardRowSpec(`${side}-${profile}-${page}-top`, left ? [k(side, 'tab', '⇥'), ...groups[0]] : [...groups[0], k(side, '\\', '\\')]),
+      new KeyboardRowSpec(`${side}-${profile}-${page}-home`, left ? [k(side, 'capslock', '⇪', 1.4), ...groups[1]] : [...groups[1], k(side, 'enter', '↵', 1.4)]),
+      new KeyboardRowSpec(`${side}-${profile}-${page}-lower`, left ? [k(side, 'shift-left', '⇧', 2.4, 1), ...groups[2]] : [...groups[2], k(side, 'shift-right', '⇧', 2.4, 1)]), bottom
     ];
+  }
+  static splitTools(profile: string, extended: boolean, columns: number): KeyboardRowSpec[] {
+    const keys = [...KeyboardLayout.functions(extended).keys, ...KeyboardLayout.navigation(profile).keys, ...['left','down','up','right'].map((code: string) => KeyboardLayout.key(code, code === 'left' ? '←' : code === 'down' ? '↓' : code === 'up' ? '↑' : '→'))];
+    const rows: KeyboardRowSpec[] = [];
+    for (let i = 0; i < keys.length; i += columns) rows.push(new KeyboardRowSpec(`tools-${i}`, keys.slice(i, i + columns)));
+    return rows;
   }
   static functions(extended: boolean = false): KeyboardRowSpec {
     return new KeyboardRowSpec('functions', [KeyboardLayout.key('escape', 'esc'), KeyboardLayout.key('capslockHold', '⇪ ABC'), ...Array.from(extended ? '12345678' : '123456789abc').map((_v: string, i: number) => KeyboardLayout.key(`f${i + (extended ? 13 : 1)}`, `F${i + (extended ? 13 : 1)}`))]);
@@ -67,9 +101,12 @@ export class KeyboardLayout {
       new KeyboardRowSpec('p1', [k('numpad1', '1'), k('numpad2', '2'), k('numpad3', '3'), k('numpadEnter', 'enter')]),
       new KeyboardRowSpec('p0', [k('numpad0', '0', 2), k('numpadDecimal', '.'), k('numpadEnter', 'enter')])];
   }
+  static rowUnits(row: KeyboardRowSpec): number {
+    return row.keys.reduce((n: number, key: KeyboardKeySpec) => n + (row.id.endsWith('-bottom') && key.code === 'up' ? 0 : key.weight), 0);
+  }
   static units(rows: KeyboardRowSpec[]): number {
     let result = 1;
-    rows.forEach((row: KeyboardRowSpec) => { result = Math.max(result, row.keys.reduce((n: number, key: KeyboardKeySpec) => n + key.weight, 0)); });
+    rows.forEach((row: KeyboardRowSpec) => { result = Math.max(result, KeyboardLayout.rowUnits(row)); });
     return result;
   }
 }

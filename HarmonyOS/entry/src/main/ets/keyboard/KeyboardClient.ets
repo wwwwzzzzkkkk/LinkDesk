@@ -96,6 +96,9 @@ export class KeyboardClient {
     if (AppStorage.get<string>('LinkDeskKeyboardState') !== 'ready') return;
     KeyboardClient.enqueue({ seq: 0, type: 'modifiers', key: '', text: '', modifiers: mask, expires: 0 });
   }
+  static cancelRepeats(key: string = ''): void {
+    KeyboardClient.queue = KeyboardClient.queue.filter((pending: Pending) => !(pending.command.type === 'key' && pending.command.repeat === true && (!key || pending.command.key === key)));
+  }
   static cancelPending(): void {
     KeyboardClient.queue = []; KeyboardClient.heldModifiers = 0;
     if (KeyboardClient.session) {

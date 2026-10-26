@@ -29,7 +29,13 @@
       "panelColor2": "#08000000",
       "panelColor3": "#407888A0",
       "panelColor4": "#B3FFFFFF",
-      "panelColor5": "#22000000"
+      "panelColor5": "#22000000",
+      "keyboardGlass": "#70F4F8FF",
+      "keyboardKey": "#80FFFFFF",
+      "keyboardRim": "#99FFFFFF",
+      "keyboardShade": "#140C2038",
+      "keyboardTrack": "#180E2544",
+      "keyboardFloat": "#60F8FAFF"
     },
     "dark": {
       "accent": "#78ACFF",
@@ -58,7 +64,13 @@
       "panelColor2": "#08000000",
       "panelColor3": "#407888A0",
       "panelColor4": "#B3FFFFFF",
-      "panelColor5": "#22000000"
+      "panelColor5": "#22000000",
+      "keyboardGlass": "#70202B3C",
+      "keyboardKey": "#7046556B",
+      "keyboardRim": "#508FABC4",
+      "keyboardShade": "#30000000",
+      "keyboardTrack": "#22D3E2F5",
+      "keyboardFloat": "#60212C3D"
     }
   },
   "typography": {

@@ -27,6 +27,12 @@
   --ld-panelColor3: #7888A040;
   --ld-panelColor4: #FFFFFFB3;
   --ld-panelColor5: #00000022;
+  --ld-keyboardGlass: #F4F8FF70;
+  --ld-keyboardKey: #FFFFFF80;
+  --ld-keyboardRim: #FFFFFF99;
+  --ld-keyboardShade: #0C203814;
+  --ld-keyboardTrack: #0E254418;
+  --ld-keyboardFloat: #F8FAFF60;
 }
 :root[data-linkdesk-theme="light"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="light"] .pdf-scroll { background: var(--ld-canvas); }
@@ -61,6 +67,12 @@
   --ld-panelColor3: #7888A040;
   --ld-panelColor4: #FFFFFFB3;
   --ld-panelColor5: #00000022;
+  --ld-keyboardGlass: #202B3C70;
+  --ld-keyboardKey: #46556B70;
+  --ld-keyboardRim: #8FABC450;
+  --ld-keyboardShade: #00000030;
+  --ld-keyboardTrack: #D3E2F522;
+  --ld-keyboardFloat: #212C3D60;
 }
 :root[data-linkdesk-theme="dark"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="dark"] .pdf-scroll { background: var(--ld-canvas); }

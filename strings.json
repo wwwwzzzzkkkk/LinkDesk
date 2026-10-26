@@ -1269,6 +1269,54 @@
     "keyboardMove": {
       "zh-Hans": "拖动键盘",
       "en": "Move keyboard"
+    },
+    "keyboardSymbols": {
+      "zh-Hans": "符号",
+      "en": "#+="
+    },
+    "keyboardLift": {
+      "zh-Hans": "离底高度",
+      "en": "Height above bottom"
+    },
+    "keyboardLiftValue": {
+      "zh-Hans": "离底 {0}",
+      "en": "Lift {0}"
+    },
+    "keyboardLanguageMenu": {
+      "zh-Hans": "中 / 英",
+      "en": "Input"
+    },
+    "keyboardMoveVertical": {
+      "zh-Hans": "上下拖动键盘",
+      "en": "Move keyboard up or down"
+    },
+    "keyboardSettingsTitle": {
+      "zh-Hans": "键盘调节",
+      "en": "Keyboard controls"
+    },
+    "keyboardMore": {
+      "zh-Hans": "更多选项",
+      "en": "More options"
+    },
+    "keyboardFunctions": {
+      "zh-Hans": "功能键",
+      "en": "Function keys"
+    },
+    "keyboardPositionHint": {
+      "zh-Hans": "拖动左侧握柄，也可上下移动键盘",
+      "en": "Drag the grip to move the keyboard vertically"
+    },
+    "keyboardProfile": {
+      "zh-Hans": "Mac 键盘布局",
+      "en": "Mac keyboard layout"
+    },
+    "keyboardWidthShort": {
+      "zh-Hans": "键宽",
+      "en": "Key width"
+    },
+    "keyboardHeightShort": {
+      "zh-Hans": "键高",
+      "en": "Key height"
     }
   }
 }

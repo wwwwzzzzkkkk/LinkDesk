@@ -129,7 +129,9 @@ final class KeyboardHost: ObservableObject {
       } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, key == "inputsource" {
         postModifiers(modifierLease.release(owner: session)); selectNextInputSource()
       } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, ["capslock", "capslockHold"].contains(key) {
-        if !toggleCapsLock(force: key == "capslockHold") { error = "unsupported-key" }
+        postModifiers(modifierLease.release(owner: session))
+        if key == "capslockHold" { virtualCaps.toggle() }
+        else { virtualCaps = false; selectNextInputSource() }
       } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, let code = Self.mediaCodes[key] {
         for down in [true, false] {
           NSEvent.otherEvent(with: .systemDefined, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: 0, context: nil, subtype: 8, data1: (code << 16) | (down ? 0xa00 : 0xb00), data2: -1)?.cgEvent?.post(tap: .cghidEventTap)
@@ -156,12 +158,14 @@ final class KeyboardHost: ObservableObject {
         var flags = eventFlags(modifiers)
         if key.hasPrefix("numpad") || ["left", "right", "up", "down"].contains(key) { flags.insert(.maskNumericPad) }
         down.flags = flags; up.flags = flags
-        if value["repeat"] as? Bool == true { down.setIntegerValueField(.keyboardEventAutorepeat, value: 1) }
+        // The tablet already schedules repetition. Each message is a complete
+        // down/up tap, so it must not masquerade as an autorepeat of a held key.
+        down.setIntegerValueField(.keyboardEventAutorepeat, value: 0)
         down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
         postModifiers(KeyboardModifierLease.changes(from: modifiers, to: held))
       } else { error = "invalid" }
     } else { error = "expired" }
-    if ProcessInfo.processInfo.arguments.contains("--keyboard-test") { NSLog("KEYBOARD_TEST active=%d permitted=%d secure=%d result=%@", NSApp.isActive, CGPreflightPostEventAccess(), IsSecureEventInputEnabled(), error.isEmpty ? "posted" : error) }
+    if ProcessInfo.processInfo.arguments.contains("--keyboard-test") { NSLog("KEYBOARD_TEST active=%d permitted=%d secure=%d key=%@ repeat=%d result=%@", NSApp.isActive, CGPreflightPostEventAccess(), IsSecureEventInputEnabled(), value["key"] as? String ?? "control", value["repeat"] as? Bool == true, error.isEmpty ? "posted" : error) }
     send(["type": "keyboard:ack", "id": id, "ok": error.isEmpty, "error": error, "inputSource": inputSourceName(), "capsLock": capsLockState()])
   }
   private func eventFlags(_ mask: Int) -> CGEventFlags {
@@ -200,30 +204,6 @@ final class KeyboardHost: ObservableObject {
     defer { IOServiceClose(connection) }
     var locked = false
     return IOHIDGetModifierLockState(connection, Int32(kIOHIDCapsLockState), &locked) == KERN_SUCCESS ? locked : CGEventSource.flagsState(.hidSystemState).contains(.maskAlphaShift)
-  }
-  private func toggleCapsLock(force: Bool = false) -> Bool {
-    // A virtual lock avoids the system's short-Caps input-source remapping.
-    // It applies Caps flags to this keyboard's events only, never changes a
-    // physical keyboard's persistent lock, and clears when the app stops.
-    if force { virtualCaps = true; return true }
-    if virtualCaps { virtualCaps = false; return true }
-    let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"))
-    guard service != 0 else { return false }; defer { IOObjectRelease(service) }
-    var connection: io_connect_t = 0
-    guard IOServiceOpen(service, mach_task_self_, UInt32(kIOHIDParamConnectType), &connection) == KERN_SUCCESS else { return false }
-    defer { IOServiceClose(connection) }
-    var locked = false
-    guard IOHIDGetModifierLockState(connection, Int32(kIOHIDCapsLockState), &locked) == KERN_SUCCESS else { return false }
-    guard IOHIDSetModifierLockState(connection, Int32(kIOHIDCapsLockState), force || !locked) == KERN_SUCCESS else { return false }
-    // A short Caps event follows the Mac input-source switch setting. A hold
-    // locks Caps directly, without re-triggering that short-press remapping.
-    if !force, let event = CGEvent(keyboardEventSource: eventSource, virtualKey: 57, keyDown: true) {
-      event.type = .flagsChanged
-      var flags = eventFlags(modifierLease.mask)
-      if !locked { flags.insert(.maskAlphaShift) } else { flags.remove(.maskAlphaShift) }
-      event.flags = flags; event.post(tap: .cghidEventTap)
-    }
-    return true
   }
   private static let mediaCodes = ["volumeup":0,"volumedown":1,"mute":7,"playpause":16,"nexttrack":17,"prevtrack":18]
   private static let keyCodes: [String: CGKeyCode] = [

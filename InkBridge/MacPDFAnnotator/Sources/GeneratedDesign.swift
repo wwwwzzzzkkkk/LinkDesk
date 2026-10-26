@@ -39,6 +39,12 @@ enum DT {
   static var panelColor3: Color { color("#407888A0", "#407888A0") }
   static var panelColor4: Color { color("#B3FFFFFF", "#B3FFFFFF") }
   static var panelColor5: Color { color("#22000000", "#22000000") }
+  static var keyboardGlass: Color { color("#70F4F8FF", "#70202B3C") }
+  static var keyboardKey: Color { color("#80FFFFFF", "#7046556B") }
+  static var keyboardRim: Color { color("#99FFFFFF", "#508FABC4") }
+  static var keyboardShade: Color { color("#140C2038", "#30000000") }
+  static var keyboardTrack: Color { color("#180E2544", "#22D3E2F5") }
+  static var keyboardFloat: Color { color("#60F8FAFF", "#60212C3D") }
   enum font {
     static let caption: CGFloat = 12
     static let body: CGFloat = 14
@@ -515,6 +521,18 @@ enum L10n {
     case "keyboardUnlock": return english ? "Release locks" : "释放锁定"
     case "keyboardArmed": return english ? "Next-key modifier" : "下一键组合"
     case "keyboardMove": return english ? "Move keyboard" : "拖动键盘"
+    case "keyboardSymbols": return english ? "#+=" : "符号"
+    case "keyboardLift": return english ? "Height above bottom" : "离底高度"
+    case "keyboardLiftValue": return english ? "Lift {0}" : "离底 {0}"
+    case "keyboardLanguageMenu": return english ? "Input" : "中 / 英"
+    case "keyboardMoveVertical": return english ? "Move keyboard up or down" : "上下拖动键盘"
+    case "keyboardSettingsTitle": return english ? "Keyboard controls" : "键盘调节"
+    case "keyboardMore": return english ? "More options" : "更多选项"
+    case "keyboardFunctions": return english ? "Function keys" : "功能键"
+    case "keyboardPositionHint": return english ? "Drag the grip to move the keyboard vertically" : "拖动左侧握柄，也可上下移动键盘"
+    case "keyboardProfile": return english ? "Mac keyboard layout" : "Mac 键盘布局"
+    case "keyboardWidthShort": return english ? "Key width" : "键宽"
+    case "keyboardHeightShort": return english ? "Key height" : "键高"
     default: return key
     }
   }
@@ -835,6 +853,18 @@ enum L10n {
   static var keyboardUnlock: String { value("keyboardUnlock") }
   static var keyboardArmed: String { value("keyboardArmed") }
   static var keyboardMove: String { value("keyboardMove") }
+  static var keyboardSymbols: String { value("keyboardSymbols") }
+  static var keyboardLift: String { value("keyboardLift") }
+  static var keyboardLiftValue: String { value("keyboardLiftValue") }
+  static var keyboardLanguageMenu: String { value("keyboardLanguageMenu") }
+  static var keyboardMoveVertical: String { value("keyboardMoveVertical") }
+  static var keyboardSettingsTitle: String { value("keyboardSettingsTitle") }
+  static var keyboardMore: String { value("keyboardMore") }
+  static var keyboardFunctions: String { value("keyboardFunctions") }
+  static var keyboardPositionHint: String { value("keyboardPositionHint") }
+  static var keyboardProfile: String { value("keyboardProfile") }
+  static var keyboardWidthShort: String { value("keyboardWidthShort") }
+  static var keyboardHeightShort: String { value("keyboardHeightShort") }
 }
 
 enum ConnectionState: String, CaseIterable {

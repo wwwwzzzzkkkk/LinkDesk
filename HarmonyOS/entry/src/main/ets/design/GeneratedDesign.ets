@@ -30,6 +30,12 @@ export class DT {
   static panelColor3(dark: boolean): string { return dark ? "#407888A0" : "#407888A0"; }
   static panelColor4(dark: boolean): string { return dark ? "#B3FFFFFF" : "#B3FFFFFF"; }
   static panelColor5(dark: boolean): string { return dark ? "#22000000" : "#22000000"; }
+  static keyboardGlass(dark: boolean): string { return dark ? "#70202B3C" : "#70F4F8FF"; }
+  static keyboardKey(dark: boolean): string { return dark ? "#7046556B" : "#80FFFFFF"; }
+  static keyboardRim(dark: boolean): string { return dark ? "#508FABC4" : "#99FFFFFF"; }
+  static keyboardShade(dark: boolean): string { return dark ? "#30000000" : "#140C2038"; }
+  static keyboardTrack(dark: boolean): string { return dark ? "#22D3E2F5" : "#180E2544"; }
+  static keyboardFloat(dark: boolean): string { return dark ? "#60212C3D" : "#60F8FAFF"; }
   static readonly fontCaption = "12fp";
   static readonly fontBody = "16fp";
   static readonly fontLabel = "20fp";
@@ -490,6 +496,18 @@ export class Strings {
       case "keyboardUnlock": return english ? "Release locks" : "释放锁定";
       case "keyboardArmed": return english ? "Next-key modifier" : "下一键组合";
       case "keyboardMove": return english ? "Move keyboard" : "拖动键盘";
+      case "keyboardSymbols": return english ? "#+=" : "符号";
+      case "keyboardLift": return english ? "Height above bottom" : "离底高度";
+      case "keyboardLiftValue": return english ? "Lift {0}" : "离底 {0}";
+      case "keyboardLanguageMenu": return english ? "Input" : "中 / 英";
+      case "keyboardMoveVertical": return english ? "Move keyboard up or down" : "上下拖动键盘";
+      case "keyboardSettingsTitle": return english ? "Keyboard controls" : "键盘调节";
+      case "keyboardMore": return english ? "More options" : "更多选项";
+      case "keyboardFunctions": return english ? "Function keys" : "功能键";
+      case "keyboardPositionHint": return english ? "Drag the grip to move the keyboard vertically" : "拖动左侧握柄，也可上下移动键盘";
+      case "keyboardProfile": return english ? "Mac keyboard layout" : "Mac 键盘布局";
+      case "keyboardWidthShort": return english ? "Key width" : "键宽";
+      case "keyboardHeightShort": return english ? "Key height" : "键高";
       default: return key;
     }
   }
@@ -810,6 +828,18 @@ export class Strings {
   static get keyboardUnlock(): string { return Strings.value("keyboardUnlock"); }
   static get keyboardArmed(): string { return Strings.value("keyboardArmed"); }
   static get keyboardMove(): string { return Strings.value("keyboardMove"); }
+  static get keyboardSymbols(): string { return Strings.value("keyboardSymbols"); }
+  static get keyboardLift(): string { return Strings.value("keyboardLift"); }
+  static get keyboardLiftValue(): string { return Strings.value("keyboardLiftValue"); }
+  static get keyboardLanguageMenu(): string { return Strings.value("keyboardLanguageMenu"); }
+  static get keyboardMoveVertical(): string { return Strings.value("keyboardMoveVertical"); }
+  static get keyboardSettingsTitle(): string { return Strings.value("keyboardSettingsTitle"); }
+  static get keyboardMore(): string { return Strings.value("keyboardMore"); }
+  static get keyboardFunctions(): string { return Strings.value("keyboardFunctions"); }
+  static get keyboardPositionHint(): string { return Strings.value("keyboardPositionHint"); }
+  static get keyboardProfile(): string { return Strings.value("keyboardProfile"); }
+  static get keyboardWidthShort(): string { return Strings.value("keyboardWidthShort"); }
+  static get keyboardHeightShort(): string { return Strings.value("keyboardHeightShort"); }
 }
 
 export enum ConnectionState {
