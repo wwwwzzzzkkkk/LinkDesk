@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { homedir, networkInterfaces } from "node:os";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createKeyboardRelay } from './keyboard-relay.mjs';
 import {
   INKBRIDGE_APP_VERSION,
   INKBRIDGE_PROTOCOL_VERSION,
@@ -23,7 +24,8 @@ import {
 const directory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(directory, "public");
 const port = Number.parseInt(process.env.PORT ?? "3210", 10);
-const relayVersion = 13;
+const relayVersion = 16;
+const keyboardRelay = createKeyboardRelay(process.env.LINKDESK_KEYBOARD_KEY, undefined, addresses);
 const serverSourceId = "inkbridge-relay";
 const rooms = new Map();
 const persistenceDirectory = process.env.INKBRIDGE_DATA_DIR
@@ -584,6 +586,7 @@ function storedWhiteboardViewport(viewport) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  if (await keyboardRelay.handle(request, response, url)) return;
   if (url.pathname === "/config") {
     const localAddresses = addresses();
     response.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -925,11 +928,18 @@ class LocalWebSocket {
 }
 
 server.on("upgrade", (request, socket, head) => {
-  if (new URL(request.url ?? "/", "http://localhost").pathname !== "/ws") return socket.destroy();
+  const path = new URL(request.url ?? "/", "http://localhost").pathname;
+  if (path !== '/ws' && path !== '/keyboard-host') return socket.destroy();
   const key = request.headers["sec-websocket-key"];
   if (typeof key !== "string") return socket.destroy();
   const accept = createHash("sha1").update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
   socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
+  if (path === '/keyboard-host') {
+    const peer = new LocalWebSocket(socket, null, raw => keyboardRelay.hostMessage(peer, raw), () => keyboardRelay.hostClosed(peer));
+    if (!keyboardRelay.attachHost(peer, request)) return peer.close(1008);
+    if (head?.length) peer.receive(head);
+    return;
+  }
   attachWebSocket(socket, head);
 });
 function attachWebSocket(rawSocket, head) {

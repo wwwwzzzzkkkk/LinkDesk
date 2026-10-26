@@ -4,10 +4,16 @@ import { PageHeader, ConnectionPill } from '../design/Components';
 import { WorkspaceSpec } from '../design/WorkspaceSpec';
 import { InkWorkspace } from './InkWorkspace';
 import { DesktopReceiver } from './DesktopReceiver';
+import { KeyboardPanel } from '../keyboard/KeyboardPanel';
+import { KeyboardClient } from '../keyboard/KeyboardClient';
+import { KeyboardNotification } from '../keyboard/KeyboardNotification';
 
 @Entry
 @Component
 struct Index {
+  @StorageLink('LinkDeskKeyboardVisible') keyboardVisible: boolean = false;
+  @StorageLink('LinkDeskKeyboardState') @Watch('keyboardChanged') keyboardState: string = 'disconnected';
+  private keyboardChanged(): void { void KeyboardNotification.update(); }
   @StorageLink('LinkDeskDark') darkMode: boolean = false;
   @StorageLink('LinkDeskThemePreference') themePreference: string = 'automatic';
   @StorageLink('LinkDeskDestination') @Watch('routeChanged') destination: string = 'home';
@@ -18,6 +24,8 @@ struct Index {
   @StorageLink('LinkDeskReceiverWorking') receiverWorking: boolean = false;
   @StorageLink('LinkDeskPairingCode') pairingCode: string = '';
   @StorageLink('LinkDeskTransport') transport: string = 'usb';
+  @State private keyboardWidth: number = 960;
+  @State private keyboardHeight: number = 640;
   @State private selected: string = 'home';
   @State private requestedMode: string = 'pdf';
   @State private activation: number = 0;
@@ -25,6 +33,7 @@ struct Index {
   @State private contentWidth: number = DT.layoutPageMax;
 
   onBackPress(): boolean {
+    if (this.keyboardVisible) { this.keyboardVisible = false; return true; }
     if (this.selected === 'home') return false;
     this.open('home'); return true;
   }
@@ -135,6 +144,11 @@ struct Index {
           ForEach(WorkspaceSpec.order.slice(1), (key: string) => { GridCol() { this.workspaceCard(key) } }, (key: string) => key)
         }.width('100%')
         Text(Strings.connectionHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
+        Button(Strings.keyboardTitle).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode))
+          .enabled(['ready', 'permission', 'secure-input'].includes(this.keyboardState)).onClick(() => { KeyboardClient.refresh(); this.keyboardVisible = true; })
+        Text(this.keyboardState === 'permission' ? Strings.keyboardPermissionHint : this.keyboardState === 'pairing' ? Strings.keyboardPairingHint : this.keyboardState === 'ready' ? Strings.keyboardReady : Strings.keyboardDisconnected)
+          .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
       }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(this.wide ? DT.layoutPagePadding : DT.layoutCompactPadding)
     }.width('100%').height('100%').align(Alignment.Top)
   }
@@ -153,6 +167,7 @@ struct Index {
     }.width('100%').height('100%').onAreaChange((_old: Area, current: Area) => { this.contentWidth = Number(current.width); })
   }
   build() {
+    Stack({ alignContent: Alignment.Bottom }) {
     Column({ space: DT.spacingS0 }) {
       Row({ space: DT.spacingS0 }) {
         if (this.wide && !this.receiverWorking) { this.sidebar() }
@@ -160,6 +175,8 @@ struct Index {
       }.width('100%').layoutWeight(1)
       if (!this.wide && !this.receiverWorking) { this.bottomNavigation() }
     }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
-      .onAreaChange((_old: Area, current: Area) => { this.wide = Number(current.width) >= DT.layoutWideBreakpoint && Number(current.width) >= Number(current.height); })
+      .onAreaChange((_old: Area, current: Area) => { this.keyboardWidth = Number(current.width); this.keyboardHeight = Number(current.height); this.wide = Number(current.width) >= DT.layoutWideBreakpoint && Number(current.width) >= Number(current.height); })
+    if (this.keyboardVisible) { KeyboardPanel({ viewportWidth: this.keyboardWidth, viewportHeight: this.keyboardHeight }).zIndex(30) }
+    }.width('100%').height('100%')
   }
 }

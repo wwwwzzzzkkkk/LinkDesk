@@ -1109,6 +1109,166 @@
     "panelScreenRefresh": {
       "zh-Hans": "屏幕实际刷新率 {0} Hz",
       "en": "Actual display refresh rate {0} Hz"
+    },
+    "keyboardTitle": {
+      "zh-Hans": "虚拟键盘",
+      "en": "Virtual keyboard"
+    },
+    "keyboardShort": {
+      "zh-Hans": "键盘",
+      "en": "Keyboard"
+    },
+    "keyboardReady": {
+      "zh-Hans": "平板键盘已就绪",
+      "en": "Tablet keyboard ready"
+    },
+    "keyboardPermissionAction": {
+      "zh-Hans": "允许平板键盘控制 Mac…",
+      "en": "Allow tablet keyboard control…"
+    },
+    "keyboardPermissionHint": {
+      "zh-Hans": "请在 Mac 的“设备控制和数据访问”（旧系统为“辅助功能”）中允许 LinkDesk",
+      "en": "Allow LinkDesk in Mac Privacy & Security → Device Control and Data Access (Accessibility on older systems)"
+    },
+    "keyboardReadyUSB": {
+      "zh-Hans": "USB 已连接 · 输入到 Mac",
+      "en": "USB connected · typing on Mac"
+    },
+    "keyboardReadyWiFi": {
+      "zh-Hans": "Wi-Fi 已连接 · 输入到 Mac",
+      "en": "Wi-Fi connected · typing on Mac"
+    },
+    "keyboardPairingHint": {
+      "zh-Hans": "请用 USB 连接一次，或重新扫描 Mac 配对码",
+      "en": "Connect once by USB, or scan the Mac pairing QR again"
+    },
+    "keyboardDisconnected": {
+      "zh-Hans": "未连接 Mac，键盘暂不可用",
+      "en": "Mac disconnected · keyboard unavailable"
+    },
+    "keyboardSecureInput": {
+      "zh-Hans": "Mac 安全输入已开启，暂不能发送按键",
+      "en": "Mac secure input is active · typing paused"
+    },
+    "keyboardCompose": {
+      "zh-Hans": "中文 / 手写",
+      "en": "Chinese / IME"
+    },
+    "keyboardComposeHint": {
+      "zh-Hans": "使用系统输入法，确认后发送到 Mac",
+      "en": "Compose with system keyboard, then send to Mac"
+    },
+    "keyboardComposePrivacy": {
+      "zh-Hans": "只发送已确认的文字；关闭后清空，不自动补发。",
+      "en": "Only confirmed text is sent. Closing clears the draft; failed input is never replayed."
+    },
+    "keyboardSend": {
+      "zh-Hans": "发送",
+      "en": "Send"
+    },
+    "keyboardSpace": {
+      "zh-Hans": "空格",
+      "en": "Space"
+    },
+    "keyboardEnableNotice": {
+      "zh-Hans": "启用下拉入口",
+      "en": "Enable notification shortcut"
+    },
+    "keyboardDisableNotice": {
+      "zh-Hans": "关闭下拉入口",
+      "en": "Disable notification shortcut"
+    },
+    "keyboardNotificationHint": {
+      "zh-Hans": "Mac 已连接 · 点击打开键盘，输入前重新检查连接",
+      "en": "Mac connected · tap to open keyboard; connection rechecked before typing"
+    },
+    "keyboardNoticeError": {
+      "zh-Hans": "通知入口不可用，请检查系统通知权限",
+      "en": "Notification shortcut unavailable. Check notification permission."
+    },
+    "keyboardUSBPriority": {
+      "zh-Hans": "USB 优先，断开后使用 Wi-Fi",
+      "en": "Prefer USB; use Wi-Fi when unavailable"
+    },
+    "keyboardWiFiPriority": {
+      "zh-Hans": "Wi-Fi 优先，不可用时使用 USB",
+      "en": "Prefer Wi-Fi; use USB when unavailable"
+    },
+    "keyboardUpdateBoth": {
+      "zh-Hans": "请将 Mac 与平板更新到相同的键盘测试版",
+      "en": "Update both Mac and tablet to the same keyboard build"
+    },
+    "keyboardDock": {
+      "zh-Hans": "全宽停靠",
+      "en": "Docked"
+    },
+    "keyboardSplit": {
+      "zh-Hans": "双手分离",
+      "en": "Split"
+    },
+    "keyboardFull": {
+      "zh-Hans": "全屏键盘",
+      "en": "Full screen"
+    },
+    "keyboardFloat": {
+      "zh-Hans": "悬浮紧凑",
+      "en": "Floating"
+    },
+    "keyboardAdjust": {
+      "zh-Hans": "调节",
+      "en": "Adjust"
+    },
+    "keyboardKeyWidth": {
+      "zh-Hans": "按键宽度",
+      "en": "Key width"
+    },
+    "keyboardKeyHeight": {
+      "zh-Hans": "按键高度",
+      "en": "Key height"
+    },
+    "keyboardWidthValue": {
+      "zh-Hans": "键宽 {0} vp",
+      "en": "Width {0} vp"
+    },
+    "keyboardHeightValue": {
+      "zh-Hans": "键高 {0} vp",
+      "en": "Height {0} vp"
+    },
+    "keyboardHaptics": {
+      "zh-Hans": "触感反馈",
+      "en": "Haptics"
+    },
+    "keyboardNumberPad": {
+      "zh-Hans": "数字区",
+      "en": "Number pad"
+    },
+    "keyboardVisualFeedback": {
+      "zh-Hans": "此设备未提供触感，已保留按下变色与下沉反馈。",
+      "en": "Haptics unavailable; pressed color and movement remain enabled."
+    },
+    "keyboardModifierHelp": {
+      "zh-Hans": "修饰键：点按供下一键使用，按住组合，双击锁定；断线自动释放。",
+      "en": "Modifiers: tap for one key, hold for chords, double-tap to lock; disconnect releases them."
+    },
+    "keyboardMacInput": {
+      "zh-Hans": "切换 Mac 输入法",
+      "en": "Switch Mac input source"
+    },
+    "keyboardMacInputKey": {
+      "zh-Hans": "中/英",
+      "en": "Lang"
+    },
+    "keyboardUnlock": {
+      "zh-Hans": "释放锁定",
+      "en": "Release locks"
+    },
+    "keyboardArmed": {
+      "zh-Hans": "下一键组合",
+      "en": "Next-key modifier"
+    },
+    "keyboardMove": {
+      "zh-Hans": "拖动键盘",
+      "en": "Move keyboard"
     }
   }
 }

@@ -8,6 +8,7 @@ import { preferences } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { http, mdns } from '@kit.NetworkKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
+import { KeyboardClient } from '../keyboard/KeyboardClient';
 import { window } from '@kit.ArkUI';
 import { accessibility } from '@kit.AccessibilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
@@ -1528,6 +1529,8 @@ export struct InkWorkspace {
         enableAlbum: true
       });
       const pairing = this.parseScannedPairingLink(result.originalValue);
+      const keyboardKey = result.originalValue.match(/[#&]keyboardKey=([0-9a-f]{64})(?:&|$)/);
+      if (pairing && keyboardKey) await KeyboardClient.importPairing(keyboardKey[1], pairing.host);
       if (!pairing) {
         promptAction.showToast({ message: Strings.scanInvalid });
         return;

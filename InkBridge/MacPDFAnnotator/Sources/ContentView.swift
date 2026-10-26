@@ -645,7 +645,7 @@ private struct PairingView: View {
         }
         .frame(height: DT.dimensions.d220)
       } else {
-        Image(nsImage: qrImage(for: link))
+        Image(nsImage: qrImage(for: link + "#keyboardKey=" + KeyboardHost.shared.pairingKey))
           .interpolation(.none)
           .resizable()
           .scaledToFit()

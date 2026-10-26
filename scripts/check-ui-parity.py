@@ -10,6 +10,8 @@ subprocess.run([sys.executable, str(ROOT/'scripts/generate-design.py'), '--check
 paths = [ROOT/'InkBridge/MacPDFAnnotator/Sources'/name for name in (
     'ContentView.swift', 'LinkDeskWorkspaceView.swift', 'DesignComponents.swift', 'MacPDFAnnotatorApp.swift')]
 paths += list((ROOT/'HarmonyOS/entry/src/main/ets/pages').glob('*.ets'))
+paths += list((ROOT/'HarmonyOS/entry/src/main/ets/keyboard').glob('*Panel.ets'))
+paths += list((ROOT/'HarmonyOS/entry/src/main/ets/keyboard').glob('*Key.ets'))
 paths += [ROOT/'HarmonyOS/entry/src/main/ets/design/Components.ets', ROOT/'HarmonyOS/entry/src/main/ets/roundtrip/RoundTripLiveViewController.ets']
 # Normalized 0/1 visibility, list counts, API versions, stream sizes, ink widths,
 # pixel/coordinate calculations, protocol ids and keyboard shortcuts are functional data.

@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 final class LocalRelayLauncher {
   static let shared = LocalRelayLauncher()
-  private static let requiredRelayVersion = 13
+  private static let requiredRelayVersion = 16
   private var process: Process?
   private var isCheckingExistingService = false
   private var discoveryService: NetService?
@@ -103,6 +103,9 @@ final class LocalRelayLauncher {
     // local-server.mjs` in Terminal, while still remaining invisible.
     task.executableURL = URL(fileURLWithPath: "/bin/zsh")
     task.arguments = ["-lc", "exec \(shellQuote(node.path)) \(shellQuote(script.path))"]
+    var environment = ProcessInfo.processInfo.environment
+    environment["LINKDESK_KEYBOARD_KEY"] = KeyboardHost.shared.pairingKey
+    task.environment = environment
     task.standardOutput = Pipe()
     task.standardError = Pipe()
     task.terminationHandler = { [weak self, weak task] _ in

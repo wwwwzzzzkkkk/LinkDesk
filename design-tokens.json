@@ -145,7 +145,10 @@
     "mirrorWindowMaxHeight": 720,
     "mirrorWindowVisibleFraction": 0.78,
     "mirrorWindowMinWidth": 720,
-    "mirrorWindowMinHeight": 480
+    "mirrorWindowMinHeight": 480,
+    "keyboardKeyHeight": 44,
+    "keyboardMaxWidth": 760,
+    "keyboardPressOffset": 2
   },
   "motion": {
     "duration": {
@@ -156,7 +159,9 @@
       "none": 0,
       "notice": 2800,
       "errorNotice": 4200,
-      "panelFade": 160
+      "panelFade": 160,
+      "keyboardPress": 65,
+      "keyboardHaptic": 8
     },
     "curve": {
       "standard": [
@@ -187,7 +192,8 @@
     "transform": {
       "menuScale": 0.96,
       "exitScale": 0.98,
-      "searchScale": 0.96
+      "searchScale": 0.96,
+      "keyboardPressScale": 0.965
     }
   },
   "icons": {

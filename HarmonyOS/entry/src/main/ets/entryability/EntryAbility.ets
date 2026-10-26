@@ -8,18 +8,22 @@ import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { wantConstant } from '@kit.AbilityKit';
 import { RoundTripBridge } from '../roundtrip/RoundTripBridge';
+import { KeyboardClient } from '../keyboard/KeyboardClient';
+import { KeyboardNotification } from '../keyboard/KeyboardNotification';
 
 export default class EntryAbility extends UIAbility {
-  onForeground(): void { DisplayContext.foreground = true; PlatformUI.foreground(); }
+  onForeground(): void { DisplayContext.foreground = true; PlatformUI.foreground(); KeyboardClient.refresh(); }
 
   onBackground(): void {
     DisplayContext.foreground = false;
+    KeyboardClient.background();
     PlatformUI.background();
     DisplayContext.microphoneAllowed = false;
     linkdesk.setMicrophoneRequested(false);
     linkdesk.setMicrophoneEnabled(false);
   }
   onDestroy(): void {
+    KeyboardClient.stop();
     PlatformUI.stop();
     LinkDeskTheme.stop();
     linkdesk.setMicrophoneRequested(false);
@@ -32,6 +36,8 @@ export default class EntryAbility extends UIAbility {
     Strings.language = this.context.config.language ?? 'zh-Hans';
     PlatformUI.start();
     LinkDeskTheme.start(this.context);
+    KeyboardClient.start(this.context);
+    KeyboardNotification.start(this.context);
     this.handleIncomingWant(want);
   }
 
@@ -40,6 +46,10 @@ export default class EntryAbility extends UIAbility {
   }
 
   private handleIncomingWant(want: Want): void {
+    if (want.parameters?.linkdeskKeyboard === true) {
+      KeyboardClient.refresh();
+      AppStorage.setOrCreate('LinkDeskKeyboardVisible', true);
+    }
     const reviewOrientation = want.parameters?.linkdeskUIReviewOrientation;
     if (typeof reviewOrientation === 'string') PlatformUI.reviewOrientation(reviewOrientation);
     this.handleSharedPDF(want);

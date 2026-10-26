@@ -93,6 +93,9 @@ export class DT {
   static readonly layoutMirrorWindowVisibleFraction = 0.78;
   static readonly layoutMirrorWindowMinWidth = 720;
   static readonly layoutMirrorWindowMinHeight = 480;
+  static readonly layoutKeyboardKeyHeight = 44;
+  static readonly layoutKeyboardMaxWidth = 760;
+  static readonly layoutKeyboardPressOffset = 2;
   static readonly dimensionsD120 = 120;
   static readonly dimensionsD112 = 112;
   static readonly dimensionsD144 = 144;
@@ -129,6 +132,8 @@ export class DT {
   static readonly durationNotice: number = 2800;
   static readonly durationErrorNotice: number = 4200;
   static readonly durationPanelFade: number = 160;
+  static readonly durationKeyboardPress: number = 65;
+  static readonly durationKeyboardHaptic: number = 8;
   static readonly opacityMuted: number = 0.6;
   static readonly opacitySubtle: number = 0.08;
   static readonly opacityBorder: number = 0.16;
@@ -136,6 +141,7 @@ export class DT {
   static readonly transformMenuScale: number = 0.96;
   static readonly transformExitScale: number = 0.98;
   static readonly transformSearchScale: number = 0.96;
+  static readonly transformKeyboardPressScale: number = 0.965;
   static curveStandard(): ICurve { return curves.cubicBezierCurve(0.42, 0, 0.58, 1); }
   static curveEnter(): ICurve { return curves.cubicBezierCurve(0.16, 1, 0.3, 1); }
   static curveExit(): ICurve { return curves.cubicBezierCurve(0.4, 0, 1, 1); }
@@ -444,6 +450,46 @@ export class Strings {
       case "hdrDescription": return english ? "Preserve HDR brightness and wide color; may reduce frame rate and reconnects when changed. Native Dolby Vision is not supported." : "保留 HDR 亮度和广色域，可能降低帧率；切换会重连。杜比视界原格式暂不支持。";
       case "hdrUnavailable": return english ? "Requires macOS 15 or later and a connected tablet supporting HDR10 and HEVC 10-bit." : "需要 macOS 15 或更新系统，并连接支持 HDR10 和 HEVC 10-bit 的平板。";
       case "panelScreenRefresh": return english ? "Actual display refresh rate {0} Hz" : "屏幕实际刷新率 {0} Hz";
+      case "keyboardTitle": return english ? "Virtual keyboard" : "虚拟键盘";
+      case "keyboardShort": return english ? "Keyboard" : "键盘";
+      case "keyboardReady": return english ? "Tablet keyboard ready" : "平板键盘已就绪";
+      case "keyboardPermissionAction": return english ? "Allow tablet keyboard control…" : "允许平板键盘控制 Mac…";
+      case "keyboardPermissionHint": return english ? "Allow LinkDesk in Mac Privacy & Security → Device Control and Data Access (Accessibility on older systems)" : "请在 Mac 的“设备控制和数据访问”（旧系统为“辅助功能”）中允许 LinkDesk";
+      case "keyboardReadyUSB": return english ? "USB connected · typing on Mac" : "USB 已连接 · 输入到 Mac";
+      case "keyboardReadyWiFi": return english ? "Wi-Fi connected · typing on Mac" : "Wi-Fi 已连接 · 输入到 Mac";
+      case "keyboardPairingHint": return english ? "Connect once by USB, or scan the Mac pairing QR again" : "请用 USB 连接一次，或重新扫描 Mac 配对码";
+      case "keyboardDisconnected": return english ? "Mac disconnected · keyboard unavailable" : "未连接 Mac，键盘暂不可用";
+      case "keyboardSecureInput": return english ? "Mac secure input is active · typing paused" : "Mac 安全输入已开启，暂不能发送按键";
+      case "keyboardCompose": return english ? "Chinese / IME" : "中文 / 手写";
+      case "keyboardComposeHint": return english ? "Compose with system keyboard, then send to Mac" : "使用系统输入法，确认后发送到 Mac";
+      case "keyboardComposePrivacy": return english ? "Only confirmed text is sent. Closing clears the draft; failed input is never replayed." : "只发送已确认的文字；关闭后清空，不自动补发。";
+      case "keyboardSend": return english ? "Send" : "发送";
+      case "keyboardSpace": return english ? "Space" : "空格";
+      case "keyboardEnableNotice": return english ? "Enable notification shortcut" : "启用下拉入口";
+      case "keyboardDisableNotice": return english ? "Disable notification shortcut" : "关闭下拉入口";
+      case "keyboardNotificationHint": return english ? "Mac connected · tap to open keyboard; connection rechecked before typing" : "Mac 已连接 · 点击打开键盘，输入前重新检查连接";
+      case "keyboardNoticeError": return english ? "Notification shortcut unavailable. Check notification permission." : "通知入口不可用，请检查系统通知权限";
+      case "keyboardUSBPriority": return english ? "Prefer USB; use Wi-Fi when unavailable" : "USB 优先，断开后使用 Wi-Fi";
+      case "keyboardWiFiPriority": return english ? "Prefer Wi-Fi; use USB when unavailable" : "Wi-Fi 优先，不可用时使用 USB";
+      case "keyboardUpdateBoth": return english ? "Update both Mac and tablet to the same keyboard build" : "请将 Mac 与平板更新到相同的键盘测试版";
+      case "keyboardDock": return english ? "Docked" : "全宽停靠";
+      case "keyboardSplit": return english ? "Split" : "双手分离";
+      case "keyboardFull": return english ? "Full screen" : "全屏键盘";
+      case "keyboardFloat": return english ? "Floating" : "悬浮紧凑";
+      case "keyboardAdjust": return english ? "Adjust" : "调节";
+      case "keyboardKeyWidth": return english ? "Key width" : "按键宽度";
+      case "keyboardKeyHeight": return english ? "Key height" : "按键高度";
+      case "keyboardWidthValue": return english ? "Width {0} vp" : "键宽 {0} vp";
+      case "keyboardHeightValue": return english ? "Height {0} vp" : "键高 {0} vp";
+      case "keyboardHaptics": return english ? "Haptics" : "触感反馈";
+      case "keyboardNumberPad": return english ? "Number pad" : "数字区";
+      case "keyboardVisualFeedback": return english ? "Haptics unavailable; pressed color and movement remain enabled." : "此设备未提供触感，已保留按下变色与下沉反馈。";
+      case "keyboardModifierHelp": return english ? "Modifiers: tap for one key, hold for chords, double-tap to lock; disconnect releases them." : "修饰键：点按供下一键使用，按住组合，双击锁定；断线自动释放。";
+      case "keyboardMacInput": return english ? "Switch Mac input source" : "切换 Mac 输入法";
+      case "keyboardMacInputKey": return english ? "Lang" : "中/英";
+      case "keyboardUnlock": return english ? "Release locks" : "释放锁定";
+      case "keyboardArmed": return english ? "Next-key modifier" : "下一键组合";
+      case "keyboardMove": return english ? "Move keyboard" : "拖动键盘";
       default: return key;
     }
   }
@@ -724,6 +770,46 @@ export class Strings {
   static get hdrDescription(): string { return Strings.value("hdrDescription"); }
   static get hdrUnavailable(): string { return Strings.value("hdrUnavailable"); }
   static get panelScreenRefresh(): string { return Strings.value("panelScreenRefresh"); }
+  static get keyboardTitle(): string { return Strings.value("keyboardTitle"); }
+  static get keyboardShort(): string { return Strings.value("keyboardShort"); }
+  static get keyboardReady(): string { return Strings.value("keyboardReady"); }
+  static get keyboardPermissionAction(): string { return Strings.value("keyboardPermissionAction"); }
+  static get keyboardPermissionHint(): string { return Strings.value("keyboardPermissionHint"); }
+  static get keyboardReadyUSB(): string { return Strings.value("keyboardReadyUSB"); }
+  static get keyboardReadyWiFi(): string { return Strings.value("keyboardReadyWiFi"); }
+  static get keyboardPairingHint(): string { return Strings.value("keyboardPairingHint"); }
+  static get keyboardDisconnected(): string { return Strings.value("keyboardDisconnected"); }
+  static get keyboardSecureInput(): string { return Strings.value("keyboardSecureInput"); }
+  static get keyboardCompose(): string { return Strings.value("keyboardCompose"); }
+  static get keyboardComposeHint(): string { return Strings.value("keyboardComposeHint"); }
+  static get keyboardComposePrivacy(): string { return Strings.value("keyboardComposePrivacy"); }
+  static get keyboardSend(): string { return Strings.value("keyboardSend"); }
+  static get keyboardSpace(): string { return Strings.value("keyboardSpace"); }
+  static get keyboardEnableNotice(): string { return Strings.value("keyboardEnableNotice"); }
+  static get keyboardDisableNotice(): string { return Strings.value("keyboardDisableNotice"); }
+  static get keyboardNotificationHint(): string { return Strings.value("keyboardNotificationHint"); }
+  static get keyboardNoticeError(): string { return Strings.value("keyboardNoticeError"); }
+  static get keyboardUSBPriority(): string { return Strings.value("keyboardUSBPriority"); }
+  static get keyboardWiFiPriority(): string { return Strings.value("keyboardWiFiPriority"); }
+  static get keyboardUpdateBoth(): string { return Strings.value("keyboardUpdateBoth"); }
+  static get keyboardDock(): string { return Strings.value("keyboardDock"); }
+  static get keyboardSplit(): string { return Strings.value("keyboardSplit"); }
+  static get keyboardFull(): string { return Strings.value("keyboardFull"); }
+  static get keyboardFloat(): string { return Strings.value("keyboardFloat"); }
+  static get keyboardAdjust(): string { return Strings.value("keyboardAdjust"); }
+  static get keyboardKeyWidth(): string { return Strings.value("keyboardKeyWidth"); }
+  static get keyboardKeyHeight(): string { return Strings.value("keyboardKeyHeight"); }
+  static get keyboardWidthValue(): string { return Strings.value("keyboardWidthValue"); }
+  static get keyboardHeightValue(): string { return Strings.value("keyboardHeightValue"); }
+  static get keyboardHaptics(): string { return Strings.value("keyboardHaptics"); }
+  static get keyboardNumberPad(): string { return Strings.value("keyboardNumberPad"); }
+  static get keyboardVisualFeedback(): string { return Strings.value("keyboardVisualFeedback"); }
+  static get keyboardModifierHelp(): string { return Strings.value("keyboardModifierHelp"); }
+  static get keyboardMacInput(): string { return Strings.value("keyboardMacInput"); }
+  static get keyboardMacInputKey(): string { return Strings.value("keyboardMacInputKey"); }
+  static get keyboardUnlock(): string { return Strings.value("keyboardUnlock"); }
+  static get keyboardArmed(): string { return Strings.value("keyboardArmed"); }
+  static get keyboardMove(): string { return Strings.value("keyboardMove"); }
 }
 
 export enum ConnectionState {

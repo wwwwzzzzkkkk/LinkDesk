@@ -6,6 +6,7 @@ import Darwin
 @MainActor
 final class InkBridgeAppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
+    if ProcessInfo.processInfo.arguments.contains("--keyboard-test") { KeyboardHost.shared.showTestWindow() }
     if let iconURL = Bundle.main.url(forResource: "linkdesk-icon", withExtension: "png"), let icon = NSImage(contentsOf: iconURL) {
       NSApp.applicationIconImage = icon
     }
@@ -25,6 +26,7 @@ final class InkBridgeAppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    KeyboardHost.shared.stop()
     LinkDeskTheme.shared.stop()
     DesktopSession.shared.stop()
     LocalRelayLauncher.shared.stop()
@@ -49,6 +51,7 @@ struct MacPDFAnnotatorApp: App {
       }
     }
     LocalRelayLauncher.shared.startIfNeeded()
+    KeyboardHost.shared.start()
   }
 
   var body: some Scene {

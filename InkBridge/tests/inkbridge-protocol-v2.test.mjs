@@ -204,7 +204,7 @@ before(async () => {
   const config = await waitUntilReady(baseURL);
   assert.equal(config.appVersion, "1.6.10");
   assert.equal(config.protocolVersion, 2);
-  assert.equal(config.relayVersion, 13);
+  assert.equal(config.relayVersion, 16);
 });
 
 after(() => {
@@ -1334,7 +1334,7 @@ test("phase 5 persists complete operations and keeps undo/redo canonical across 
     stdio: ["ignore", "pipe", "pipe"],
   });
   const configuration = await waitUntilReady(baseURL);
-  assert.equal(configuration.relayVersion, 13);
+  assert.equal(configuration.relayVersion, 16);
 
   const recovered = makeClient("pdfpad", "phase5-after-restart");
   const recoveredSnapshot = await recovered.join();

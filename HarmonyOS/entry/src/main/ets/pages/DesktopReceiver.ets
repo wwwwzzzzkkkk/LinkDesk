@@ -41,6 +41,7 @@ interface FrameSample {
 
 @Component
 export struct DesktopReceiver {
+  @StorageLink('LinkDeskKeyboardState') keyboardState: string = 'disconnected';
   @StorageLink('LinkDeskDark') darkMode: boolean = false;
   @StorageLink('LinkDeskThemePreference') themePreference: string = 'automatic';
   onExit: () => void = () => {};
@@ -245,10 +246,10 @@ export struct DesktopReceiver {
           this.clampPanel();
         }))
   }
-  @Builder panelAction(title: string, action: () => void) {
+  @Builder panelAction(title: string, action: () => void, disabled: boolean = false) {
     Button(title).layoutWeight(1).height(DT.dimensionsPanelValue48).fontSize(DT.dimensionsPanelValue12)
       .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.dimensionsPanelValue12)
-      .accessibilityText(title).onClick(action)
+      .enabled(!disabled).accessibilityText(title).onClick(action)
   }
   @Builder floatingPanel() {
     Stack({ alignContent: Alignment.TopStart }) {
@@ -292,6 +293,7 @@ export struct DesktopReceiver {
           .accessibilityText(`${this.microphoneDetail()} · ${this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone}`)
           .onClick(() => { void this.toggleMicrophone(); })
         Row({ space: 6 }) {
+          this.panelAction(Strings.keyboardShort, () => AppStorage.setOrCreate('LinkDeskKeyboardVisible', true), !['ready', 'permission', 'secure-input'].includes(this.keyboardState))
           this.panelAction(Strings.backHome, () => this.onExit())
           this.panelAction(Strings.reconnect, () => this.connect())
           this.panelAction(Strings.hide, () => this.setControlsVisible(false))

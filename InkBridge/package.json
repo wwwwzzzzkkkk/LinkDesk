@@ -10,7 +10,7 @@
   "scripts": {
     "local": "node local-server.mjs",
     "test": "npm run test:protocol",
-    "test:protocol": "node --test tests/inkbridge-protocol-v2.test.mjs tests/stroke-tool-lock.test.mjs",
+    "test:protocol": "node --test tests/inkbridge-protocol-v2.test.mjs tests/stroke-tool-lock.test.mjs tests/keyboard-relay.test.mjs",
     "harmony:build": "bash ../scripts/build-harmony.sh",
     "harmony:install": "bash ../scripts/install-harmony.sh"
   },

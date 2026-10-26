@@ -56,6 +56,7 @@ struct LinkDeskWorkspaceView: View {
   @EnvironmentObject private var workspace: PDFWorkspace
   @ObservedObject private var desktop = DesktopSession.shared
   @ObservedObject private var theme = LinkDeskTheme.shared
+  @ObservedObject private var keyboard = KeyboardHost.shared
   @StateObject private var navigation = WorkspaceNavigation()
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   private var selection: LinkDeskDestination? {
@@ -96,6 +97,8 @@ struct LinkDeskWorkspaceView: View {
             ForEach(ThemePreference.allCases) { Text($0.title).tag($0) }
           }.pickerStyle(.menu).help(L10n.themeHelp)
           Button(L10n.pairingTitle) { workspace.isShowingPairing = true }.buttonStyle(.bordered)
+          Button(keyboard.permitted ? L10n.keyboardReady : L10n.keyboardPermissionAction) { keyboard.requestPermission() }
+            .buttonStyle(.bordered).disabled(keyboard.permitted).help(L10n.keyboardPermissionHint)
         }.padding(DT.spacing.s16)
       }.foregroundStyle(DT.text)
         .navigationSplitViewColumnWidth(min: DT.layout.sidebarMin, ideal: DT.layout.sidebar, max: DT.layout.sidebarMax)

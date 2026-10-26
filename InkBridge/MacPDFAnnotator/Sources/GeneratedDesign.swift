@@ -109,6 +109,9 @@ enum DT {
     static let mirrorWindowVisibleFraction: CGFloat = 0.78
     static let mirrorWindowMinWidth: CGFloat = 720
     static let mirrorWindowMinHeight: CGFloat = 480
+    static let keyboardKeyHeight: CGFloat = 44
+    static let keyboardMaxWidth: CGFloat = 760
+    static let keyboardPressOffset: CGFloat = 2
   }
   enum dimensions {
     static let d120: CGFloat = 120
@@ -149,6 +152,8 @@ enum DT {
     static let notice: Double = 2.8
     static let errorNotice: Double = 4.2
     static let panelFade: Double = 0.16
+    static let keyboardPress: Double = 0.065
+    static let keyboardHaptic: Double = 0.008
     static let muted: Double = 0.6
     static let subtle: Double = 0.08
     static let border: Double = 0.16
@@ -156,6 +161,7 @@ enum DT {
     static let menuScale: Double = 0.96
     static let exitScale: Double = 0.98
     static let searchScale: Double = 0.96
+    static let keyboardPressScale: Double = 0.965
     static func standard(_ duration: Double) -> Animation { .timingCurve(0.42, 0, 0.58, 1, duration: duration) }
     static func enter(_ duration: Double) -> Animation { .timingCurve(0.16, 1, 0.3, 1, duration: duration) }
     static func exit(_ duration: Double) -> Animation { .timingCurve(0.4, 0, 1, 1, duration: duration) }
@@ -469,6 +475,46 @@ enum L10n {
     case "hdrDescription": return english ? "Preserve HDR brightness and wide color; may reduce frame rate and reconnects when changed. Native Dolby Vision is not supported." : "保留 HDR 亮度和广色域，可能降低帧率；切换会重连。杜比视界原格式暂不支持。"
     case "hdrUnavailable": return english ? "Requires macOS 15 or later and a connected tablet supporting HDR10 and HEVC 10-bit." : "需要 macOS 15 或更新系统，并连接支持 HDR10 和 HEVC 10-bit 的平板。"
     case "panelScreenRefresh": return english ? "Actual display refresh rate {0} Hz" : "屏幕实际刷新率 {0} Hz"
+    case "keyboardTitle": return english ? "Virtual keyboard" : "虚拟键盘"
+    case "keyboardShort": return english ? "Keyboard" : "键盘"
+    case "keyboardReady": return english ? "Tablet keyboard ready" : "平板键盘已就绪"
+    case "keyboardPermissionAction": return english ? "Allow tablet keyboard control…" : "允许平板键盘控制 Mac…"
+    case "keyboardPermissionHint": return english ? "Allow LinkDesk in Mac Privacy & Security → Device Control and Data Access (Accessibility on older systems)" : "请在 Mac 的“设备控制和数据访问”（旧系统为“辅助功能”）中允许 LinkDesk"
+    case "keyboardReadyUSB": return english ? "USB connected · typing on Mac" : "USB 已连接 · 输入到 Mac"
+    case "keyboardReadyWiFi": return english ? "Wi-Fi connected · typing on Mac" : "Wi-Fi 已连接 · 输入到 Mac"
+    case "keyboardPairingHint": return english ? "Connect once by USB, or scan the Mac pairing QR again" : "请用 USB 连接一次，或重新扫描 Mac 配对码"
+    case "keyboardDisconnected": return english ? "Mac disconnected · keyboard unavailable" : "未连接 Mac，键盘暂不可用"
+    case "keyboardSecureInput": return english ? "Mac secure input is active · typing paused" : "Mac 安全输入已开启，暂不能发送按键"
+    case "keyboardCompose": return english ? "Chinese / IME" : "中文 / 手写"
+    case "keyboardComposeHint": return english ? "Compose with system keyboard, then send to Mac" : "使用系统输入法，确认后发送到 Mac"
+    case "keyboardComposePrivacy": return english ? "Only confirmed text is sent. Closing clears the draft; failed input is never replayed." : "只发送已确认的文字；关闭后清空，不自动补发。"
+    case "keyboardSend": return english ? "Send" : "发送"
+    case "keyboardSpace": return english ? "Space" : "空格"
+    case "keyboardEnableNotice": return english ? "Enable notification shortcut" : "启用下拉入口"
+    case "keyboardDisableNotice": return english ? "Disable notification shortcut" : "关闭下拉入口"
+    case "keyboardNotificationHint": return english ? "Mac connected · tap to open keyboard; connection rechecked before typing" : "Mac 已连接 · 点击打开键盘，输入前重新检查连接"
+    case "keyboardNoticeError": return english ? "Notification shortcut unavailable. Check notification permission." : "通知入口不可用，请检查系统通知权限"
+    case "keyboardUSBPriority": return english ? "Prefer USB; use Wi-Fi when unavailable" : "USB 优先，断开后使用 Wi-Fi"
+    case "keyboardWiFiPriority": return english ? "Prefer Wi-Fi; use USB when unavailable" : "Wi-Fi 优先，不可用时使用 USB"
+    case "keyboardUpdateBoth": return english ? "Update both Mac and tablet to the same keyboard build" : "请将 Mac 与平板更新到相同的键盘测试版"
+    case "keyboardDock": return english ? "Docked" : "全宽停靠"
+    case "keyboardSplit": return english ? "Split" : "双手分离"
+    case "keyboardFull": return english ? "Full screen" : "全屏键盘"
+    case "keyboardFloat": return english ? "Floating" : "悬浮紧凑"
+    case "keyboardAdjust": return english ? "Adjust" : "调节"
+    case "keyboardKeyWidth": return english ? "Key width" : "按键宽度"
+    case "keyboardKeyHeight": return english ? "Key height" : "按键高度"
+    case "keyboardWidthValue": return english ? "Width {0} vp" : "键宽 {0} vp"
+    case "keyboardHeightValue": return english ? "Height {0} vp" : "键高 {0} vp"
+    case "keyboardHaptics": return english ? "Haptics" : "触感反馈"
+    case "keyboardNumberPad": return english ? "Number pad" : "数字区"
+    case "keyboardVisualFeedback": return english ? "Haptics unavailable; pressed color and movement remain enabled." : "此设备未提供触感，已保留按下变色与下沉反馈。"
+    case "keyboardModifierHelp": return english ? "Modifiers: tap for one key, hold for chords, double-tap to lock; disconnect releases them." : "修饰键：点按供下一键使用，按住组合，双击锁定；断线自动释放。"
+    case "keyboardMacInput": return english ? "Switch Mac input source" : "切换 Mac 输入法"
+    case "keyboardMacInputKey": return english ? "Lang" : "中/英"
+    case "keyboardUnlock": return english ? "Release locks" : "释放锁定"
+    case "keyboardArmed": return english ? "Next-key modifier" : "下一键组合"
+    case "keyboardMove": return english ? "Move keyboard" : "拖动键盘"
     default: return key
     }
   }
@@ -749,6 +795,46 @@ enum L10n {
   static var hdrDescription: String { value("hdrDescription") }
   static var hdrUnavailable: String { value("hdrUnavailable") }
   static var panelScreenRefresh: String { value("panelScreenRefresh") }
+  static var keyboardTitle: String { value("keyboardTitle") }
+  static var keyboardShort: String { value("keyboardShort") }
+  static var keyboardReady: String { value("keyboardReady") }
+  static var keyboardPermissionAction: String { value("keyboardPermissionAction") }
+  static var keyboardPermissionHint: String { value("keyboardPermissionHint") }
+  static var keyboardReadyUSB: String { value("keyboardReadyUSB") }
+  static var keyboardReadyWiFi: String { value("keyboardReadyWiFi") }
+  static var keyboardPairingHint: String { value("keyboardPairingHint") }
+  static var keyboardDisconnected: String { value("keyboardDisconnected") }
+  static var keyboardSecureInput: String { value("keyboardSecureInput") }
+  static var keyboardCompose: String { value("keyboardCompose") }
+  static var keyboardComposeHint: String { value("keyboardComposeHint") }
+  static var keyboardComposePrivacy: String { value("keyboardComposePrivacy") }
+  static var keyboardSend: String { value("keyboardSend") }
+  static var keyboardSpace: String { value("keyboardSpace") }
+  static var keyboardEnableNotice: String { value("keyboardEnableNotice") }
+  static var keyboardDisableNotice: String { value("keyboardDisableNotice") }
+  static var keyboardNotificationHint: String { value("keyboardNotificationHint") }
+  static var keyboardNoticeError: String { value("keyboardNoticeError") }
+  static var keyboardUSBPriority: String { value("keyboardUSBPriority") }
+  static var keyboardWiFiPriority: String { value("keyboardWiFiPriority") }
+  static var keyboardUpdateBoth: String { value("keyboardUpdateBoth") }
+  static var keyboardDock: String { value("keyboardDock") }
+  static var keyboardSplit: String { value("keyboardSplit") }
+  static var keyboardFull: String { value("keyboardFull") }
+  static var keyboardFloat: String { value("keyboardFloat") }
+  static var keyboardAdjust: String { value("keyboardAdjust") }
+  static var keyboardKeyWidth: String { value("keyboardKeyWidth") }
+  static var keyboardKeyHeight: String { value("keyboardKeyHeight") }
+  static var keyboardWidthValue: String { value("keyboardWidthValue") }
+  static var keyboardHeightValue: String { value("keyboardHeightValue") }
+  static var keyboardHaptics: String { value("keyboardHaptics") }
+  static var keyboardNumberPad: String { value("keyboardNumberPad") }
+  static var keyboardVisualFeedback: String { value("keyboardVisualFeedback") }
+  static var keyboardModifierHelp: String { value("keyboardModifierHelp") }
+  static var keyboardMacInput: String { value("keyboardMacInput") }
+  static var keyboardMacInputKey: String { value("keyboardMacInputKey") }
+  static var keyboardUnlock: String { value("keyboardUnlock") }
+  static var keyboardArmed: String { value("keyboardArmed") }
+  static var keyboardMove: String { value("keyboardMove") }
 }
 
 enum ConnectionState: String, CaseIterable {

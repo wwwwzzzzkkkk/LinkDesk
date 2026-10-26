@@ -21,6 +21,7 @@ BIN="$(swift build -c "$CONFIGURATION" --package-path "$ROOT" --show-bin-path)"
 cp "$BIN/LinkDesk" "$APP/Contents/MacOS/LinkDesk"
 mkdir -p "$APP/Contents/Resources/public"
 cp "$ROOT/InkBridge/local-server.mjs" "$APP/Contents/Resources/local-server.mjs"
+cp "$ROOT/InkBridge/keyboard-relay.mjs" "$APP/Contents/Resources/keyboard-relay.mjs"
 rsync -a --delete "$ROOT/InkBridge/public/" "$APP/Contents/Resources/public/"
 # A self-contained app does not depend on a separately installed Node or npm tree.
 NODE="${LINKDESK_NODE_BINARY:-$(bash "$ROOT/scripts/prepare-node-runtime.sh")}"

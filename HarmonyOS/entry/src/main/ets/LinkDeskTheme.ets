@@ -3,6 +3,7 @@ import { common, ConfigurationConstant } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
 import { http } from '@kit.NetworkKit';
 import { window } from '@kit.ArkUI';
+import { KeyboardClient } from './keyboard/KeyboardClient';
 
 interface SharedTheme {
   preference: string;
@@ -42,6 +43,7 @@ export class LinkDeskTheme {
     if (!host || !/^[A-Z0-9]{6}$/.test(room)) return;
     if (host === LinkDeskTheme.host && room === LinkDeskTheme.room) return;
     LinkDeskTheme.host = host;
+    KeyboardClient.configure(host);
     LinkDeskTheme.room = room;
     LinkDeskTheme.generation += 1;
     void LinkDeskTheme.synchronize();

@@ -26,3 +26,5 @@ xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-curso
 "$RESULTS/cursor-channel"
 xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-stream-format.cpp" -o "$RESULTS/stream-format"
 "$RESULTS/stream-format"
+xcrun swiftc "$SOURCES/KeyboardModifierLease.swift" "$ROOT/tests/test-keyboard-modifier-lease.swift" -o "$RESULTS/keyboard-modifiers"
+"$RESULTS/keyboard-modifiers"
