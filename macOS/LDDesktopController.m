@@ -803,7 +803,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 OSStatus speed = VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, kCFBooleanTrue);
                 NSLog(@"LinkDesk HEVC low-delay setup: delay=%d speed=%d", (int)delay, (int)speed);
             }
-            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(LDFPS > 60 ? LDFPS * 450000 : 26000000));
+            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(LDFPS > 60 ? LDFPS * 650000 : 26000000));
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ExpectedFrameRate, (__bridge CFNumberRef)@(LDFPS));
             // A full-resolution IDR every second creates periodic encode/USB stalls.
             // Connections still explicitly force an immediate keyframe for recovery.
@@ -831,8 +831,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             uint64_t interval = NSEC_PER_SEC / LDFPS;
             dispatch_source_set_timer(self->_framePacer, dispatch_time(DISPATCH_TIME_NOW, interval), interval, interval / 20);
             config.pixelFormat = self->_hdrActive?kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-            // Three capture surfaces avoid starving the hardware encoder's retained input surfaces.
-            NSInteger depth = self->_useHEVC ? 6 : 3;
+            // Keep enough capture surfaces available while the HEVC encoder retains inputs.
+            NSInteger depth = self->_useHEVC ? 8 : 3;
             NSArray *arguments = NSProcessInfo.processInfo.arguments;
             NSUInteger depthIndex = [arguments indexOfObject:@"--capture-depth"];
             if (depthIndex != NSNotFound && depthIndex + 1 < arguments.count) depth = MAX(3, MIN(8, [arguments[depthIndex + 1] integerValue]));

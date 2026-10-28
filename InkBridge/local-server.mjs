@@ -935,6 +935,9 @@ server.on("upgrade", (request, socket, head) => {
   const accept = createHash("sha1").update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
   socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
   if (path === '/keyboard-host') {
+    // Touch motion is forwarded over this local socket too; do not batch
+    // latency-sensitive pointer events while TCP waits for acknowledgements.
+    socket.setNoDelay(true);
     const peer = new LocalWebSocket(socket, null, raw => keyboardRelay.hostMessage(peer, raw), () => keyboardRelay.hostClosed(peer));
     if (!keyboardRelay.attachHost(peer, request)) return peer.close(1008);
     if (head?.length) peer.receive(head);

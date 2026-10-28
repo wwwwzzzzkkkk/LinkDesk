@@ -84,3 +84,39 @@ test('blank-area dismiss notices use the authenticated ordered touch session', a
   assert.equal(notices.length,1);
   assert.equal(notices[0].includes('dismiss'),false);
 });
+test('pen samples retain ordered pressure and tilt through the authenticated channel', async () => {
+  const f=fixture(), session=(await f.call('session')).value.session;
+  const steps=[{type:'penDown',pressure:.2},{type:'penMove',pressure:.8},{type:'penUp',pressure:0}];
+  steps.forEach((step,i)=>f.relay.touchMessage(f.peer,f.encrypt(session,{...step,seq:i+1,x:.4,y:.6,tiltX:-.2,tiltY:.3})));
+  assert.deepEqual(f.received.map(v=>[v.type,v.pressure,v.tiltX,v.tiltY]),[
+    ['touch:penDown',.2,-.2,.3],['touch:penMove',.8,-.2,.3],['touch:penUp',0,-.2,.3]]);
+  f.relay.touchClosed(f.peer); assert.deepEqual(f.received.at(-1),{type:'keyboard:release',session});
+});
+test('pen rejects missing or invalid pressure and tilt before forwarding', async () => {
+  for (const invalid of [{pressure:-.1},{pressure:1.1},{pressure:null},{tiltX:2},{tiltY:-2}]) {
+    const f=fixture(), session=(await f.call('session')).value.session;
+    f.relay.touchMessage(f.peer,f.encrypt(session,{type:'penDown',seq:1,x:.5,y:.5,pressure:.5,tiltX:0,tiltY:0,...invalid}));
+    assert.equal(f.peer.closed,true); assert.equal(f.received.length,0);
+  }
+});
+test('pen down carries the same smart touch modes and rejects unknown ones', async () => {
+  for (const mode of ['auto','scroll','select']) {
+    const f=fixture(), session=(await f.call('session')).value.session;
+    f.relay.touchMessage(f.peer,f.encrypt(session,{type:'penDown',seq:1,x:.5,y:.5,pressure:.5,tiltX:0,tiltY:0,mode}));
+    assert.equal(f.peer.closed,false); assert.equal(f.received.at(-1).mode,mode);
+  }
+  const f=fixture(), session=(await f.call('session')).value.session;
+  f.relay.touchMessage(f.peer,f.encrypt(session,{type:'penDown',seq:1,x:.5,y:.5,pressure:.5,tiltX:0,tiltY:0,mode:'invalid'}));
+  assert.equal(f.peer.closed,true); assert.equal(f.received.length,0);
+});
+test('pen history batches preserve sample order and reject oversized or malformed samples', async () => {
+  const f=fixture(), session=(await f.call('session')).value.session;
+  const samples=[{x:.2,y:.3,pressure:.1},{x:.4,y:.5,pressure:.7}];
+  f.relay.touchMessage(f.peer,f.encrypt(session,{type:'penMove',seq:1,x:.4,y:.5,pressure:.7,tiltX:0,tiltY:0,samples}));
+  assert.deepEqual(f.received[0].samples,samples);
+  for (const invalid of [Array(9).fill(samples[0]), [{x:2,y:.5,pressure:.4}], [{x:.5,y:.5,pressure:1.1}], []]) {
+    const g=fixture(), id=(await g.call('session')).value.session;
+    g.relay.touchMessage(g.peer,g.encrypt(id,{type:'penMove',seq:1,x:.5,y:.5,pressure:.5,tiltX:0,tiltY:0,samples:invalid}));
+    assert.equal(g.peer.closed,true); assert.equal(g.received.length,0);
+  }
+});

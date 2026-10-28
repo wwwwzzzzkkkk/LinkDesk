@@ -26,6 +26,9 @@ final class KeyboardHost: ObservableObject {
   private var touchDisplay: CGDirectDisplayID = kCGNullDirectDisplay
   private var touchKind = "idle"
   private var touchStart = CGPoint.zero
+  private var touchStartedAt: TimeInterval = 0
+  private var touchIsPen = false
+  private var penStartPressure = 0.0, penPressure = 0.0, penTiltX = 0.0, penTiltY = 0.0
   private var touchLatest = CGPoint.zero
   private var touchTarget: TouchTarget?
   private var touchForceScroll = false
@@ -238,10 +241,22 @@ final class KeyboardHost: ObservableObject {
     if type == .leftMouseDown || type == .leftMouseUp || type == .leftMouseDragged { event.setIntegerValueField(.mouseEventClickState, value: touchClickCount) }
     event.post(tap: .cghidEventTap)
   }
+  private func postPen(_ type: CGEventType, _ point: CGPoint, pressure: Double, tiltX: Double, tiltY: Double) {
+    guard let event = TabletPen.event(type, at: point, pressure: pressure, tiltX: tiltX, tiltY: tiltY, source: eventSource) else { return }
+    event.setIntegerValueField(.mouseEventClickState, value: touchClickCount)
+    event.post(tap: .cghidEventTap)
+  }
+  private func penProximity(_ point: CGPoint, entering: Bool) {
+    TabletPen.proximity(at: point, entering: entering, source: eventSource)?.post(tap: .cghidEventTap)
+  }
   private func releaseTouch() {
     if touchOwner != nil && touchKind == "drag" { mouse(.leftMouseUp, touchLast) }
+    if touchOwner != nil && touchKind == "pen" {
+      postPen(.leftMouseUp, touchLast, pressure: 0, tiltX: penTiltX, tiltY: penTiltY)
+      penProximity(touchLast, entering: false)
+    }
     if touchOwner != nil && touchKind == "pinch" { TouchMagnification.post(0, phase: 4) }
-    touchOwner = nil; touchDisplay = kCGNullDirectDisplay; touchKind = "idle"; touchToken += 1
+    touchOwner = nil; touchDisplay = kCGNullDirectDisplay; touchKind = "idle"; touchIsPen = false; touchToken += 1
   }
   private func stopMomentum() {
     momentumTimer?.invalidate(); momentumTimer = nil
@@ -297,19 +312,28 @@ final class KeyboardHost: ObservableObject {
     let near = hypot(touchStart.x - lastTouchClickPoint.x, touchStart.y - lastTouchClickPoint.y) <= 5
     touchClickCount = near && now - lastTouchClick <= NSEvent.doubleClickInterval ? min(3, touchClickCount + 1) : 1
     lastTouchClick = now; lastTouchClickPoint = touchStart
-    mouse(.mouseMoved, touchStart); mouse(.leftMouseDown, touchStart); touchKind = "drag"
+    if touchIsPen {
+      penProximity(touchStart, entering: true)
+      postPen(.leftMouseDown, touchStart, pressure: penStartPressure, tiltX: penTiltX, tiltY: penTiltY)
+      touchKind = "pen"
+    } else { mouse(.mouseMoved, touchStart); mouse(.leftMouseDown, touchStart); touchKind = "drag" }
   }
   private func moveTouch(_ point: CGPoint, sample: TimeInterval = ProcessInfo.processInfo.systemUptime) {
     if touchKind == "pending" {
+      if touchTarget == nil {
+        touchTarget = TouchTarget.fallback(delta: CGPoint(x: point.x - touchStart.x, y: point.y - touchStart.y), elapsed: ProcessInfo.processInfo.systemUptime - touchStartedAt)
+      }
       guard let target = touchTarget else { touchLatest = point; return }
       let dx = point.x - touchStart.x, dy = point.y - touchStart.y
       if TouchTarget.shouldScroll(target, force: touchForceScroll, delta: CGPoint(x: dx, y: dy)) {
         touchKind = "scroll"; mouse(.mouseMoved, touchStart); scrollAt = ProcessInfo.processInfo.systemUptime; scrollPoint = touchStart
       } else { beginDrag() }
     }
-    if touchKind == "drag" {
+    if touchKind == "drag" || touchKind == "pen" {
       if hypot(point.x - touchStart.x, point.y - touchStart.y) > 5 { lastTouchClick = 0; touchClickCount = 1 }
-      touchLast = point; mouse(.leftMouseDragged, point)
+      touchLast = point
+      if touchKind == "pen" { postPen(.leftMouseDragged, point, pressure: penPressure, tiltX: penTiltX, tiltY: penTiltY) }
+      else { mouse(.leftMouseDragged, point) }
     } else if touchKind == "scroll" {
       let delta = CGPoint(x: point.x - touchLast.x, y: point.y - touchLast.y)
       touchLast = point; trackScroll(delta, at: point, sample: sample)
@@ -340,10 +364,22 @@ final class KeyboardHost: ObservableObject {
     let now = ProcessInfo.processInfo.systemUptime
     let sample = now - max(0, min(0.5, Date().timeIntervalSince1970 - (expires - 1000) / 1000))
     touchRenewed = ProcessInfo.processInfo.systemUptime
-    switch type {
+    let isPen = ["touch:penDown", "touch:penMove", "touch:penUp"].contains(type)
+    if isPen {
+      guard let pressure = value["pressure"] as? Double, pressure.isFinite, (0...1).contains(pressure),
+        let tiltX = value["tiltX"] as? Double, tiltX.isFinite, (-1...1).contains(tiltX),
+        let tiltY = value["tiltY"] as? Double, tiltY.isFinite, (-1...1).contains(tiltY) else { return }
+      if type != "touch:penDown" && (touchOwner != session || !touchIsPen) { return }
+      if type != "touch:penUp" { penPressure = pressure }
+      penTiltX = tiltX; penTiltY = tiltY
+    }
+    let action = isPen ? (type == "touch:penDown" ? "touch:down" : type == "touch:penMove" ? "touch:move" : "touch:up") : type
+    switch action {
     case "touch:down":
+      if isPen && touchOwner != nil && touchOwner != session { return }
       stopMomentum(); if touchOwner != nil { releaseTouch() }
-      touchLast = p; touchStart = p; touchLatest = p; touchOwner = session; touchDisplay = display; touchKind = "pending"
+      touchIsPen = isPen; if isPen { penStartPressure = penPressure }
+      touchLast = p; touchStart = p; touchStartedAt = now; touchLatest = p; touchOwner = session; touchDisplay = display; touchKind = "pending"
       let mode = value["mode"] as? String ?? "auto"
       touchReduceMotion = value["reduceMotion"] as? Bool ?? false
       touchForceScroll = mode == "scroll"; scrollDisplay = display
@@ -362,16 +398,28 @@ final class KeyboardHost: ObservableObject {
         Task { @MainActor [weak self] in
           try? await Task.sleep(for: .milliseconds(80))
           guard let self, self.touchOwner == session, self.touchToken == token, self.touchKind == "pending", self.touchTarget == nil else { return }
-          let dx = self.touchLatest.x - self.touchStart.x, dy = self.touchLatest.y - self.touchStart.y
-          self.touchTarget = abs(dy) > abs(dx) * 1.15 ? .scroll : .drag
+          let delta = CGPoint(x: self.touchLatest.x - self.touchStart.x, y: self.touchLatest.y - self.touchStart.y)
+          guard let fallback = TouchTarget.fallback(delta: delta, elapsed: ProcessInfo.processInfo.systemUptime - self.touchStartedAt) else { return }
+          self.touchTarget = fallback
           if self.touchLatest != self.touchStart { self.moveTouch(self.touchLatest) }
         }
       }
     case "touch:move":
-      guard touchOwner == session else { return }
-      moveTouch(p, sample: sample)
+      guard touchOwner == session, touchIsPen == isPen else { return }
+      if isPen, let values = value["samples"] as? [[String: Double]], !values.isEmpty, values.count <= 8 {
+        // Scrolling needs one current sample per packet for velocity tracking;
+        // active pen strokes use every retained point and pressure in order.
+        let points = touchKind == "pen" ? values : Array(values.suffix(1))
+        for v in points {
+          guard let sx = v["x"], let sy = v["y"], let pressure = v["pressure"],
+            sx.isFinite, sy.isFinite, pressure.isFinite, (0...1).contains(sx), (0...1).contains(sy), (0...1).contains(pressure) else { return }
+          penPressure = pressure
+          let point = CGPoint(x: bounds.minX + min(sx * bounds.width, bounds.width - 1), y: bounds.minY + min(sy * bounds.height, bounds.height - 1))
+          moveTouch(point, sample: sample)
+        }
+      } else { moveTouch(p, sample: sample) }
     case "touch:up":
-      guard touchOwner == session else { return }
+      guard touchOwner == session, touchIsPen == isPen else { return }
       if touchKind == "pending" {
         if touchLatest != touchStart {
           if touchTarget == nil { let dx = touchLatest.x - touchStart.x, dy = touchLatest.y - touchStart.y; touchTarget = abs(dy) > abs(dx) * 1.15 ? .scroll : .drag }
@@ -379,7 +427,7 @@ final class KeyboardHost: ObservableObject {
         }
         else { beginDrag() }
       }
-      if touchKind == "drag" {
+      if touchKind == "drag" || touchKind == "pen" {
         let doubleClick = touchClickCount == 2 && hypot(p.x - touchStart.x, p.y - touchStart.y) <= 5
         touchLast = p; releaseTouch()
         if doubleClick, let sequence = value["seq"] as? Int {

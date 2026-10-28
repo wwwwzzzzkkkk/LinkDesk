@@ -8,7 +8,7 @@ import linkdesk from 'liblinkdesk.so';
 import systemDateTime from '@ohos.systemDateTime';
 import { DisplayContext } from '../DisplayContext';
 import { CursorOverlay } from './CursorOverlay';
-import { TouchClient } from './TouchClient';
+import { TouchClient, PenSample } from './TouchClient';
 import { KeyboardClient } from '../keyboard/KeyboardClient';
 
 interface TouchPoint { x: number; y: number; }
@@ -75,6 +75,7 @@ export struct DesktopReceiver {
   private touchPoints: Map<number, TouchPoint> = new Map();
   private touchMode: string = 'idle';
   private touchPrimary: number = -1;
+  private penPrimary: number = -1;
   private touchStart: TouchPoint = { x: 0, y: 0 };
   private touchLast: TouchPoint = { x: 0, y: 0 };
   private scrollLast: TouchPoint = { x: 0, y: 0 };
@@ -217,7 +218,57 @@ export struct DesktopReceiver {
     this.touchClient.send(type, p.x / this.displayWidth, p.y / this.displayHeight, dx, dy, this.touchInputMode, this.reduceMotion);
   }
   private cancelTouch(): void {
-    this.stopHold(); this.touchClient.send('cancel', 0, 0); this.touchPoints.clear(); this.touchPrimary = -1; this.touchMode = 'idle';
+    this.stopHold(); this.touchClient.send('cancel', 0, 0); this.touchPoints.clear(); this.touchPrimary = -1; this.penPrimary = -1; this.touchMode = 'idle';
+  }
+  private penPressure(raw: number): number {
+    if (!Number.isFinite(raw) || raw <= 0) return 0.52;
+    return Math.max(0, Math.min(1, raw > 1 ? raw / 65535 : raw));
+  }
+  private penTilt(degrees: number): number {
+    return Number.isFinite(degrees) ? Math.max(-1, Math.min(1, degrees / 90)) : 0;
+  }
+  private sendPen(type: string, p: TouchPoint, pressure: number, tiltX: number, tiltY: number, samples: PenSample[] = []): void {
+    if (this.displayWidth <= 0 || this.displayHeight <= 0) return;
+    this.touchClient.send(type, p.x / this.displayWidth, p.y / this.displayHeight, 0, 0,
+      this.touchInputMode, this.reduceMotion, pressure, this.penTilt(tiltX), this.penTilt(tiltY), samples);
+  }
+  private handlePen(event: TouchEvent): void {
+    const touch = event.changedTouches[0]; if (!touch) return;
+    const point: TouchPoint = { x: touch.x, y: touch.y };
+    const pressure = this.penPressure(Math.max(touch.pressure ?? 0, event.pressure ?? 0));
+    if (event.type === TouchType.Down) {
+      if (this.penPrimary >= 0) return;
+      this.cancelTouch(); this.penPrimary = touch.id; this.touchStart = point; this.touchLast = point; this.touchMode = 'penPending';
+      this.sendPen('penDown', point, pressure, event.tiltX, event.tiltY);
+      this.holdTimer = setTimeout(() => {
+        if (this.touchMode === 'penPending' && this.penPrimary === touch.id) {
+          this.sendTouch('cancel', this.touchLast); this.sendTouch('right', this.touchLast); this.touchMode = 'penHandled';
+        }
+        this.holdTimer = -1;
+      }, 500);
+    } else if (touch.id === this.penPrimary && event.type === TouchType.Move) {
+      this.touchLast = point;
+      if (this.touchMode === 'penPending' && Math.hypot(point.x - this.touchStart.x, point.y - this.touchStart.y) >= 5) {
+        this.stopHold(); this.touchMode = 'penDrag';
+      }
+      if (this.touchMode === 'penDrag') {
+        // Bundle one frame's historical points into a single authenticated
+        // message; keep the newest bounded samples under backpressure.
+        const samples: PenSample[] = [];
+        event.getHistoricalPoints().forEach((sample: HistoricalPoint) => {
+          const h: TouchPoint = { x: sample.touchObject.x, y: sample.touchObject.y };
+          if (sample.touchObject.id === this.penPrimary && Math.hypot(h.x - this.touchStart.x, h.y - this.touchStart.y) >= 5) {
+            samples.push({ x: Math.max(0, Math.min(1, h.x / this.displayWidth)), y: Math.max(0, Math.min(1, h.y / this.displayHeight)), pressure: sample.force > 0 ? this.penPressure(sample.force) : pressure });
+          }
+        });
+        samples.push({ x: Math.max(0, Math.min(1, point.x / this.displayWidth)), y: Math.max(0, Math.min(1, point.y / this.displayHeight)), pressure: pressure });
+        this.sendPen('penMove', point, pressure, event.tiltX, event.tiltY, samples.slice(-8));
+      }
+    } else if (touch.id === this.penPrimary && event.type === TouchType.Up) {
+      this.stopHold();
+      if (this.touchMode === 'penPending' || this.touchMode === 'penDrag') this.sendPen('penUp', point, 0, event.tiltX, event.tiltY);
+      this.penPrimary = -1; this.touchMode = 'idle';
+    }
   }
   private touchCenter(): TouchPoint {
     let x = 0; let y = 0; let count = 0;
@@ -232,19 +283,26 @@ export struct DesktopReceiver {
   private handleTouch(event: TouchEvent): void {
     if (this.state !== 3 || !DisplayContext.foreground) { this.cancelTouch(); return; }
     if (event.type === TouchType.Cancel) { this.cancelTouch(); return; }
+    if (event.sourceTool === SourceTool.Pen) { this.handlePen(event); return; }
+    // Ignore palm or finger contacts while a pen stroke is in progress.
+    if (this.penPrimary >= 0) return;
     if (event.type === TouchType.Down || event.type === TouchType.Move) {
       event.changedTouches.forEach((touch: TouchObject) => { this.touchPoints.set(touch.id, { x: touch.x, y: touch.y }); });
     }
     if (event.type === TouchType.Down && this.touchPoints.size === 1 && this.touchMode === 'idle') {
       const touch = event.changedTouches[0]; if (!touch) return;
       this.sendTouch('halt', { x: touch.x, y: touch.y });
+      // Begin hit testing while the finger is settling. The Mac keeps this
+      // pending until a move or release, so long-press and taps stay distinct.
+      this.sendTouch('down', { x: touch.x, y: touch.y });
       this.touchPrimary = touch.id; this.touchStart = { x: touch.x, y: touch.y }; this.touchLast = this.touchStart; this.touchMode = 'pending';
       this.stopHold(); this.holdTimer = setTimeout(() => {
-        if (this.touchMode === 'pending' && this.touchPoints.size === 1) { this.sendTouch('right', this.touchLast); this.touchMode = 'handled'; }
+        if (this.touchMode === 'pending' && this.touchPoints.size === 1) { this.sendTouch('cancel', this.touchLast); this.sendTouch('right', this.touchLast); this.touchMode = 'handled'; }
         this.holdTimer = -1;
       }, 500);
     } else if (event.type === TouchType.Down && this.touchPoints.size >= 2) {
       this.stopHold(); if (this.touchMode === 'drag') this.sendTouch('up', this.touchLast);
+      else if (this.touchMode === 'pending') this.sendTouch('cancel', this.touchLast);
       if (this.touchMode === 'pinch') this.sendTouch('pinchend', this.touchCenter());
       if (this.touchMode === 'scroll') this.sendTouch('scrollend', this.touchCenter());
       if (this.touchPoints.size === 2) {
@@ -280,7 +338,7 @@ export struct DesktopReceiver {
       const point = this.touchPoints.get(this.touchPrimary); if (!point) return;
       this.touchLast = point;
       if (this.touchMode === 'pending' && Math.hypot(point.x - this.touchStart.x, point.y - this.touchStart.y) >= 5) {
-        this.stopHold(); this.sendTouch('down', this.touchStart); this.touchMode = 'drag';
+        this.stopHold(); this.touchMode = 'drag';
       }
       if (this.touchMode === 'drag') this.sendTouch('move', point);
     }
@@ -294,7 +352,7 @@ export struct DesktopReceiver {
       event.changedTouches.forEach((touch: TouchObject) => {
         if (touch.id === this.touchPrimary) {
           const p: TouchPoint = { x: touch.x, y: touch.y };
-          if (this.touchMode === 'pending') { this.sendTouch('down', p); this.sendTouch('up', p); }
+          if (this.touchMode === 'pending') this.sendTouch('up', p);
           else if (this.touchMode === 'drag') this.sendTouch('up', p);
         }
         this.touchPoints.delete(touch.id);

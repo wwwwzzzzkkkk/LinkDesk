@@ -5,7 +5,8 @@ import { KeyboardClient, TouchCredentials } from '../keyboard/KeyboardClient';
 import { DisplayContext } from '../DisplayContext';
 
 interface TouchSession { identity: string; session: string; serverTime: number; keyboardVersion: number; }
-interface TouchPacket { type: string; x: number; y: number; dx: number; dy: number; seq: number; expires: number; queued: number; mode: string; reduceMotion: boolean; keyboardOpen: boolean; }
+export interface PenSample { x: number; y: number; pressure: number; }
+interface TouchPacket { type: string; x: number; y: number; dx: number; dy: number; seq: number; expires: number; queued: number; mode: string; reduceMotion: boolean; keyboardOpen: boolean; pressure: number; tiltX: number; tiltY: number; samples?: PenSample[]; }
 interface TouchReply { type: string; seq: number; expires: number; }
 interface TouchEnvelope { payload: string; }
 
@@ -83,11 +84,17 @@ export class TouchClient {
       else AppStorage.setOrCreate('LinkDeskKeyboardVisible', false);
     } catch (_) { /* Ignore untrusted or stale notices. */ }
   }
-  send(type: string, x: number, y: number, dx: number = 0, dy: number = 0, mode: string = 'auto', reduceMotion: boolean = false): void {
+  send(type: string, x: number, y: number, dx: number = 0, dy: number = 0, mode: string = 'auto', reduceMotion: boolean = false, pressure: number = 0, tiltX: number = 0, tiltY: number = 0, samples: PenSample[] = []): void {
     if (!this.opened || !this.active || !DisplayContext.foreground) return;
-    const packet: TouchPacket = { type: type, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)), dx: dx, dy: dy, seq: 0, expires: 0, queued: Date.now(), mode: mode, reduceMotion: reduceMotion, keyboardOpen: AppStorage.get<boolean>('LinkDeskKeyboardVisible') === true };
+    const packet: TouchPacket = { type: type, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)), dx: dx, dy: dy, seq: 0, expires: 0, queued: Date.now(), mode: mode, reduceMotion: reduceMotion, keyboardOpen: AppStorage.get<boolean>('LinkDeskKeyboardVisible') === true, pressure: pressure, tiltX: tiltX, tiltY: tiltY };
+    if (type === 'penMove' && samples.length) packet.samples = samples.slice(-8);
     const tail = this.queue.length ? this.queue[this.queue.length - 1] : undefined;
-    if (tail && type === 'move' && tail.type === 'move') this.queue[this.queue.length - 1] = packet;
+    if (tail && type === 'penMove' && tail.type === 'penMove') {
+      const previous = tail.samples ?? [{ x: tail.x, y: tail.y, pressure: tail.pressure }];
+      const next = packet.samples ?? [{ x: packet.x, y: packet.y, pressure: packet.pressure }];
+      packet.samples = previous.concat(next).slice(-8);
+      this.queue[this.queue.length - 1] = packet;
+    } else if (tail && type === 'move' && tail.type === 'move') this.queue[this.queue.length - 1] = packet;
     else if (tail && type === 'pinch' && tail.type === 'pinch' && Math.abs((1 + tail.dx) * (1 + dx) - 1) <= 0.4) { tail.dx = (1 + tail.dx) * (1 + dx) - 1; tail.x = packet.x; tail.y = packet.y; }
     else if (tail && type === 'scroll' && tail.type === 'scroll' && Math.abs(tail.dx + dx) <= 200 && Math.abs(tail.dy + dy) <= 200) { tail.dx += dx; tail.dy += dy; tail.x = packet.x; tail.y = packet.y; }
     else if (type !== 'ping' || !tail || tail.type !== 'ping') this.queue.push(packet);

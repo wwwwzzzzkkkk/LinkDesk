@@ -30,6 +30,12 @@ enum TouchTarget: Sendable {
   nonisolated static func shouldScroll(_ target: TouchTarget, force: Bool, delta: CGPoint) -> Bool {
     (target == .scroll || target == .unknown) && (force || abs(delta.y) > abs(delta.x) * 1.15)
   }
+  // An early touch-down can wait without moving. Do not guess its purpose
+  // until motion provides a direction; otherwise a pause breaks scrolling.
+  nonisolated static func fallback(delta: CGPoint, elapsed: TimeInterval) -> TouchTarget? {
+    guard elapsed >= 0.08, delta != .zero else { return nil }
+    return abs(delta.y) > abs(delta.x) * 1.15 ? .scroll : .drag
+  }
   nonisolated static func at(_ point: CGPoint) -> TouchTarget {
     let system = AXUIElementCreateSystemWide()
     AXUIElementSetMessagingTimeout(system, 0.025)
