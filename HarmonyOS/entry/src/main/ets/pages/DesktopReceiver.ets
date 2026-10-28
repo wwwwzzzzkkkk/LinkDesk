@@ -106,6 +106,7 @@ export struct DesktopReceiver {
     this.realtimeFPS = 0;
     this.screenHz = 0;
     AppStorage.setOrCreate('LinkDeskReceiverWorking', false);
+    PlatformUI.setReceiver(false);
     linkdesk.setLatestMode(this.latestMode);
     linkdesk.start(this.surface.getXComponentSurfaceId(), DisplayContext.windowId);
     if (this.microphoneAllowed) { linkdesk.setMicrophoneRequested(true); linkdesk.setMicrophoneEnabled(true); }
@@ -114,6 +115,7 @@ export struct DesktopReceiver {
       const info = JSON.parse(linkdesk.stats()) as ReceiverStats;
       this.state = info.state;
       AppStorage.setOrCreate('LinkDeskReceiverWorking', info.state === 3);
+      PlatformUI.setReceiver(info.state === 3);
       this.hostRequestState = info.hostRequestState;
       this.audioState = info.audioState;
       this.screenHz = info.screenHz;
@@ -167,7 +169,7 @@ export struct DesktopReceiver {
   }
   @Builder microphoneAction() {
     Button(this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minHeight: DT.layoutTouchTarget, minWidth: DT.layoutTouchTarget })
       .onClick(() => { void this.toggleMicrophone(); })
   }
@@ -176,7 +178,7 @@ export struct DesktopReceiver {
       detail: this.microphoneState === 2 ? Strings.microphoneSending : this.microphoneState === -1 ? Strings.microphoneError : this.microphoneMessage,
       control: (): void => { this.microphoneAction(); } })
   }
-  aboutToAppear(): void { this.active = true; PlatformUI.setReceiver(true); }
+  aboutToAppear(): void { this.active = true; }
 
   aboutToDisappear(): void {
     this.active = false;
@@ -248,7 +250,7 @@ export struct DesktopReceiver {
   }
   @Builder panelAction(title: string, action: () => void, disabled: boolean = false) {
     Button(title).layoutWeight(1).height(DT.dimensionsPanelValue48).fontSize(DT.dimensionsPanelValue12)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.dimensionsPanelValue12)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.dimensionsPanelValue12)
       .enabled(!disabled).accessibilityText(title).onClick(action)
   }
   @Builder floatingPanel() {
@@ -272,7 +274,7 @@ export struct DesktopReceiver {
             Text(Strings.lowLatency).fontSize(DT.dimensionsPanelValue11).fontColor(DT.text(this.darkMode))
           }
             .height(DT.dimensionsPanelValue48).padding({ left: 10, right: 10 }).borderRadius(DT.dimensionsPanelValue12)
-            .backgroundColor(DT.control(this.darkMode)).selectedColor(DT.accentSoft(this.darkMode))
+            .backgroundColor(DT.keyboardKey(this.darkMode)).selectedColor(DT.accentSoft(this.darkMode))
             .enabled(this.timedSupported).accessibilityText(Strings.lowLatency)
             .onChange((value: boolean) => { this.latestMode = value; linkdesk.setLatestMode(value); })
         }.width('100%').height(DT.dimensionsPanelValue48)
@@ -288,7 +290,7 @@ export struct DesktopReceiver {
             Text(this.microphoneAllowed ? Strings.panelTurnOff : Strings.panelTurnOn)
               .fontSize(DT.dimensionsPanelValue11).fontColor(DT.secondary(this.darkMode))
           }.width('100%').padding({ left: 12, right: 12 })
-        }.width('100%').height(DT.dimensionsPanelValue48).borderRadius(DT.dimensionsPanelValue12).backgroundColor(DT.control(this.darkMode))
+        }.width('100%').height(DT.dimensionsPanelValue48).borderRadius(DT.dimensionsPanelValue12).backgroundColor(DT.keyboardKey(this.darkMode))
           .enabled(!this.microphonePending)
           .accessibilityText(`${this.microphoneDetail()} · ${this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone}`)
           .onClick(() => { void this.toggleMicrophone(); })
@@ -314,7 +316,7 @@ export struct DesktopReceiver {
       }
     }
       .width(this.panelWidth()).height(this.panelHeight()).borderRadius(DT.dimensionsPanelValue24)
-      .backgroundColor(DT.glass(this.darkMode))
+      .backgroundColor(DT.keyboardGlass(this.darkMode))
       .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
       // A single bounded blur; no per-frame JS animation or full-screen hit target.
       .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })

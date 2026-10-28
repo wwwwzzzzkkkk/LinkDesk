@@ -2,9 +2,9 @@
 
 # LinkDesk
 
-Mac 与 MatePad 的跨屏工作空间。**V1.1.1** 带来更适合双手握持的拇指分离键盘、液态玻璃调节浮层和 Delete／Caps Lock 修复。平板可通过 USB 或 Wi-Fi 为 Mac 输入；同一应用还提供 2880 × 1920 扩展屏幕、独立光标、HDR10、双向音频、PDF 批注、无限白板、平板投屏和华为笔记往返。
+Mac 与 MatePad 的跨屏工作空间。**V1.1.2** 统一平板沉浸光感视觉，修复页面切换跳动，并改善快速鼠标移动和帧节奏。平板可通过 USB 或 Wi-Fi 为 Mac 输入；同一应用还提供 2880 × 1920 扩展屏幕、独立光标、HDR10、双向音频、PDF 批注、无限白板、平板投屏和华为笔记往返。
 
-[下载 V1.1.1](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v1.1.1) · [更新记录](CHANGELOG.md) · [安装说明](docs/INSTALL.md) · [本版验证与限制](docs/RELEASE_1.1.1.md)
+[下载 V1.1.2](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v1.1.2) · [更新记录](CHANGELOG.md) · [安装说明](docs/INSTALL.md) · [本版验证与限制](docs/RELEASE_1.1.2.md)
 
 | 工作空间 | 用途 | 连接 |
 | --- | --- | --- |
@@ -15,7 +15,14 @@ Mac 与 MatePad 的跨屏工作空间。**V1.1.1** 带来更适合双手握持�
 
 Mac 使用原生侧栏；平板使用统一工作台和悬浮书写工具栏。两端提供同步的“跟随系统／浅色／深色”外观选择，自动模式跟随 Mac。应用名称、图标与功能顺序一致，视觉采用蓝色、薄荷绿与原生材质。双端令牌、截图与验收范围见 [UI 一致性](docs/ui-parity/README.md)。完整架构、兼容规则与验收记录见 [整合说明](docs/UNIFICATION.md)。
 
-## V1.1.1 功能与特点
+## V1.1.2 功能与特点
+
+### 平板光感与输入稳定性 · V1.1.2
+
+- **统一沉浸光感视觉**：目标 HarmonyOS API 26；系统支持的菜单、滑块、开关使用原生光感，其余自绘面板、键盘与视频浮层使用协调的轻量玻璃视觉。最低兼容 API 24，低版本采用降级样式。
+- **页面更稳定**：统一工作台和书写界面的安全区域，避免切换功能时整体上下跳动；扩展屏幕在画面就绪后进入沉浸模式，退出时恢复系统栏。
+- **快速光标更流畅**：独立光标使用有限在途窗口和最新位置优先，避免过期坐标堆积；用户实机反馈快速移动比之前好很多。
+- **改善帧节奏**：限制迟到回调造成的追赶突发，保留 2880 × 1920 和原有画质；实测帧率仍随负载波动，不能承诺稳定 120／144 fps。详见[光标与帧节奏](docs/CURSOR_FRAME_STABILITY.md)及[平板视觉](docs/IMMERSIVE_LIGHT_UI.md)。
 
 ### 平板上的 Mac 虚拟键盘 · V1.1.1 改进
 
@@ -86,7 +93,7 @@ HDR 路径需要 macOS 15+、Apple Silicon 和兼容的平板显示／解码能�
 
 Mac 统一版已构建并使用原固定签名安装到 Mac mini，协议与原生绘制回归通过。鸿蒙已更新原调试签名，合并包成功覆盖安装并启动；统一首页和深浅色双向同步已实机检查。LiveView 需要单独开通华为平台权益。
 
-统一版 [1.1.1 正式下载](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v1.1.1) 提供 Apple Silicon Mac 安装包与 SHA-256 校验文件，对应源码同时公开。Homebrew 用户运行 `brew update && brew upgrade --cask linkdesk`。双端建议一起更新，以使用虚拟键盘、独立光标、HDR能力协商和最新麦克风同步逻辑。鸿蒙个人调试签名与设备绑定，公开源码中不提供个人签名 HAP；请在 DevEco Studio 中自行签名安装。Mac 发行包使用原固定开发证书，尚未经过 Apple Developer ID 公证。
+统一版 [1.1.2 正式下载](https://github.com/wwwwzzzzkkkk/LinkDesk/releases/tag/v1.1.2) 提供 Apple Silicon Mac 安装包与 SHA-256 校验文件，对应源码同时公开。Homebrew 用户运行 `brew update && brew upgrade --cask linkdesk`。双端建议一起更新，以使用虚拟键盘、独立光标、HDR能力协商和最新麦克风同步逻辑。鸿蒙个人调试签名与设备绑定，公开源码中不提供个人签名 HAP；请在 DevEco Studio 中自行签名安装。Mac 发行包使用原固定开发证书，尚未经过 Apple Developer ID 公证。
 
 ## 构建与安装
 

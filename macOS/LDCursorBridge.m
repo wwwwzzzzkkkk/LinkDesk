@@ -1,11 +1,14 @@
 #import "LDCursorBridge.h"
+#import "LDCursorFlow.h"
 #import <CoreMedia/CoreMedia.h>
 #import <arpa/inet.h>
 #import <netinet/tcp.h>
 #import <sys/socket.h>
 #import <unistd.h>
+#import <stdlib.h>
 
 static void Put32(NSMutableData *data, uint32_t value) { value=htonl(value); [data appendBytes:&value length:4]; }
+static int CompareDouble(const void *a, const void *b) { double x=*(const double *)a, y=*(const double *)b; return (x>y)-(x<y); }
 static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock())) * 1000000.0; }
 
 @implementation LDCursorBridge {
@@ -54,15 +57,15 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
             if(!live){close(client);break;}
             dispatch_async(dispatch_get_main_queue(),^{if(epoch==self->_epoch&&self->_timer&&self->_changed)self->_changed(YES);});
             NSLog(@"CURSOR_CHANNEL connected");
-            NSData *last=nil; uint8_t ack[16]; size_t ackBytes=0;
-            double total=0,maximum=0; unsigned samples=0; uint64_t lastAck=ClockUs();
+            NSData *last=nil; uint8_t ack[16]; size_t ackBytes=0; LDCursorFlow flow={0};
+            double total=0,maximum=0,latencies[120]; unsigned samples=0; uint64_t lastAck=ClockUs();
             while(YES){
                 [self->_lock lock]; NSData *packet=self->_latest; live=self->_running; [self->_lock unlock];
                 if(!live)break;
-                if(packet&&packet!=last){
+                if(packet&&packet!=last&&LDCursorCanSend(&flow)){
                     const uint8_t *p=packet.bytes; size_t left=packet.length;
                     while(left){ssize_t n=send(client,p,left,0);if(n<0&&errno==EINTR)continue;if(n<=0)break;p+=n;left-=n;}
-                    if(left)break; last=packet;
+                    if(left)break; last=packet; uint32_t sequence; memcpy(&sequence, (const uint8_t *)packet.bytes + 8, 4); LDCursorDidSend(&flow, ntohl(sequence));
                 }
                 ssize_t n=recv(client,ack+ackBytes,16-ackBytes,MSG_DONTWAIT);
                 if(n==0)break;
@@ -70,10 +73,12 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
                     ackBytes+=n;
                     if(ackBytes==16){
                         if(memcmp(ack,"LDCA",4))break;
+                        uint32_t sequence; memcpy(&sequence,ack+4,4);
+                        if(!LDCursorDidAck(&flow,ntohl(sequence)))break;
                         uint64_t stamp;memcpy(&stamp,ack+8,8);stamp=CFSwapInt64BigToHost(stamp);
                         lastAck=ClockUs(); double ms=(lastAck-stamp)/1000.0;
-                        if(ms<1000){total+=ms;maximum=MAX(maximum,ms);samples++;}
-                        if(samples==120){NSLog(@"CURSOR_RTT samples=120 mean_ms=%.2f max_ms=%.2f",total/120,maximum);samples=0;total=maximum=0;}
+                        if(ms<1000){total+=ms;maximum=MAX(maximum,ms);latencies[samples++]=ms;}
+                        if(samples==120){qsort(latencies,120,sizeof(double),CompareDouble);NSLog(@"CURSOR_RTT samples=120 mean_ms=%.2f p50_ms=%.2f p95_ms=%.2f max_ms=%.2f",total/120,latencies[59],latencies[113],maximum);samples=0;total=maximum=0;}
                         ackBytes=0;
                     }
                 }else if(errno!=EAGAIN&&errno!=EWOULDBLOCK&&errno!=EINTR)break;

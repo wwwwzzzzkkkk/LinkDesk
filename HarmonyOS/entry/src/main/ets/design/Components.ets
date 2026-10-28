@@ -10,7 +10,10 @@ export struct ConnectionPill {
       Text(ConnectionPresentation.title(this.state)).fontSize(DT.fontCaption).fontColor(DT.text(this.dark))
     }.padding({ left: DT.spacingS12, right: DT.spacingS12 })
       .constraintSize({ minHeight: DT.layoutTouchTarget })
+      .backgroundColor(DT.keyboardGlass(this.dark))
       .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.dark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.dark), 0], [DT.panelColor1(this.dark), 0.5], [DT.panelColor2(this.dark), 1]] })
+      .border({ width: DT.layoutStroke, color: DT.keyboardRim(this.dark), radius: DT.radiusLarge })
       .borderRadius(DT.radiusLarge).accessibilityText(Strings.connectionStatus + ': ' + ConnectionPresentation.title(this.state))
   }
 }

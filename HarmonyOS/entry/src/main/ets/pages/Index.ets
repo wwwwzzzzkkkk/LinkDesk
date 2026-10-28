@@ -59,7 +59,7 @@ struct Index {
   @Builder themeControl() {
     Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
       .constraintSize({ minHeight: DT.layoutTouchTarget, minWidth: DT.layoutTouchTarget })
-      .fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode)).backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusSmall)
+      .fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode)).backgroundColor(DT.keyboardKey(this.darkMode)).borderRadius(DT.radiusSmall)
       .accessibilityText(Strings.themeAccessibility)
       .bindMenu([
         { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
@@ -97,7 +97,7 @@ struct Index {
       }
       this.themeControl()
       Button(Strings.pairingTitle)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
         .onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
     }.width(DT.layoutSidebar).height('100%').padding(DT.spacingS16)
@@ -119,8 +119,9 @@ struct Index {
         Text(WorkspaceSpec.title(key)).fontSize(DT.fontLabel).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode)).width('100%')
         Text(WorkspaceSpec.subtitle(key)).fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode)).width('100%')
       }.alignItems(HorizontalAlign.Start).padding(DT.spacingS24).width('100%')
-    }.width('100%').constraintSize({ minHeight: DT.layoutCardMinHeight }).backgroundColor(DT.surface(this.darkMode))
-      .border({ width: DT.layoutStroke, color: DT.border(this.darkMode), radius: DT.radiusMedium }).borderRadius(DT.radiusMedium).clip(true)
+    }.width('100%').constraintSize({ minHeight: DT.layoutCardMinHeight }).backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
+      .border({ width: DT.layoutStroke, color: DT.keyboardRim(this.darkMode), radius: DT.radiusMedium }).borderRadius(DT.radiusMedium).clip(true)
       .accessibilityText(WorkspaceSpec.title(key)).onClick(() => this.open(key))
   }
   @Builder home() {
@@ -135,17 +136,19 @@ struct Index {
             Row({ space: DT.spacingS8 }) {
               this.themeControl()
               Button(Strings.pairingTitle)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => { this.open('pdf'); AppStorage.setOrCreate('LinkDeskShowPairing', true); })
             }
           }
-        }.width('100%').padding(DT.spacingS24).backgroundColor(DT.surface(this.darkMode)).borderRadius(DT.radiusMedium)
+        }.width('100%').padding(DT.spacingS24).backgroundColor(DT.keyboardGlass(this.darkMode)).borderRadius(DT.radiusMedium)
+          .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
+          .border({ width: DT.layoutStroke, color: DT.keyboardRim(this.darkMode), radius: DT.radiusMedium })
         GridRow({ columns: this.contentWidth < DT.layoutSingleColumnBreakpoint ? 1 : 2, gutter: DT.spacingS16 }) {
           ForEach(WorkspaceSpec.order.slice(1), (key: string) => { GridCol() { this.workspaceCard(key) } }, (key: string) => key)
         }.width('100%')
         Text(Strings.connectionHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
         Button(Strings.keyboardTitle).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
-          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode))
           .enabled(['ready', 'permission', 'secure-input'].includes(this.keyboardState)).onClick(() => { KeyboardClient.refresh(); this.keyboardVisible = true; })
         Text(this.keyboardState === 'permission' ? Strings.keyboardPermissionHint : this.keyboardState === 'pairing' ? Strings.keyboardPairingHint : this.keyboardState === 'ready' ? Strings.keyboardReady : Strings.keyboardDisconnected)
           .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')

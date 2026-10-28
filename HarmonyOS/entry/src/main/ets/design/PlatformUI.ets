@@ -10,6 +10,7 @@ export class PlatformUI {
   private static orientation: window.Orientation = window.Orientation.AUTO_ROTATION;
   private static receiver: boolean = false;
   private static barQueue: Promise<void> = Promise.resolve();
+  private static barGeneration: number = 0;
   private static motionChanged(enabled: boolean): void { AppStorage.setOrCreate('LinkDeskReduceMotion', enabled); }
   static start(): void {
     PlatformUI.refreshMotion();
@@ -29,20 +30,24 @@ export class PlatformUI {
     try { void PlatformUI.main?.setPreferredOrientation(PlatformUI.orientation).catch(() => {}); } catch (_) {}
   }
   static bind(main: window.Window): void { PlatformUI.main = main; }
-  static setReceiver(active: boolean): void { PlatformUI.receiver = active; PlatformUI.applyBars(active); }
+  static setReceiver(active: boolean): void { if (PlatformUI.receiver === active) return; PlatformUI.receiver = active; PlatformUI.applyBars(active); }
   static foreground(): void { PlatformUI.refreshMotion(); PlatformUI.applyBars(PlatformUI.receiver); }
   static background(): void { PlatformUI.applyBars(false); }
   private static applyBars(immersive: boolean): void {
     // Serialize transitions so an old enter completion cannot override a later exit.
+    const generation = ++PlatformUI.barGeneration;
     PlatformUI.barQueue = PlatformUI.barQueue.then(async () => {
+      if (generation !== PlatformUI.barGeneration) return;
       const main = PlatformUI.main;
       if (!main) return;
       // Each operation is independent: unsupported navigation/status configuration
       // must not skip the gesture indicator request. Layout alone does not hide it.
       try { main.setImmersiveModeEnabledState(immersive); }
       catch (error) { hilog.warn(0x3301, 'LinkDesk', 'IMMERSIVE layout %{public}s', JSON.stringify(error)); }
+      if (generation !== PlatformUI.barGeneration) return;
       try { await main.setSpecificSystemBarEnabled('navigationIndicator', !immersive, false); }
       catch (error) { hilog.warn(0x3301, 'LinkDesk', 'IMMERSIVE indicator %{public}s', JSON.stringify(error)); }
+      if (generation !== PlatformUI.barGeneration) return;
       try {
         const bars: Array<'status' | 'navigation'> = immersive ? [] : ['status', 'navigation'];
         await main.setWindowSystemBarEnable(bars);

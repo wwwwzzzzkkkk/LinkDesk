@@ -17,5 +17,10 @@ int main(void) {
     // On-time calls preserve phase despite sub-millisecond scheduler jitter.
     double next=LDAdvanceFrameDeadline(1.0003,1,1.0/120);
     assert(next>1.0083 && next<1.0084);
+    // A callback almost one period late previously scheduled another frame
+    // almost immediately; retain at least half a period instead of a burst.
+    double interval=1.0/144, late=2.0+interval*.9;
+    assert(LDAdvanceFrameDeadline(late,2.0,interval)>=late+interval*.5-1e-12);
+    assert(LDAdvanceFrameDeadline(2.0,2.0,interval)==2.0+interval);
     printf("FRAME_PACING_PASS: irregular source produced %d unique frames in 4 s; stall recovery, phase\n",sent);
 }

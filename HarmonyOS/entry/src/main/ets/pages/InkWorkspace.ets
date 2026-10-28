@@ -9,7 +9,6 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { http, mdns } from '@kit.NetworkKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { KeyboardClient } from '../keyboard/KeyboardClient';
-import { window } from '@kit.ArkUI';
 import { accessibility } from '@kit.AccessibilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { Want, common, wantAgent, WantAgent, wantConstant } from '@kit.AbilityKit';
@@ -100,10 +99,6 @@ export struct InkWorkspace {
   @State cursorY: number = 0;
   @State padAreaWidth: number = 1;
   @State padAreaHeight: number = 1;
-  @State systemTopInset: number = 0;
-  @State cutoutTopInset: number = 0;
-  @State systemBottomInset: number = 0;
-  @State navigationBottomInset: number = 0;
   @State topBarCollapsed: boolean = false;
   @State headerWidth: number = 1000;
   @State headerLeftWidth: number = 0;
@@ -153,8 +148,6 @@ export struct InkWorkspace {
   private discoveredWirelessHost: string = '';
   private connectionAttemptInFlight: boolean = false;
   private connectionGeneration: number = 0;
-  private mainWindow: window.Window | undefined = undefined;
-  private avoidAreaListener: ((data: window.AvoidAreaOptions) => void) | undefined = undefined;
 
   aboutToAppear(): void {
     try {
@@ -201,7 +194,6 @@ export struct InkWorkspace {
     }
     this.startRelayDiscovery();
     if (/^[A-Z0-9]{6}$/.test(this.room)) this.scheduleReconnect(120);
-    void this.configureWindowInsets();
   }
 
   aboutToDisappear(): void {
@@ -212,11 +204,6 @@ export struct InkWorkspace {
 
     RoundTripBridge.unregister();
     RoundTripBridge.unregisterLiveViewAction();
-    if (this.mainWindow && this.avoidAreaListener) {
-      this.mainWindow.off('avoidAreaChange', this.avoidAreaListener);
-    }
-    this.avoidAreaListener = undefined;
-    this.mainWindow = undefined;
     this.stopRelayDiscovery();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.discoveryRestartTimer) clearTimeout(this.discoveryRestartTimer);
@@ -251,7 +238,7 @@ export struct InkWorkspace {
     Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
       .fontSize(DT.fontCaption).height(DT.layoutTouchTarget).fontColor(DT.secondary(this.darkMode))
-      .backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusMedium)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).borderRadius(DT.radiusMedium)
       .accessibilityText(Strings.themeAccessibility)
       .bindMenu([
         { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
@@ -282,8 +269,8 @@ export struct InkWorkspace {
           .padding({
             left: DT.spacingS12,
             right: DT.spacingS12,
-            top: this.topSafeInset() + DT.spacingS8,
-            bottom: this.bottomSafeInset() + DT.spacingS8
+            top: DT.spacingS16,
+            bottom: DT.spacingS8
           })
           .hitTestBehavior(HitTestMode.Transparent)
         }
@@ -305,7 +292,6 @@ export struct InkWorkspace {
     }
     .width('100%').height('100%')
     .backgroundColor(DT.canvas(this.darkMode))
-    .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   @Builder MirrorPanel() {
@@ -331,7 +317,7 @@ export struct InkWorkspace {
           Button(Strings.automatic)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .layoutWeight(1).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
-            .backgroundColor(this.connectionPreference === 'automatic' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .backgroundColor(this.connectionPreference === 'automatic' ? DT.accent(this.darkMode) : DT.keyboardKey(this.darkMode))
             .fontColor(this.connectionPreference === 'automatic' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
             .borderRadius(DT.radiusSmall)
             .onClick(() => {
@@ -341,7 +327,7 @@ export struct InkWorkspace {
           Button(Strings.transportWireless)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .layoutWeight(1).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
-            .backgroundColor(this.connectionPreference === 'wifi' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .backgroundColor(this.connectionPreference === 'wifi' ? DT.accent(this.darkMode) : DT.keyboardKey(this.darkMode))
             .fontColor(this.connectionPreference === 'wifi' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
             .borderRadius(DT.radiusSmall)
             .onClick(() => {
@@ -351,7 +337,7 @@ export struct InkWorkspace {
           Button(Strings.transportUSB)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .layoutWeight(1).height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
-            .backgroundColor(this.connectionPreference === 'usb' ? DT.accent(this.darkMode) : DT.control(this.darkMode))
+            .backgroundColor(this.connectionPreference === 'usb' ? DT.accent(this.darkMode) : DT.keyboardKey(this.darkMode))
             .fontColor(this.connectionPreference === 'usb' ? DT.onAccent(this.darkMode) : DT.secondary(this.darkMode))
             .borderRadius(DT.radiusSmall)
             .onClick(() => {
@@ -389,7 +375,7 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width('100%').height(DT.layoutTouchTarget)
           .fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
-          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.secondary(this.darkMode))
           .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
           .borderRadius(DT.radiusSmall)
           .onClick(() => this.startNativePairingScan())
@@ -416,8 +402,8 @@ export struct InkWorkspace {
 
       Blank(1)
     }
-    .width('100%')
-    .padding({ left: DT.spacingS24, right: DT.spacingS24 })
+    .width('100%').constraintSize({ maxWidth: DT.layoutPageMax })
+    .padding({ left: DT.layoutPagePadding, right: DT.layoutPagePadding, top: DT.spacingS8, bottom: DT.layoutPagePadding })
     .backgroundColor(DT.canvas(this.darkMode))
     }.width('100%').height('100%').align(Alignment.Top)
   }
@@ -432,21 +418,22 @@ export struct InkWorkspace {
           this.themeControl()
           if (this.roundTripId.length > 0) {
             Button(Strings.returnPDF)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.selectRoundTripReturnPDF())
           }
           Button(this.screenMirroring ? Strings.stopMirror : Strings.startMirror)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .height(DT.layoutTouchTarget).onClick(() => this.toggleScreenMirror())
           Button(Strings.collapseTools)
-      .backgroundColor(DT.control(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.setTopBarCollapsed(true))
         }.padding(DT.spacingS8)
       }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')
     }.width('100%').padding(DT.spacingS16).borderRadius(DT.radiusMedium)
       .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-      .backgroundColor(DT.glass(this.darkMode))
+      .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
       .geometryTransition('inkbridge-topbar-roll')
   }
 
@@ -464,13 +451,14 @@ export struct InkWorkspace {
     }
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
     .width(DT.spacingS48).height(DT.spacingS48).padding(DT.spacingS0)
-    .backgroundColor(DT.glass(this.darkMode))
+    .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
     .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
     
-    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
     .borderRadius(DT.radiusLarge)
     .clip(true)
-    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
+    .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
     .geometryTransition('inkbridge-topbar-roll')
     .accessibilityText(Strings.expandTools)
     .onClick(() => this.setTopBarCollapsed(false))
@@ -534,7 +522,7 @@ export struct InkWorkspace {
         }
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
         .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0)
-        .backgroundColor(!this.eraser && !this.highlighter ? DT.accentSoft(this.darkMode) : DT.control(this.darkMode))
+        .backgroundColor(!this.eraser && !this.highlighter ? DT.accentSoft(this.darkMode) : DT.keyboardKey(this.darkMode))
         .fontColor(!this.eraser && !this.highlighter ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
         .border({ width: DT.layoutStroke, color: !this.eraser && !this.highlighter ? DT.accentSoft(this.darkMode) : DT.clear(this.darkMode) })
         .borderRadius(DT.radiusSmall)
@@ -546,7 +534,7 @@ export struct InkWorkspace {
         }
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
         .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0)
-        .backgroundColor(this.highlighter ? DT.accentSoft(this.darkMode) : DT.control(this.darkMode))
+        .backgroundColor(this.highlighter ? DT.accentSoft(this.darkMode) : DT.keyboardKey(this.darkMode))
         .border({ width: DT.layoutStroke, color: this.highlighter ? DT.accentSoft(this.darkMode) : DT.clear(this.darkMode) })
         .borderRadius(DT.radiusSmall)
         .accessibilityText(Strings.highlighter)
@@ -557,7 +545,7 @@ export struct InkWorkspace {
         }
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
         .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0)
-        .backgroundColor(this.eraser ? DT.accentSoft(this.darkMode) : DT.control(this.darkMode))
+        .backgroundColor(this.eraser ? DT.accentSoft(this.darkMode) : DT.keyboardKey(this.darkMode))
         .fontColor(this.eraser ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
         .border({ width: DT.layoutStroke, color: this.eraser ? DT.accentSoft(this.darkMode) : DT.clear(this.darkMode) })
         .borderRadius(DT.radiusSmall)
@@ -569,13 +557,13 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody)
           .enabled(this.canUndo)
-          .backgroundColor(DT.control(this.darkMode)).fontColor(this.canUndo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(this.canUndo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
           .borderRadius(DT.radiusSmall).accessibilityText(Strings.undo).onClick(() => this.runJS('nativeUndo()'))
         Button(Strings.glyphRedo)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody)
           .enabled(this.canRedo)
-          .backgroundColor(DT.control(this.darkMode)).fontColor(this.canRedo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(this.canRedo ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
           .borderRadius(DT.radiusSmall).accessibilityText(Strings.redo).onClick(() => this.runJS('nativeRedo()'))
 
         if (this.appMode === 'pdf') {
@@ -583,7 +571,7 @@ export struct InkWorkspace {
           Button(Strings.glyphZoomOut)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody)
-            .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
+            .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
             .onClick(() => this.runJS('nativeZoomOut()'))
           Text(Strings.get('percentValue', [Math.round(this.zoomPercent).toString()]))
             .fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
@@ -591,7 +579,7 @@ export struct InkWorkspace {
           Button(Strings.glyphZoomIn)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
             .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody)
-            .backgroundColor(DT.control(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
+            .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.secondary(this.darkMode)).borderRadius(DT.radiusSmall)
             .onClick(() => this.runJS('nativeZoomIn()'))
         }
 
@@ -600,18 +588,19 @@ export struct InkWorkspace {
         Button(Strings.glyphClear)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
-          .backgroundColor(DT.control(this.darkMode)).fontColor(DT.error(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.error(this.darkMode))
           .borderRadius(DT.radiusSmall)
           .accessibilityText(this.appMode === 'pdf' ? Strings.clearAnnotations : Strings.clearWhiteboard)
           .onClick(() => this.confirmClear())
       }
       .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
-      .backgroundColor(DT.glass(this.darkMode))
+      .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
       .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
       
-      .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+      .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
       .borderRadius(DT.radiusMedium)
-      .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
+      .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
     }
     .scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%').height(DT.layoutToolbarHeight)
   }
@@ -630,7 +619,7 @@ export struct InkWorkspace {
         this.PenLevelButton(3.5, '3', 4)
         this.PenLevelButton(5.5, '4', 7)
       }
-      Divider().color(DT.control(this.darkMode))
+      Divider().color(DT.keyboardKey(this.darkMode))
       Row() {
         Text(Strings.penColor).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
         Blank(1)
@@ -644,13 +633,14 @@ export struct InkWorkspace {
     }
     .width(Math.min(DT.layoutMenuMaxWidth, Math.max(DT.layoutTouchTarget, this.padAreaWidth - DT.spacingS32)))
     .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
-    .margin({ bottom: this.bottomSafeInset() + DT.spacingS80 })
-    .backgroundColor(DT.glass(this.darkMode))
+    .margin({ bottom: DT.spacingS80 })
+    .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
     .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
     
-    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
     .borderRadius(DT.radiusMedium)
-    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
+    .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
@@ -668,7 +658,7 @@ export struct InkWorkspace {
       Row({ space: DT.spacingS12 }) {
         Stack() {
           Circle().width(DT.spacingS48).height(DT.spacingS48)
-            .fill(DT.control(this.darkMode)).stroke(DT.secondary(this.darkMode)).strokeWidth(DT.layoutStroke)
+            .fill(DT.keyboardKey(this.darkMode)).stroke(DT.secondary(this.darkMode)).strokeWidth(DT.layoutStroke)
           Text(Strings.get('pixelValue', [Math.round(this.eraserSize).toString()])).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
             .fontColor(DT.secondary(this.darkMode))
         }
@@ -677,7 +667,7 @@ export struct InkWorkspace {
           Text(Strings.eraserRing).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
         }.alignItems(HorizontalAlign.Start)
       }
-      .width('100%').padding(DT.spacingS8).backgroundColor(DT.control(this.darkMode)).borderRadius(DT.radiusSmall)
+      .width('100%').padding(DT.spacingS8).backgroundColor(DT.keyboardKey(this.darkMode)).borderRadius(DT.radiusSmall)
       Row({ space: DT.spacingS8 }) {
         this.EraserLevelButton(24, '1', 14)
         this.EraserLevelButton(40, '2', 20)
@@ -689,14 +679,14 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .height(DT.layoutTouchTarget).fontSize(DT.fontCaption).padding({ left: DT.spacingS8, right: DT.spacingS8 })
           .backgroundColor(this.pressureEraserEnabled
-            ? DT.glass(this.darkMode)
-            : DT.control(this.darkMode))
+            ? DT.keyboardGlass(this.darkMode)
+            : DT.keyboardKey(this.darkMode))
           .fontColor(this.pressureEraserEnabled ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
           .border({
             width: DT.layoutStroke,
             color: this.pressureEraserEnabled
-              ? DT.glass(this.darkMode)
-              : DT.control(this.darkMode)
+              ? DT.keyboardGlass(this.darkMode)
+              : DT.keyboardKey(this.darkMode)
           })
           .borderRadius(DT.radiusSmall).onClick(() => this.togglePressureEraser())
         Blank(1)
@@ -704,21 +694,22 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .height(DT.layoutTouchTarget).fontSize(DT.fontCaption).padding({ left: DT.spacingS8, right: DT.spacingS8 })
           .enabled(this.pressureEraserEnabled)
-          .backgroundColor(DT.control(this.darkMode))
+          .backgroundColor(DT.keyboardKey(this.darkMode))
           .fontColor(this.pressureEraserEnabled ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
-          .border({ width: DT.layoutStroke, color: DT.control(this.darkMode) })
+          .border({ width: DT.layoutStroke, color: DT.keyboardKey(this.darkMode) })
           .borderRadius(DT.radiusSmall).onClick(() => this.cyclePressureSensitivity())
       }.width('100%')
     }
     .width(Math.min(DT.layoutMenuMaxWidth, Math.max(DT.layoutTouchTarget, this.padAreaWidth - DT.spacingS32)))
     .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
-    .margin({ bottom: this.bottomSafeInset() + DT.spacingS80 })
-    .backgroundColor(DT.glass(this.darkMode))
+    .margin({ bottom: DT.spacingS80 })
+    .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
     .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
     
-    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
     .borderRadius(DT.radiusMedium)
-    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
+    .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
@@ -746,7 +737,7 @@ export struct InkWorkspace {
           this.HighlighterWidthButton(32, '4', 11)
         }
       }
-      Divider().color(DT.control(this.darkMode))
+      Divider().color(DT.keyboardKey(this.darkMode))
       Column({ space: DT.spacingS8 }) {
         Row() {
           Text(Strings.opacity).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium).fontColor(DT.secondary(this.darkMode))
@@ -763,13 +754,14 @@ export struct InkWorkspace {
     }
     .width(Math.min(DT.layoutMenuMaxWidth, Math.max(DT.layoutTouchTarget, this.padAreaWidth - DT.spacingS32)))
     .padding({ left: DT.spacingS16, right: DT.spacingS16, top: DT.spacingS16, bottom: DT.spacingS16 })
-    .margin({ bottom: this.bottomSafeInset() + DT.spacingS80 })
-    .backgroundColor(DT.glass(this.darkMode))
+    .margin({ bottom: DT.spacingS80 })
+    .backgroundColor(DT.keyboardGlass(this.darkMode))
+      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
     .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
     
-    .border({ width: DT.layoutStroke, color: DT.glass(this.darkMode) })
+    .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
     .borderRadius(DT.radiusMedium)
-    .shadow({ radius: DT.radiusSmall, color: DT.glass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
+    .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS12 })
     .transition(this.toolMenuTransition())
     .zIndex(20)
   }
@@ -777,7 +769,7 @@ export struct InkWorkspace {
   @Builder EraserGlyph(active: boolean) {
     Row() {
       Rect().width(DT.spacingS8).height(DT.spacingS12).fill(active ? DT.accent(this.darkMode) : DT.secondary(this.darkMode))
-      Rect().width(DT.spacingS8).height(DT.spacingS12).fill(DT.glass(this.darkMode))
+      Rect().width(DT.spacingS8).height(DT.spacingS12).fill(DT.keyboardGlass(this.darkMode))
     }
     .width(DT.spacingS20).height(DT.spacingS16)
     .border({ width: DT.layoutStroke, color: active ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode) })
@@ -791,7 +783,7 @@ export struct InkWorkspace {
         .fill(active ? DT.secondary(this.darkMode) : DT.secondary(this.darkMode))
         .borderRadius({ topLeft: DT.radiusSmall, topRight: DT.radiusSmall, bottomLeft: DT.radiusSmall, bottomRight: DT.radiusSmall })
       Rect().width(DT.spacingS16).height(DT.spacingS4)
-        .fill(active ? DT.glass(this.darkMode) : DT.glass(this.darkMode))
+        .fill(active ? DT.keyboardGlass(this.darkMode) : DT.keyboardGlass(this.darkMode))
         .margin({ top: DT.spacingS16 })
         .borderRadius(DT.radiusSmall)
     }
@@ -809,14 +801,14 @@ export struct InkWorkspace {
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
     .layoutWeight(1).height(DT.spacingS56).padding(DT.spacingS0)
     .backgroundColor(this.highlighterWidth === widthValue
-      ? DT.glass(this.darkMode)
-      : DT.control(this.darkMode))
+      ? DT.keyboardGlass(this.darkMode)
+      : DT.keyboardKey(this.darkMode))
     .fontColor(this.highlighterWidth === widthValue ? DT.warning(this.darkMode) : DT.secondary(this.darkMode))
     .border({
       width: DT.layoutStroke,
       color: this.highlighterWidth === widthValue
-        ? DT.glass(this.darkMode)
-        : DT.control(this.darkMode)
+        ? DT.keyboardGlass(this.darkMode)
+        : DT.keyboardKey(this.darkMode)
     })
     .borderRadius(DT.radiusSmall)
     .onClick(() => this.setHighlighterWidth(widthValue))
@@ -833,13 +825,13 @@ export struct InkWorkspace {
     .layoutWeight(1).height(DT.spacingS52).padding(DT.spacingS0)
     .backgroundColor(Math.abs(this.highlighterOpacity - opacityValue) < 0.001
       ? DT.accentSoft(this.darkMode)
-      : DT.control(this.darkMode))
+      : DT.keyboardKey(this.darkMode))
     .fontColor(Math.abs(this.highlighterOpacity - opacityValue) < 0.001 ? DT.warning(this.darkMode) : DT.secondary(this.darkMode))
     .border({
       width: DT.layoutStroke,
       color: Math.abs(this.highlighterOpacity - opacityValue) < 0.001
         ? DT.accentSoft(this.darkMode)
-        : DT.control(this.darkMode)
+        : DT.keyboardKey(this.darkMode)
     })
     .borderRadius(DT.radiusSmall)
     .onClick(() => this.setHighlighterOpacity(opacityValue))
@@ -853,11 +845,11 @@ export struct InkWorkspace {
     .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget)
     .border({
       width: this.color === colorValue ? DT.layoutStroke * 2 : DT.layoutStroke,
-      color: this.color === colorValue ? DT.text(this.darkMode) : DT.control(this.darkMode)
+      color: this.color === colorValue ? DT.text(this.darkMode) : DT.keyboardKey(this.darkMode)
     })
     .backgroundColor(this.color === colorValue
       ? DT.accentSoft(this.darkMode)
-      : DT.control(this.darkMode))
+      : DT.keyboardKey(this.darkMode))
     .borderRadius(DT.radiusSmall)
     .onClick(() => {
       this.color = colorValue;
@@ -881,13 +873,13 @@ export struct InkWorkspace {
       .layoutWeight(1).height(DT.spacingS56)
       .backgroundColor(this.penWidthLevel() === widthValue
         ? DT.accentSoft(this.darkMode)
-        : DT.control(this.darkMode))
+        : DT.keyboardKey(this.darkMode))
       .fontColor(this.penWidthLevel() === widthValue ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
       .border({
         width: DT.layoutStroke,
         color: this.penWidthLevel() === widthValue
-          ? DT.glass(this.darkMode)
-          : DT.control(this.darkMode)
+          ? DT.keyboardGlass(this.darkMode)
+          : DT.keyboardKey(this.darkMode)
       })
       .borderRadius(DT.radiusSmall).padding(DT.spacingS0)
       .onClick(() => {
@@ -905,8 +897,8 @@ export struct InkWorkspace {
       Column({ space: DT.spacingS4 }) {
         Circle().width(previewSize).height(previewSize)
           .fill(this.eraserSizeLevel() === sizeValue
-            ? DT.glass(this.darkMode)
-            : DT.control(this.darkMode))
+            ? DT.keyboardGlass(this.darkMode)
+            : DT.keyboardKey(this.darkMode))
           .stroke(this.eraserSizeLevel() === sizeValue ? DT.accent(this.darkMode) : DT.secondary(this.darkMode)).strokeWidth(DT.layoutStroke)
         Text(label).fontSize(DT.fontCaption).fontWeight(FontWeight.Medium)
       }
@@ -915,13 +907,13 @@ export struct InkWorkspace {
     .layoutWeight(1).height(DT.spacingS64).padding(DT.spacingS0)
     .backgroundColor(this.eraserSizeLevel() === sizeValue
       ? DT.accentSoft(this.darkMode)
-      : DT.control(this.darkMode))
+      : DT.keyboardKey(this.darkMode))
     .fontColor(this.eraserSizeLevel() === sizeValue ? DT.text(this.darkMode) : DT.secondary(this.darkMode))
     .border({
       width: DT.layoutStroke,
       color: this.eraserSizeLevel() === sizeValue
         ? DT.accentSoft(this.darkMode)
-        : DT.control(this.darkMode)
+        : DT.keyboardKey(this.darkMode)
     })
     .borderRadius(DT.radiusSmall)
     .onClick(() => this.setEraserSize(sizeValue))
@@ -930,7 +922,7 @@ export struct InkWorkspace {
   @Builder ToolDivider() {
     Divider()
       .vertical(true)
-      .height(DT.spacingS16).color(DT.control(this.darkMode))
+      .height(DT.spacingS16).color(DT.keyboardKey(this.darkMode))
       .margin({ left: DT.spacingS4, right: DT.spacingS4 })
   }
 
@@ -972,49 +964,6 @@ export struct InkWorkspace {
       }))
       .animation({ duration: DT.durationMenuExit, curve: DT.curveExit() });
     return TransitionEffect.asymmetric(appear, disappear);
-  }
-
-  private topSafeInset(): number {
-    return Math.max(this.systemTopInset, this.cutoutTopInset);
-  }
-
-  private bottomSafeInset(): number {
-    return Math.max(this.systemBottomInset, this.navigationBottomInset);
-  }
-
-  private updateWindowInset(type: window.AvoidAreaType, area: window.AvoidArea): void {
-    const uiContext = this.getUIContext();
-    const top = area.visible ? uiContext.px2vp(area.topRect.height) : 0;
-    const bottom = area.visible ? uiContext.px2vp(area.bottomRect.height) : 0;
-    if (type === window.AvoidAreaType.TYPE_SYSTEM) {
-      this.systemTopInset = top;
-      this.systemBottomInset = bottom;
-    } else if (type === window.AvoidAreaType.TYPE_CUTOUT) {
-      this.cutoutTopInset = top;
-    } else if (type === window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
-      this.navigationBottomInset = bottom;
-    }
-  }
-
-  private async configureWindowInsets(): Promise<void> {
-    try {
-      const context = this.getUIContext().getHostContext();
-      if (!context) return;
-      const mainWindow = await window.getLastWindow(context);
-      this.mainWindow = mainWindow;
-      const types: window.AvoidAreaType[] = [
-        window.AvoidAreaType.TYPE_SYSTEM,
-        window.AvoidAreaType.TYPE_CUTOUT,
-        window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR
-      ];
-      for (const type of types) {
-        this.updateWindowInset(type, mainWindow.getWindowAvoidArea(type));
-      }
-      this.avoidAreaListener = (data: window.AvoidAreaOptions): void => {
-        this.updateWindowInset(data.type, data.area);
-      };
-      mainWindow.on('avoidAreaChange', this.avoidAreaListener);
-    } catch (_) {}
   }
 
   private selectPenTool(): void {
