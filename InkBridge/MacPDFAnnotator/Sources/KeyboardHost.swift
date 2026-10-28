@@ -18,6 +18,34 @@ final class KeyboardHost: ObservableObject {
   private var running = false
   private var generation = 0
   private var testWindow: NSWindow?
+  private var touchOwner: String?
+  private var touchLast = CGPoint.zero
+  private var touchRenewed: TimeInterval = 0
+  private var touchDisplay: CGDirectDisplayID = kCGNullDirectDisplay
+  private var touchKind = "idle"
+  private var touchStart = CGPoint.zero
+  private var touchLatest = CGPoint.zero
+  private var touchTarget: TouchTarget?
+  private var touchForceScroll = false
+  private var touchToken = 0
+  private var scrollVelocity = CGPoint.zero
+  private var scrollRemainder = CGPoint.zero
+  private var scrollPoint = CGPoint.zero
+  private var scrollAt: TimeInterval = 0
+  private var scrollDisplay: CGDirectDisplayID = kCGNullDirectDisplay
+  private var momentumTimer: Timer?
+  private var momentumLast: TimeInterval = 0
+  private var scrollActive = false
+  private var momentumActive = false
+  private var candidateWantedAt: TimeInterval = 0
+  private var candidateScanAt: TimeInterval = 0
+  private var candidateScanning = false
+  private var candidateValues: [String] = []
+  private var candidateRevision = 0
+  private var touchReduceMotion = false
+  private var lastTouchClick: TimeInterval = 0
+  private var lastTouchClickPoint = CGPoint.zero
+  private var touchClickCount: Int64 = 1
 
   func showTestWindow() {
     let editor = NSTextView(frame: NSRect(x: 0, y: 0, width: 560, height: 300))
@@ -58,6 +86,8 @@ final class KeyboardHost: ObservableObject {
       Task { @MainActor in
         guard let self else { return }
         self.postModifiers(self.modifierLease.expire(now: ProcessInfo.processInfo.systemUptime))
+        self.refreshCandidates()
+        if self.touchOwner != nil && ProcessInfo.processInfo.systemUptime - self.touchRenewed > 1.5 { self.releaseTouch() }
       }
     }
     if let leaseTimer { RunLoop.main.add(leaseTimer, forMode: .common) }
@@ -66,7 +96,7 @@ final class KeyboardHost: ObservableObject {
     }
     if let timer { RunLoop.main.add(timer, forMode: .common) }
   }
-  func stop() { virtualCaps = false; postModifiers(modifierLease.release()); leaseTimer?.invalidate(); leaseTimer = nil; running = false; generation += 1; timer?.invalidate(); timer = nil; socket?.cancel(with: .goingAway, reason: nil); socket = nil }
+  func stop() { stopMomentum(); releaseTouch(); virtualCaps = false; postModifiers(modifierLease.release()); leaseTimer?.invalidate(); leaseTimer = nil; running = false; generation += 1; timer?.invalidate(); timer = nil; socket?.cancel(with: .goingAway, reason: nil); socket = nil }
   func requestPermission() { _ = CGRequestPostEventAccess(); permitted = CGPreflightPostEventAccess(); report() }
   private func connect() {
     guard running else { return }
@@ -80,6 +110,8 @@ final class KeyboardHost: ObservableObject {
   private func lost(_ expected: Int) {
     guard running, expected == generation else { return }
     postModifiers(modifierLease.release())
+    stopMomentum()
+    releaseTouch()
     generation += 1; socket?.cancel(with: .goingAway, reason: nil); socket = nil
     Task { @MainActor [weak self] in
       try? await Task.sleep(for: .milliseconds(750))
@@ -89,7 +121,7 @@ final class KeyboardHost: ObservableObject {
   }
   private func report() {
     permitted = CGPreflightPostEventAccess()
-    if !permitted || IsSecureEventInputEnabled() { postModifiers(modifierLease.release()) }
+    if !permitted || IsSecureEventInputEnabled() { postModifiers(modifierLease.release()); releaseTouch() }
     send(["type": "keyboard:status", "permitted": permitted, "secureInput": IsSecureEventInputEnabled()])
   }
   private func send(_ value: [String: Any]) {
@@ -115,9 +147,15 @@ final class KeyboardHost: ObservableObject {
   }
   private func apply(_ value: [String: Any]) {
     if value["type"] as? String == "keyboard:release", let session = value["session"] as? String {
-      postModifiers(modifierLease.release(owner: session)); return
+      postModifiers(modifierLease.release(owner: session)); if touchOwner == session { releaseTouch() }; return
     }
+    if let type = value["type"] as? String, type.hasPrefix("touch:") { applyTouch(value, type: type); return }
     guard let id = value["id"] as? String, id.count == 32 else { return }
+    if value["type"] as? String != "keyboard:lease" { candidateRevision += 1; candidateValues = []; candidateScanAt = 0 }
+    if value["type"] as? String == "keyboard:lease" {
+      if value["candidates"] as? Bool == true { candidateWantedAt = ProcessInfo.processInfo.systemUptime }
+      else { candidateWantedAt = 0; candidateValues = [] }
+    }
     if ProcessInfo.processInfo.arguments.contains("--keyboard-test"), let modifiers = value["modifiers"] as? Int { testWindow?.subtitle = "m\(modifiers)" }
     var error = ""
     if !CGPreflightPostEventAccess() { error = "permission" }
@@ -166,7 +204,193 @@ final class KeyboardHost: ObservableObject {
       } else { error = "invalid" }
     } else { error = "expired" }
     if ProcessInfo.processInfo.arguments.contains("--keyboard-test") { NSLog("KEYBOARD_TEST active=%d permitted=%d secure=%d key=%@ repeat=%d result=%@", NSApp.isActive, CGPreflightPostEventAccess(), IsSecureEventInputEnabled(), value["key"] as? String ?? "control", value["repeat"] as? Bool == true, error.isEmpty ? "posted" : error) }
-    send(["type": "keyboard:ack", "id": id, "ok": error.isEmpty, "error": error, "inputSource": inputSourceName(), "capsLock": capsLockState()])
+    send(["type": "keyboard:ack", "id": id, "ok": error.isEmpty, "error": error, "inputSource": inputSourceName(), "capsLock": capsLockState(), "candidates": error.isEmpty && value["candidates"] as? Bool == true ? candidateValues : []])
+  }
+  private func refreshCandidates() {
+    let now = ProcessInfo.processInfo.systemUptime
+    let source = inputSourceName()
+    guard running, candidateWantedAt > 0, now - candidateWantedAt < 1.5, (source.contains("微信") || source.localizedCaseInsensitiveContains("WeType")), CGPreflightPostEventAccess(), !IsSecureEventInputEnabled() else { candidateValues = []; return }
+    guard !candidateScanning, now - candidateScanAt >= 0.15 else { return }
+    candidateScanning = true; candidateScanAt = now; let expected = generation, revision = candidateRevision
+    Task.detached(priority: .userInitiated) { [weak self] in
+      let result = WeTypeCandidates.read()
+      await MainActor.run { [weak self] in
+        guard let self else { return }; self.candidateScanning = false
+        if self.running && self.generation == expected && self.candidateRevision == revision && ProcessInfo.processInfo.systemUptime - self.candidateWantedAt < 1.5 { self.candidateValues = result.values }
+      }
+    }
+  }
+  private func mouse(_ type: CGEventType, _ point: CGPoint, _ button: CGMouseButton = .left) {
+    guard let event = CGEvent(mouseEventSource: eventSource, mouseType: type, mouseCursorPosition: point, mouseButton: button) else { return }
+    if type == .leftMouseDown || type == .leftMouseUp || type == .leftMouseDragged { event.setIntegerValueField(.mouseEventClickState, value: touchClickCount) }
+    event.post(tap: .cghidEventTap)
+  }
+  private func releaseTouch() {
+    if touchOwner != nil && touchKind == "drag" { mouse(.leftMouseUp, touchLast) }
+    touchOwner = nil; touchDisplay = kCGNullDirectDisplay; touchKind = "idle"; touchToken += 1
+  }
+  private func stopMomentum() {
+    momentumTimer?.invalidate(); momentumTimer = nil
+    if scrollActive { postScroll(.zero, at: scrollPoint, phase: 4); scrollActive = false }
+    if momentumActive { postScroll(.zero, at: scrollPoint, momentum: 3); momentumActive = false }
+    scrollVelocity = .zero; scrollRemainder = .zero
+  }
+  private func postScroll(_ delta: CGPoint, at point: CGPoint, phase: Int64 = 0, momentum: Int64 = 0) {
+    scrollRemainder.x += delta.x; scrollRemainder.y += delta.y
+    let dx = Int32(max(-200, min(200, scrollRemainder.x.rounded(.towardZero))))
+    let dy = Int32(max(-200, min(200, scrollRemainder.y.rounded(.towardZero))))
+    scrollRemainder.x -= CGFloat(dx); scrollRemainder.y -= CGFloat(dy)
+    guard dx != 0 || dy != 0 || phase != 0 || momentum != 0 else { return }
+    if let event = CGEvent(scrollWheelEvent2Source: eventSource, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0) {
+      event.location = point
+      event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+      event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
+      event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: momentum)
+      event.post(tap: .cghidEventTap)
+    }
+  }
+  private func trackScroll(_ delta: CGPoint, at point: CGPoint, sample: TimeInterval) {
+    let elapsed = max(1.0 / 240, min(0.1, sample - scrollAt))
+    if sample - scrollAt > 0.15 { scrollVelocity = .zero }
+    let alpha = 1 - exp(-elapsed / 0.055)
+    scrollVelocity.x = max(-1600, min(1600, scrollVelocity.x * (1-alpha) + delta.x / elapsed * alpha))
+    scrollVelocity.y = max(-1600, min(1600, scrollVelocity.y * (1-alpha) + delta.y / elapsed * alpha))
+    scrollAt = sample; scrollPoint = point
+    postScroll(delta, at: point, phase: scrollActive ? 2 : 1); scrollActive = true
+  }
+  private func startMomentum() {
+    if scrollActive { postScroll(.zero, at: scrollPoint, phase: 4); scrollActive = false }
+    guard !touchReduceMotion, ProcessInfo.processInfo.systemUptime - scrollAt < 0.12, hypot(scrollVelocity.x, scrollVelocity.y) > 80 else { stopMomentum(); return }
+    momentumTimer?.invalidate()
+    let started = ProcessInfo.processInfo.systemUptime
+    momentumLast = started
+    let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = min(0.05, max(0, now - self.momentumLast)); self.momentumLast = now
+        let decay = exp(-elapsed / 0.38)
+        self.scrollVelocity.x *= decay; self.scrollVelocity.y *= decay
+        if now - started >= 1.25 || hypot(self.scrollVelocity.x, self.scrollVelocity.y) < 18 || self.touchOwner != nil || !CGPreflightPostEventAccess() || IsSecureEventInputEnabled() || DesktopSession.shared.engine.touchDisplayID != self.scrollDisplay { self.stopMomentum(); return }
+        self.postScroll(CGPoint(x: self.scrollVelocity.x * elapsed, y: self.scrollVelocity.y * elapsed), at: self.scrollPoint, momentum: self.momentumActive ? 2 : 1)
+        self.momentumActive = true
+      }
+    }
+    momentumTimer = timer; RunLoop.main.add(timer, forMode: .common)
+  }
+  private func beginDrag() {
+    let now = ProcessInfo.processInfo.systemUptime
+    let near = hypot(touchStart.x - lastTouchClickPoint.x, touchStart.y - lastTouchClickPoint.y) <= 5
+    touchClickCount = near && now - lastTouchClick <= NSEvent.doubleClickInterval ? min(3, touchClickCount + 1) : 1
+    lastTouchClick = now; lastTouchClickPoint = touchStart
+    mouse(.mouseMoved, touchStart); mouse(.leftMouseDown, touchStart); touchKind = "drag"
+  }
+  private func moveTouch(_ point: CGPoint, sample: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+    if touchKind == "pending" {
+      guard let target = touchTarget else { touchLatest = point; return }
+      let dx = point.x - touchStart.x, dy = point.y - touchStart.y
+      if TouchTarget.shouldScroll(target, force: touchForceScroll, delta: CGPoint(x: dx, y: dy)) {
+        touchKind = "scroll"; mouse(.mouseMoved, touchStart); scrollAt = ProcessInfo.processInfo.systemUptime; scrollPoint = touchStart
+      } else { beginDrag() }
+    }
+    if touchKind == "drag" {
+      if hypot(point.x - touchStart.x, point.y - touchStart.y) > 5 { lastTouchClick = 0; touchClickCount = 1 }
+      touchLast = point; mouse(.leftMouseDragged, point)
+    } else if touchKind == "scroll" {
+      let delta = CGPoint(x: point.x - touchLast.x, y: point.y - touchLast.y)
+      touchLast = point; trackScroll(delta, at: point, sample: sample)
+    }
+  }
+  private func applyTouch(_ value: [String: Any], type: String) {
+    guard let session = value["session"] as? String, let expires = value["expires"] as? Double,
+      expires >= Date().timeIntervalSince1970 * 1000, expires <= Date().timeIntervalSince1970 * 1000 + 1500,
+      CGPreflightPostEventAccess(), !IsSecureEventInputEnabled() else { releaseTouch(); return }
+    if type == "touch:cancel" { stopMomentum(); if touchOwner == session { releaseTouch() }; return }
+    if type == "touch:halt" { stopMomentum(); return }
+    if type == "touch:ping" {
+      if touchOwner == session {
+        if DesktopSession.shared.engine.touchDisplayID != touchDisplay || CGDisplayIsActive(touchDisplay) == 0 { releaseTouch() }
+        else { touchRenewed = ProcessInfo.processInfo.systemUptime }
+      }
+      return
+    }
+    if type == "touch:scrollend" { touchReduceMotion = value["reduceMotion"] as? Bool ?? false; startMomentum(); return }
+    let display = DesktopSession.shared.engine.touchDisplayID
+    if touchOwner != nil && display != touchDisplay { releaseTouch() }
+    guard display != kCGNullDirectDisplay, CGDisplayIsActive(display) != 0,
+      let x = value["x"] as? Double, let y = value["y"] as? Double,
+      x.isFinite, y.isFinite, (0...1).contains(x), (0...1).contains(y) else { releaseTouch(); return }
+    let bounds = CGDisplayBounds(display)
+    guard bounds.width > 0, bounds.height > 0 else { releaseTouch(); return }
+    let p = CGPoint(x: bounds.minX + min(x * bounds.width, bounds.width - 1), y: bounds.minY + min(y * bounds.height, bounds.height - 1))
+    let now = ProcessInfo.processInfo.systemUptime
+    let sample = now - max(0, min(0.5, Date().timeIntervalSince1970 - (expires - 1000) / 1000))
+    touchRenewed = ProcessInfo.processInfo.systemUptime
+    switch type {
+    case "touch:down":
+      stopMomentum(); if touchOwner != nil { releaseTouch() }
+      touchLast = p; touchStart = p; touchLatest = p; touchOwner = session; touchDisplay = display; touchKind = "pending"
+      let mode = value["mode"] as? String ?? "auto"
+      touchReduceMotion = value["reduceMotion"] as? Bool ?? false
+      touchForceScroll = mode == "scroll"; scrollDisplay = display
+      if mode == "select" { touchTarget = .drag }
+      else if mode == "scroll" { touchTarget = .scroll }
+      else {
+        touchTarget = nil; touchToken += 1; let token = touchToken
+        Task.detached(priority: .userInitiated) { [weak self] in
+          let result = TouchTarget.at(p)
+          await MainActor.run { [weak self] in
+            guard let self, self.touchOwner == session, self.touchToken == token, self.touchKind == "pending", self.touchTarget == nil else { return }
+            self.touchTarget = result
+            if self.touchLatest != self.touchStart { self.moveTouch(self.touchLatest) }
+          }
+        }
+        Task { @MainActor [weak self] in
+          try? await Task.sleep(for: .milliseconds(80))
+          guard let self, self.touchOwner == session, self.touchToken == token, self.touchKind == "pending", self.touchTarget == nil else { return }
+          let dx = self.touchLatest.x - self.touchStart.x, dy = self.touchLatest.y - self.touchStart.y
+          self.touchTarget = abs(dy) > abs(dx) * 1.15 ? .scroll : .drag
+          if self.touchLatest != self.touchStart { self.moveTouch(self.touchLatest) }
+        }
+      }
+    case "touch:move":
+      guard touchOwner == session else { return }
+      moveTouch(p, sample: sample)
+    case "touch:up":
+      guard touchOwner == session else { return }
+      if touchKind == "pending" {
+        if touchLatest != touchStart {
+          if touchTarget == nil { let dx = touchLatest.x - touchStart.x, dy = touchLatest.y - touchStart.y; touchTarget = abs(dy) > abs(dx) * 1.15 ? .scroll : .drag }
+          moveTouch(touchLatest)
+        }
+        else { beginDrag() }
+      }
+      if touchKind == "drag" {
+        let doubleClick = touchClickCount == 2 && hypot(p.x - touchStart.x, p.y - touchStart.y) <= 5
+        touchLast = p; releaseTouch()
+        if doubleClick, let sequence = value["seq"] as? Int {
+          let token = touchToken
+          Task.detached(priority: .userInitiated) { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard TouchTarget.focusedEditable() else { return }
+            await MainActor.run { [weak self] in
+              guard let self, self.touchToken == token, self.running, CGPreflightPostEventAccess(), !IsSecureEventInputEnabled(), DesktopSession.shared.engine.touchDisplayID != kCGNullDirectDisplay else { return }
+              self.send(["type":"touch:editable", "session":session, "seq":sequence])
+            }
+          }
+        }
+      }
+      else if touchKind == "scroll" { releaseTouch(); startMomentum() }
+      else { releaseTouch() }
+    case "touch:right":
+      stopMomentum(); guard touchOwner == nil else { return }; mouse(.mouseMoved, p); mouse(.rightMouseDown, p, .right); mouse(.rightMouseUp, p, .right)
+    case "touch:scroll":
+      guard touchOwner == nil, let dx = value["dx"] as? Double, let dy = value["dy"] as? Double,
+        dx.isFinite, dy.isFinite, abs(dx) <= 200, abs(dy) <= 200 else { return }
+      if momentumTimer != nil { stopMomentum() }; scrollDisplay = display; mouse(.mouseMoved, p)
+      trackScroll(CGPoint(x: dx, y: dy), at: p, sample: sample)
+    default: break
+    }
   }
   private func eventFlags(_ mask: Int) -> CGEventFlags {
     var flags: CGEventFlags = capsLockState() ? .maskAlphaShift : []

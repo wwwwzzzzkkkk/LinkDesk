@@ -149,7 +149,7 @@ struct Index {
         Text(Strings.connectionHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
         Button(Strings.keyboardTitle).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
           .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode))
-          .enabled(['ready', 'permission', 'secure-input'].includes(this.keyboardState)).onClick(() => { KeyboardClient.refresh(); this.keyboardVisible = true; })
+          .onClick(() => { KeyboardClient.refresh(); this.keyboardVisible = true; })
         Text(this.keyboardState === 'permission' ? Strings.keyboardPermissionHint : this.keyboardState === 'pairing' ? Strings.keyboardPairingHint : this.keyboardState === 'ready' ? Strings.keyboardReady : Strings.keyboardDisconnected)
           .fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode)).width('100%')
       }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(this.wide ? DT.layoutPagePadding : DT.layoutCompactPadding)

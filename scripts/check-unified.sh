@@ -30,3 +30,7 @@ xcrun clang++ -std=c++17 -fsanitize=address,undefined -g "$ROOT/tests/test-strea
 "$RESULTS/stream-format"
 xcrun swiftc "$SOURCES/KeyboardModifierLease.swift" "$ROOT/tests/test-keyboard-modifier-lease.swift" -o "$RESULTS/keyboard-modifiers"
 "$RESULTS/keyboard-modifiers"
+xcrun swiftc "$SOURCES/TouchTarget.swift" "$ROOT/tests/test-touch-target.swift" -o "$RESULTS/touch-target"
+"$RESULTS/touch-target"
+xcrun swiftc "$SOURCES/WeTypeCandidates.swift" "$ROOT/tests/test-wetype-candidates.swift" -o "$RESULTS/wetype-candidates"
+"$RESULTS/wetype-candidates"

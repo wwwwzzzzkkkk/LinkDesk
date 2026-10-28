@@ -533,6 +533,10 @@ enum L10n {
     case "keyboardProfile": return english ? "Mac keyboard layout" : "Mac 键盘布局"
     case "keyboardWidthShort": return english ? "Key width" : "键宽"
     case "keyboardHeightShort": return english ? "Key height" : "键高"
+    case "touchAuto": return english ? "Touch · Auto" : "触摸·智能"
+    case "touchScroll": return english ? "Touch · Scroll" : "触摸·滚动"
+    case "touchSelect": return english ? "Touch · Select" : "触摸·选字"
+    case "touchModeHint": return english ? "Switch between auto touch, scrolling, and text selection" : "切换智能触摸、滚动和文字选择模式"
     default: return key
     }
   }
@@ -865,6 +869,10 @@ enum L10n {
   static var keyboardProfile: String { value("keyboardProfile") }
   static var keyboardWidthShort: String { value("keyboardWidthShort") }
   static var keyboardHeightShort: String { value("keyboardHeightShort") }
+  static var touchAuto: String { value("touchAuto") }
+  static var touchScroll: String { value("touchScroll") }
+  static var touchSelect: String { value("touchSelect") }
+  static var touchModeHint: String { value("touchModeHint") }
 }
 
 enum ConnectionState: String, CaseIterable {

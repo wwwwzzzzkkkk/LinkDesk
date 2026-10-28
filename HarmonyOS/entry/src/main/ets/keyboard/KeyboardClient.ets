@@ -8,11 +8,16 @@ import { DisplayContext } from '../DisplayContext';
 interface Pairing { key: string; identity: string; hosts?: string[]; }
 interface SessionInfo { session: string; identity: string; serverTime: number; keyboardVersion?: number; }
 interface Envelope { payload: string; }
-interface Reply { seq: number; ok: boolean; error: string; inputSource?: string; capsLock?: boolean; }
-interface Command { seq: number; type: string; key: string; text: string; modifiers: number; expires: number; lease?: number; repeat?: boolean; }
+interface Reply { seq: number; ok: boolean; error: string; inputSource?: string; capsLock?: boolean; candidates?: string[]; }
+interface Command { seq: number; type: string; key: string; text: string; modifiers: number; expires: number; lease?: number; repeat?: boolean; candidates?: boolean; }
 interface Pending { command: Command; time: number; }
+export interface TouchCredentials { host: string; identity: string; key: cryptoFramework.SymKey; }
 
 export class KeyboardClient {
+  static touchCredentials(): TouchCredentials | undefined {
+    if (AppStorage.get<string>('LinkDeskKeyboardState') !== 'ready' || !KeyboardClient.host || !KeyboardClient.symKey) return undefined;
+    return { host: KeyboardClient.host, identity: KeyboardClient.pairing.identity, key: KeyboardClient.symKey };
+  }
   private static context: common.UIAbilityContext | undefined = undefined;
   private static pairing: Pairing = { key: '', identity: '' };
   private static symKey: cryptoFramework.SymKey | undefined = undefined;
@@ -24,6 +29,7 @@ export class KeyboardClient {
   private static session: string = '';
   private static seq: number = 0;
   private static heldModifiers: number = 0;
+  private static inputRevision: number = 0;
   private static lastHealth: number = 0;
   private static serverTime: number = 0;
   private static localTime: number = 0;
@@ -44,7 +50,7 @@ export class KeyboardClient {
     } catch (_) {}
     KeyboardClient.state('disconnected');
     if (KeyboardClient.timer >= 0) clearInterval(KeyboardClient.timer);
-    KeyboardClient.timer = setInterval(() => { void KeyboardClient.tick(); }, 250);
+    KeyboardClient.timer = setInterval(() => { void KeyboardClient.tick(); }, 100);
     void KeyboardClient.tick();
   }
   static configure(host: string): void {
@@ -83,7 +89,9 @@ export class KeyboardClient {
   }
   static key(key: string, modifiers: number = 0, repeat: boolean = false): boolean {
     if (repeat && KeyboardClient.queue.length > 3) return false;
-    return KeyboardClient.enqueue({ seq: 0, type: 'key', key: key, modifiers: modifiers, text: '', expires: 0, repeat: repeat });
+    const accepted = KeyboardClient.enqueue({ seq: 0, type: 'key', key: key, modifiers: modifiers, text: '', expires: 0, repeat: repeat });
+    if (accepted) { KeyboardClient.inputRevision++; AppStorage.setOrCreate('LinkDeskKeyboardCandidateFresh', false); }
+    return accepted;
   }
   private static enqueue(command: Command): boolean {
     if (AppStorage.get<string>('LinkDeskKeyboardState') !== 'ready' || (!DisplayContext.foreground && !(command.type === 'modifiers' && command.modifiers === 0)) || KeyboardClient.queue.length >= 24) return false;
@@ -110,6 +118,8 @@ export class KeyboardClient {
   private static disconnect(): void {
     KeyboardClient.generation += 1; KeyboardClient.session = ''; KeyboardClient.queue = []; KeyboardClient.seq = 0; KeyboardClient.heldModifiers = 0;
     KeyboardClient.state('disconnected');
+    AppStorage.setOrCreate('LinkDeskKeyboardCandidates', '[]');
+    AppStorage.setOrCreate('LinkDeskKeyboardCandidateFresh', false);
   }
   private static hex(value: string): Uint8Array {
     const data = new Uint8Array(value.length / 2);
@@ -174,6 +184,7 @@ export class KeyboardClient {
     const key = KeyboardClient.symKey;
     if (!key || !KeyboardClient.session) throw new Error('disconnected');
     const session = KeyboardClient.session;
+    const inputRevision = KeyboardClient.inputRevision;
     command.seq = ++KeyboardClient.seq;
     const nonce = cryptoFramework.createRandom().generateRandomSync(12).data;
     const cipher = cryptoFramework.createCipher('AES256|GCM|NoPadding');
@@ -193,17 +204,24 @@ export class KeyboardClient {
     if (reply.seq !== command.seq) throw new Error('sequence');
     if (typeof reply.capsLock === 'boolean') AppStorage.setOrCreate('LinkDeskKeyboardCaps', reply.capsLock);
     if (typeof reply.inputSource === 'string') AppStorage.setOrCreate('LinkDeskKeyboardInputSource', reply.inputSource);
+    if (command.type === 'ping' && inputRevision === KeyboardClient.inputRevision && !KeyboardClient.queue.some((item: Pending) => item.command.type === 'key')) {
+      const candidates = reply.ok && command.candidates && Array.isArray(reply.candidates) ? reply.candidates.slice(0, 9) : [];
+      const encoded = JSON.stringify(candidates);
+      if (encoded !== AppStorage.get<string>('LinkDeskKeyboardCandidates')) AppStorage.setOrCreate('LinkDeskKeyboardCandidates', encoded);
+      AppStorage.setOrCreate('LinkDeskKeyboardCandidateFresh', candidates.length > 0);
+    }
     return reply;
   }
   private static async tick(): Promise<void> {
-    if (KeyboardClient.busy || !DisplayContext.foreground || (KeyboardClient.session.length > 0 && KeyboardClient.heldModifiers === 0 && Date.now() - KeyboardClient.lastHealth < 1000)) return;
+    const visible = AppStorage.get<boolean>('LinkDeskKeyboardVisible') === true;
+    if (KeyboardClient.busy || !DisplayContext.foreground || (KeyboardClient.session.length > 0 && KeyboardClient.heldModifiers === 0 && Date.now() - KeyboardClient.lastHealth < (visible ? 200 : 1000))) return;
     KeyboardClient.lastHealth = Date.now();
     KeyboardClient.busy = true;
     const generation = KeyboardClient.generation;
     try {
       if (!KeyboardClient.session) await KeyboardClient.establish();
       if (KeyboardClient.session && generation === KeyboardClient.generation) {
-        const reply = await KeyboardClient.exchange({ seq: 0, type: 'ping', key: '', text: '', modifiers: 0, lease: KeyboardClient.heldModifiers, expires: KeyboardClient.serverTime + Date.now() - KeyboardClient.localTime + 1000 });
+        const reply = await KeyboardClient.exchange({ seq: 0, type: 'ping', key: '', text: '', modifiers: 0, lease: KeyboardClient.heldModifiers, expires: KeyboardClient.serverTime + Date.now() - KeyboardClient.localTime + 1000, candidates: visible });
         if (generation === KeyboardClient.generation) KeyboardClient.state(reply.ok ? 'ready' : reply.error === 'permission' ? 'permission' : reply.error === 'secure-input' ? 'secure-input' : 'disconnected');
       }
     } catch (_) { if (generation === KeyboardClient.generation) KeyboardClient.disconnect(); }

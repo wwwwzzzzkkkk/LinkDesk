@@ -232,6 +232,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (void)shutdown { [_timer invalidate]; _timer = nil; [_standbyTimer invalidate]; _standbyTimer = nil; [self stopControlListener]; [self stop]; }
 - (BOOL)active { return _active; }
+- (CGDirectDisplayID)touchDisplayID { return _active && _display ? _display.displayID : kCGNullDirectDisplay; }
 - (BOOL)starting { return _starting; }
 - (BOOL)usbReady { return atomic_load(&_standbyReady); }
 - (NSString *)status { return _status.stringValue ?: _phase; }

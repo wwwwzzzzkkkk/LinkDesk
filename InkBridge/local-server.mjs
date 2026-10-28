@@ -929,7 +929,7 @@ class LocalWebSocket {
 
 server.on("upgrade", (request, socket, head) => {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
-  if (path !== '/ws' && path !== '/keyboard-host') return socket.destroy();
+  if (path !== '/ws' && path !== '/keyboard-host' && path !== '/touch') return socket.destroy();
   const key = request.headers["sec-websocket-key"];
   if (typeof key !== "string") return socket.destroy();
   const accept = createHash("sha1").update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
@@ -937,6 +937,12 @@ server.on("upgrade", (request, socket, head) => {
   if (path === '/keyboard-host') {
     const peer = new LocalWebSocket(socket, null, raw => keyboardRelay.hostMessage(peer, raw), () => keyboardRelay.hostClosed(peer));
     if (!keyboardRelay.attachHost(peer, request)) return peer.close(1008);
+    if (head?.length) peer.receive(head);
+    return;
+  }
+  if (path === '/touch') {
+    socket.setNoDelay(true);
+    const peer = new LocalWebSocket(socket, null, raw => keyboardRelay.touchMessage(peer, raw), () => keyboardRelay.touchClosed(peer));
     if (head?.length) peer.receive(head);
     return;
   }

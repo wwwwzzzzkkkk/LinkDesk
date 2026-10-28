@@ -8,6 +8,10 @@ import linkdesk from 'liblinkdesk.so';
 import systemDateTime from '@ohos.systemDateTime';
 import { DisplayContext } from '../DisplayContext';
 import { CursorOverlay } from './CursorOverlay';
+import { TouchClient } from './TouchClient';
+import { KeyboardClient } from '../keyboard/KeyboardClient';
+
+interface TouchPoint { x: number; y: number; }
 
 interface ReceiverStats {
   microphoneState: number;
@@ -67,6 +71,15 @@ export struct DesktopReceiver {
   private dragRight: number = 16;
   private dragTop: number = 16;
   private active: boolean = false;
+  private touchClient: TouchClient = new TouchClient();
+  private touchPoints: Map<number, TouchPoint> = new Map();
+  private touchMode: string = 'idle';
+  private touchPrimary: number = -1;
+  private touchStart: TouchPoint = { x: 0, y: 0 };
+  private touchLast: TouchPoint = { x: 0, y: 0 };
+  private scrollLast: TouchPoint = { x: 0, y: 0 };
+  private holdTimer: number = -1;
+  @State private touchInputMode: string = 'auto';
   @State private microphonePending: boolean = false;
   @State private screenHz: number = 0;
   @State private latestMode: boolean = true;
@@ -98,6 +111,7 @@ export struct DesktopReceiver {
   }
 
   private connect(): void {
+    this.cancelTouch();
     // Reset stale status immediately; keep the panel available while reconnecting.
     this.state = 1;
     this.error = 0;
@@ -113,6 +127,7 @@ export struct DesktopReceiver {
     if (this.timer >= 0) clearInterval(this.timer);
     this.timer = setInterval(() => {
       const info = JSON.parse(linkdesk.stats()) as ReceiverStats;
+      if (this.state === 3 && info.state !== 3) this.cancelTouch();
       this.state = info.state;
       AppStorage.setOrCreate('LinkDeskReceiverWorking', info.state === 3);
       PlatformUI.setReceiver(info.state === 3);
@@ -178,10 +193,11 @@ export struct DesktopReceiver {
       detail: this.microphoneState === 2 ? Strings.microphoneSending : this.microphoneState === -1 ? Strings.microphoneError : this.microphoneMessage,
       control: (): void => { this.microphoneAction(); } })
   }
-  aboutToAppear(): void { this.active = true; }
+  aboutToAppear(): void { this.active = true; this.touchClient.start(); }
 
   aboutToDisappear(): void {
     this.active = false;
+    this.cancelTouch(); this.touchClient.stop();
     PlatformUI.setReceiver(false);
     if (this.timer >= 0) clearInterval(this.timer);
     this.timer = -1;
@@ -189,6 +205,65 @@ export struct DesktopReceiver {
     linkdesk.stop();
     AppStorage.setOrCreate('LinkDeskReceiverWorking', false);
     AppStorage.setOrCreate('LinkDeskReceiverState', ConnectionState.disconnected);
+  }
+
+  private stopHold(): void { if (this.holdTimer >= 0) clearTimeout(this.holdTimer); this.holdTimer = -1; }
+  private sendTouch(type: string, p: TouchPoint, dx: number = 0, dy: number = 0): void {
+    if (this.displayWidth <= 0 || this.displayHeight <= 0) return;
+    this.touchClient.send(type, p.x / this.displayWidth, p.y / this.displayHeight, dx, dy, this.touchInputMode, this.reduceMotion);
+  }
+  private cancelTouch(): void {
+    this.stopHold(); this.touchClient.send('cancel', 0, 0); this.touchPoints.clear(); this.touchPrimary = -1; this.touchMode = 'idle';
+  }
+  private touchCenter(): TouchPoint {
+    let x = 0; let y = 0; let count = 0;
+    this.touchPoints.forEach((point: TouchPoint) => { x += point.x; y += point.y; count++; });
+    return count ? { x: x / count, y: y / count } : this.touchLast;
+  }
+  private handleTouch(event: TouchEvent): void {
+    if (this.state !== 3 || !DisplayContext.foreground) { this.cancelTouch(); return; }
+    if (event.type === TouchType.Cancel) { this.cancelTouch(); return; }
+    if (event.type === TouchType.Down || event.type === TouchType.Move) {
+      event.changedTouches.forEach((touch: TouchObject) => { this.touchPoints.set(touch.id, { x: touch.x, y: touch.y }); });
+    }
+    if (event.type === TouchType.Down && this.touchPoints.size === 1 && this.touchMode === 'idle') {
+      const touch = event.changedTouches[0]; if (!touch) return;
+      this.sendTouch('halt', { x: touch.x, y: touch.y });
+      this.touchPrimary = touch.id; this.touchStart = { x: touch.x, y: touch.y }; this.touchLast = this.touchStart; this.touchMode = 'pending';
+      this.stopHold(); this.holdTimer = setTimeout(() => {
+        if (this.touchMode === 'pending' && this.touchPoints.size === 1) { this.sendTouch('right', this.touchLast); this.touchMode = 'handled'; }
+        this.holdTimer = -1;
+      }, 500);
+    } else if (event.type === TouchType.Down && this.touchPoints.size >= 2) {
+      this.stopHold(); if (this.touchMode === 'drag') this.sendTouch('up', this.touchLast);
+      this.touchMode = 'scroll'; this.scrollLast = this.touchCenter();
+    } else if (event.type === TouchType.Move && this.touchMode === 'scroll' && this.touchPoints.size >= 2) {
+      const center = this.touchCenter();
+      // Positive wheel delta follows the natural finger direction.
+      const dx = Math.max(-200, Math.min(200, (center.x - this.scrollLast.x) * 2));
+      const dy = Math.max(-200, Math.min(200, (center.y - this.scrollLast.y) * 2));
+      if (Math.abs(dx) + Math.abs(dy) >= 0.5) { this.sendTouch('scroll', center, dx, dy); this.scrollLast = center; }
+    } else if (event.type === TouchType.Move && (this.touchMode === 'pending' || this.touchMode === 'drag')) {
+      const point = this.touchPoints.get(this.touchPrimary); if (!point) return;
+      this.touchLast = point;
+      if (this.touchMode === 'pending' && Math.hypot(point.x - this.touchStart.x, point.y - this.touchStart.y) >= 5) {
+        this.stopHold(); this.sendTouch('down', this.touchStart); this.touchMode = 'drag';
+      }
+      if (this.touchMode === 'drag') this.sendTouch('move', point);
+    }
+    if (event.type === TouchType.Up) {
+      if (this.touchMode === 'scroll') { this.sendTouch('scrollend', this.touchCenter()); this.touchMode = 'handled'; }
+      event.changedTouches.forEach((touch: TouchObject) => {
+        if (touch.id === this.touchPrimary) {
+          const p: TouchPoint = { x: touch.x, y: touch.y };
+          if (this.touchMode === 'pending') { this.sendTouch('down', p); this.sendTouch('up', p); }
+          else if (this.touchMode === 'drag') this.sendTouch('up', p);
+        }
+        this.touchPoints.delete(touch.id);
+      });
+      if (this.touchPoints.size === 0) { this.stopHold(); this.touchPrimary = -1; this.touchMode = 'idle'; }
+      else if (this.touchMode === 'scroll') this.scrollLast = this.touchCenter();
+    }
   }
 
   private connectionState(): ConnectionState {
@@ -235,6 +310,12 @@ export struct DesktopReceiver {
       Text('⠿').fontSize(DT.dimensionsPanelValue18).fontColor(DT.secondary(this.darkMode))
       Text(Strings.displayTitle).fontSize(DT.dimensionsPanelValue13).fontWeight(FontWeight.Medium).fontColor(DT.text(this.darkMode))
       Blank()
+      Button(this.touchInputMode === 'auto' ? Strings.touchAuto : this.touchInputMode === 'scroll' ? Strings.touchScroll : Strings.touchSelect)
+        .height(DT.spacingS28).padding({ left: DT.spacingS8, right: DT.spacingS8 }).fontSize(DT.dimensionsPanelValue10)
+        .borderRadius(DT.dimensionsPanelValue12).backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode))
+        .accessibilityText(Strings.touchModeHint).onClick(() => {
+          this.cancelTouch(); this.touchInputMode = this.touchInputMode === 'auto' ? 'scroll' : this.touchInputMode === 'scroll' ? 'select' : 'auto';
+        })
       Row().width(DT.dimensionsPanelValue6).height(DT.dimensionsPanelValue6).borderRadius(DT.dimensionsPanelValue3)
         .backgroundColor(this.state === 3 ? DT.success(this.darkMode) : DT.warning(this.darkMode))
       Text(ConnectionPresentation.title(this.connectionState())).fontSize(DT.dimensionsPanelValue11).fontColor(DT.secondary(this.darkMode))
@@ -295,7 +376,7 @@ export struct DesktopReceiver {
           .accessibilityText(`${this.microphoneDetail()} · ${this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone}`)
           .onClick(() => { void this.toggleMicrophone(); })
         Row({ space: 6 }) {
-          this.panelAction(Strings.keyboardShort, () => AppStorage.setOrCreate('LinkDeskKeyboardVisible', true), !['ready', 'permission', 'secure-input'].includes(this.keyboardState))
+          this.panelAction(Strings.keyboardShort, () => { KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true); })
           this.panelAction(Strings.backHome, () => this.onExit())
           this.panelAction(Strings.reconnect, () => this.connect())
           this.panelAction(Strings.hide, () => this.setControlsVisible(false))
@@ -331,6 +412,8 @@ export struct DesktopReceiver {
         .width(this.displayWidth).height(this.displayHeight)
         .onLoad(() => this.connect()).onDestroy(() => linkdesk.stop())
       CursorOverlay({ displayWidth: this.displayWidth, displayHeight: this.displayHeight }).zIndex(5)
+      Column() {}.width(this.displayWidth).height(this.displayHeight).backgroundColor(Color.Transparent)
+        .onTouch((event: TouchEvent) => this.handleTouch(event)).zIndex(6)
       if (this.state !== 3) {
         Scroll() {
           Column({ space: DT.spacingS24 }) {

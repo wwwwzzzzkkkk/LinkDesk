@@ -23,6 +23,10 @@ export struct KeyboardPanel {
   @StorageLink('LinkDeskKeyboardNoticeError') noticeError: boolean = false;
   @StorageLink('LinkDeskKeyboardCaps') caps: boolean = false;
   @StorageLink('LinkDeskKeyboardInputSource') inputSource: string = '';
+  @StorageLink('LinkDeskKeyboardCandidates') @Watch('candidatesChanged') candidatesJSON: string = '[]';
+  @StorageLink('LinkDeskKeyboardCandidateFresh') candidateFresh: boolean = false;
+  @State private candidates: string[] = [];
+  private candidateHideTimer: number = -1;
   @StorageLink('LinkDeskKeyboardHapticAvailable') hapticAvailable: boolean = true;
   @StorageLink('LinkDeskReduceMotion') reduceMotion: boolean = false;
   @State private layout: string = 'dock';
@@ -69,9 +73,9 @@ export struct KeyboardPanel {
       this.showPad = this.store.getSync('numberPad', false) as boolean;
       this.haptics = this.store.getSync('haptics', false) as boolean;
     } catch (_) {}
-    this.loadSizing();
+    this.loadSizing(); this.candidatesChanged();
   }
-  aboutToDisappear(): void { this.alive = false; this.releaseAll(); this.draft = ''; KeyboardClient.cancelPending(); }
+  aboutToDisappear(): void { this.alive = false; if (this.candidateHideTimer >= 0) clearTimeout(this.candidateHideTimer); this.releaseAll(); this.draft = ''; KeyboardClient.cancelPending(); }
   private orientationKey(): string { return this.viewportWidth >= this.viewportHeight ? 'landscape' : 'portrait'; }
   private loadSizing(): void {
     this.orientation = this.orientationKey();
@@ -114,6 +118,15 @@ export struct KeyboardPanel {
     this.lastTapMask = 0; KeyboardClient.setHeldModifiers(0);
   }
   private stateChanged(): void { if (this.state !== 'ready') this.releaseAll(); }
+  private candidatesChanged(): void {
+    if (this.candidateHideTimer >= 0) clearTimeout(this.candidateHideTimer);
+    this.candidateHideTimer = -1;
+    try {
+      const next = JSON.parse(this.candidatesJSON) as string[];
+      if (next.length) this.candidates = next;
+      else if (this.candidates.length) this.candidateHideTimer = setTimeout(() => { if (this.candidatesJSON === '[]') this.candidates = []; this.candidateHideTimer = -1; }, 350);
+    } catch (_) { this.candidates = []; }
+  }
   private syncHeld(): void {
     let mask = 0; this.held.forEach((value: HeldModifier) => { mask |= value.mask; });
     this.heldMask = mask; KeyboardClient.setHeldModifiers(mask | this.lockedMask);
@@ -162,7 +175,7 @@ export struct KeyboardPanel {
     if (KeyboardClient.key(code, mask, repeat)) this.armedMask = 0;
   }
   private close(): void {
-    this.releaseAll(); KeyboardClient.cancelPending(); this.draft = ''; this.visible = false;
+    this.releaseAll(); KeyboardClient.cancelPending(); this.draft = ''; this.visible = false; AppStorage.setOrCreate('LinkDeskKeyboardCandidates', '[]');
     try { void inputMethod.getController().hideTextInput(); } catch (_) {}
   }
   private toggleCompose(): void {
@@ -335,6 +348,19 @@ export struct KeyboardPanel {
   build() {
     Column({ space: DT.spacingS8 }) {
       if (this.settingsOpen) this.settings()
+      if (!this.composing && this.candidates.length > 0 && this.state === 'ready') {
+        Scroll() {
+          Row({ space: DT.spacingS4 }) {
+            ForEach(this.candidates, (candidate: string, index: number) => {
+              Button(`${index + 1} ${candidate}`).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+                .fontColor(DT.text(this.dark)).backgroundColor(DT.keyboardKey(this.dark)).borderRadius(DT.radiusSmall)
+                .onClick(() => { if (this.candidateFresh && index < 9) KeyboardClient.key(`${index + 1}`); })
+            }, (candidate: string, index: number) => `${index}-${candidate}`)
+          }
+        }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')
+          .backgroundColor(DT.keyboardGlass(this.dark)).borderRadius(DT.radiusLarge)
+          .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.dark ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+      }
       Row() {
         Row({ space: DT.spacingS4 }) {
           if (this.layout !== 'full') {

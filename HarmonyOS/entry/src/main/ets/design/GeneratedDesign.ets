@@ -508,6 +508,10 @@ export class Strings {
       case "keyboardProfile": return english ? "Mac keyboard layout" : "Mac 键盘布局";
       case "keyboardWidthShort": return english ? "Key width" : "键宽";
       case "keyboardHeightShort": return english ? "Key height" : "键高";
+      case "touchAuto": return english ? "Touch · Auto" : "触摸·智能";
+      case "touchScroll": return english ? "Touch · Scroll" : "触摸·滚动";
+      case "touchSelect": return english ? "Touch · Select" : "触摸·选字";
+      case "touchModeHint": return english ? "Switch between auto touch, scrolling, and text selection" : "切换智能触摸、滚动和文字选择模式";
       default: return key;
     }
   }
@@ -840,6 +844,10 @@ export class Strings {
   static get keyboardProfile(): string { return Strings.value("keyboardProfile"); }
   static get keyboardWidthShort(): string { return Strings.value("keyboardWidthShort"); }
   static get keyboardHeightShort(): string { return Strings.value("keyboardHeightShort"); }
+  static get touchAuto(): string { return Strings.value("touchAuto"); }
+  static get touchScroll(): string { return Strings.value("touchScroll"); }
+  static get touchSelect(): string { return Strings.value("touchSelect"); }
+  static get touchModeHint(): string { return Strings.value("touchModeHint"); }
 }
 
 export enum ConnectionState {

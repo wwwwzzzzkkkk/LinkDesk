@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEq
 const keys = new Set(['enter', 'backspace', 'delete', 'tab', 'escape', 'space', 'left', 'right', 'up', 'down', 'home', 'end', 'pageup', 'pagedown', 'capslock', 'capslockHold', 'inputsource', 'isoSection', 'jisYen', 'jisUnderscore', 'jisEisu', 'jisKana', 'volumeup', 'volumedown', 'mute', 'playpause', 'nexttrack', 'prevtrack', ...Array.from({ length: 20 }, (_, i) => `f${i+1}`), ...Array.from({ length: 10 }, (_, i) => `numpad${i}`), 'numpadDecimal', 'numpadMultiply', 'numpadPlus', 'numpadClear', 'numpadDivide', 'numpadEnter', 'numpadMinus', 'numpadEquals', ...'abcdefghijklmnopqrstuvwxyz0123456789', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/', '`']);
 export function validKeyboardCommand(value) {
   if (!value || !Number.isSafeInteger(value.seq) || value.seq < 1) return false;
-  if (value.type === 'ping') return value.lease === undefined || (Number.isInteger(value.lease) && value.lease >= 0 && value.lease <= 15 && Number.isSafeInteger(value.expires));
+  if (value.type === 'ping') return (value.candidates === undefined || typeof value.candidates === 'boolean') && (value.lease === undefined || (Number.isInteger(value.lease) && value.lease >= 0 && value.lease <= 15 && Number.isSafeInteger(value.expires)));
   if (!Number.isSafeInteger(value.expires)) return false;
   if (value.type === 'modifiers') return Number.isInteger(value.modifiers) && value.modifiers >= 0 && value.modifiers <= 15;
   if (value.type === 'text') return typeof value.text === 'string' && value.text.length > 0 && value.text.length <= 1024 && !/[\x00-\x08\x0b-\x1f\x7f]/.test(value.text);
@@ -33,8 +33,42 @@ export function createKeyboardRelay(encodedKey, now = () => Date.now(), addresse
     let value; try { value = JSON.parse(raw); } catch { return; }
     if (value.type === 'keyboard:status') { permitted = value.permitted === true; secureInput = value.secureInput === true; hostUpdated = now(); }
     if (value.type === 'keyboard:ack' && typeof value.id === 'string') pending.get(value.id)?.(value);
+    if (value.type === 'touch:editable' && typeof value.session === 'string' && Number.isSafeInteger(value.seq)) {
+      const session = sessions.get(value.session);
+      if (!session?.touch || value.seq > session.seq || value.seq <= (session.noticeSeq ?? 0) || now() - session.time > 1500 || !permitted || secureInput) return;
+      session.noticeSeq = value.seq;
+      const nonce = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, nonce);
+      cipher.setAAD(Buffer.from(`LDT1:${value.session}:s`));
+      const payload = Buffer.concat([nonce, cipher.update(JSON.stringify({type:'editable', seq:value.seq, expires:now()+1000})), cipher.final(), cipher.getAuthTag()]);
+      session.touch.send(JSON.stringify({payload:payload.toString('base64')}));
+    }
   }
   function hostClosed(socket) { if (host === socket) { host = null; permitted = false; forgetSessions(); } }
+  // Touch uses its own authenticated session and persistent socket. Button
+  // transitions are ordered; only the tablet may coalesce unsent movement.
+  function touchMessage(socket, raw) {
+    const fail = () => { socket.close(1008); touchClosed(socket); };
+    if (!key || !online() || !permitted || secureInput || raw.length > 4096 || (host.socket && host.socket.writableLength > 65536)) return fail();
+    let envelope, command;
+    try {
+      envelope = JSON.parse(raw);
+      const session = sessions.get(envelope.session);
+      if (!session || (session.touch && session.touch !== socket) || session.busy || now() - session.time > 15000 || typeof envelope.payload !== 'string') return fail();
+      const data = Buffer.from(envelope.payload, 'base64');
+      if (data.length < 29 || data.length > 2048) return fail();
+      const cipher = createDecipheriv('aes-256-gcm', key, data.subarray(0, 12));
+      cipher.setAAD(Buffer.from(`LDT1:${envelope.session}:c`)); cipher.setAuthTag(data.subarray(-16));
+      command = JSON.parse(Buffer.concat([cipher.update(data.subarray(12, -16)), cipher.final()]));
+      const point = Number.isFinite(command.x) && command.x >= 0 && command.x <= 1 && Number.isFinite(command.y) && command.y >= 0 && command.y <= 1;
+      const scroll = Number.isFinite(command.dx) && Math.abs(command.dx) <= 200 && Number.isFinite(command.dy) && Math.abs(command.dy) <= 200;
+      if (!Number.isSafeInteger(command.seq) || command.seq !== session.seq + 1 || !Number.isSafeInteger(command.expires) || command.expires < now() || command.expires > now() + 1500 || !['ping', 'down', 'move', 'up', 'right', 'scroll', 'scrollend', 'cancel', 'halt'].includes(command.type) || (!['ping', 'cancel', 'scrollend', 'halt'].includes(command.type) && !point) || (command.type === 'scroll' && !scroll) || (command.type === 'down' && command.mode !== undefined && !['auto', 'scroll', 'select'].includes(command.mode))) return fail();
+      session.seq = command.seq; session.time = now(); session.touch = socket; socket.touchSession = envelope.session;
+      host.send(JSON.stringify({ ...command, type: `touch:${command.type}`, session: envelope.session }));
+    } catch { return fail(); }
+  }
+  function touchClosed(socket) {
+    if (socket.touchSession) { invalidate(socket.touchSession); socket.touchSession = null; }
+  }
   function forward(command) {
     if (!online()) return Promise.resolve({ ok: false, error: 'disconnected' });
     if (!permitted) return Promise.resolve({ ok: false, error: 'permission' });
@@ -43,7 +77,7 @@ export function createKeyboardRelay(encodedKey, now = () => Date.now(), addresse
     const id = randomBytes(16).toString('hex');
     return new Promise(resolve => {
       const timer = setTimeout(() => finish(null), 1200);
-      const finish = (result) => { clearTimeout(timer); pending.delete(id); resolve(result ? { ok: result.ok === true, error: result.error ?? '', ...(typeof result.inputSource === 'string' ? { inputSource: result.inputSource.slice(0,160) } : {}), ...(typeof result.capsLock === 'boolean' ? { capsLock: result.capsLock } : {}) } : { ok: false, error: 'disconnected' }); };
+      const finish = (result) => { clearTimeout(timer); pending.delete(id); resolve(result ? { ok: result.ok === true, error: result.error ?? '', ...(typeof result.inputSource === 'string' ? { inputSource: result.inputSource.slice(0,160) } : {}), ...(typeof result.capsLock === 'boolean' ? { capsLock: result.capsLock } : {}), ...(Array.isArray(result.candidates) ? { candidates: result.candidates.filter(v => typeof v === 'string' && v.length <= 80).slice(0,9) } : {}) } : { ok: false, error: 'disconnected' }); };
       pending.set(id, finish);
       host.send(JSON.stringify({ ...command, type: `keyboard:${command.type}`, id }));
     });
@@ -94,5 +128,5 @@ export function createKeyboardRelay(encodedKey, now = () => Date.now(), addresse
     const payload = Buffer.concat([nonce, cipher.update(JSON.stringify({ ...result, seq: command.seq })), cipher.final(), cipher.getAuthTag()]);
     return reply(200, { payload: payload.toString('base64') });
   }
-  return { handle, attachHost, hostMessage, hostClosed };
+  return { handle, attachHost, hostMessage, hostClosed, touchMessage, touchClosed };
 }

@@ -1317,6 +1317,22 @@
     "keyboardHeightShort": {
       "zh-Hans": "键高",
       "en": "Key height"
+    },
+    "touchAuto": {
+      "zh-Hans": "触摸·智能",
+      "en": "Touch · Auto"
+    },
+    "touchScroll": {
+      "zh-Hans": "触摸·滚动",
+      "en": "Touch · Scroll"
+    },
+    "touchSelect": {
+      "zh-Hans": "触摸·选字",
+      "en": "Touch · Select"
+    },
+    "touchModeHint": {
+      "zh-Hans": "切换智能触摸、滚动和文字选择模式",
+      "en": "Switch between auto touch, scrolling, and text selection"
     }
   }
 }

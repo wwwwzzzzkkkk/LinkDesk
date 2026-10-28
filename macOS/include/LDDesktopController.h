@@ -3,6 +3,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The display/audio engine lives inside the single LinkDesk process and signing identity.
 @interface LDDesktopController : NSObject
 @property(nonatomic, readonly) BOOL active;
+@property(nonatomic, readonly) CGDirectDisplayID touchDisplayID;
 @property(nonatomic, readonly) BOOL starting;
 @property(nonatomic, readonly) BOOL usbReady;
 @property(nonatomic, readonly) NSString *status;
