@@ -1333,6 +1333,70 @@
     "touchModeHint": {
       "zh-Hans": "切换智能触摸、滚动和文字选择模式",
       "en": "Switch between auto touch, scrolling, and text selection"
+    },
+    "colorEnhancement": {
+      "zh-Hans": "画面色彩",
+      "en": "Display color"
+    },
+    "colorEnhancementDescription": {
+      "zh-Hans": "调整扩展屏幕的色彩浓度；增强可能影响帧率。",
+      "en": "Adjust the color intensity of the extended display; enhancement may affect frame rate."
+    },
+    "colorOriginal": {
+      "zh-Hans": "原色",
+      "en": "Original"
+    },
+    "colorGentle": {
+      "zh-Hans": "轻度鲜艳",
+      "en": "Vivid"
+    },
+    "colorStrong": {
+      "zh-Hans": "更鲜艳",
+      "en": "More vivid"
+    },
+    "keyboardVoice": {
+      "zh-Hans": "语音",
+      "en": "Voice"
+    },
+    "keyboardVoiceHint": {
+      "zh-Hans": "点输入法话筒说话，完成后发送",
+      "en": "Tap the input method microphone, then send"
+    },
+    "keyboardVoiceMac": {
+      "zh-Hans": "按住说话",
+      "en": "Hold to speak"
+    },
+    "keyboardVoiceActive": {
+      "zh-Hans": "松开发送",
+      "en": "Release to finish"
+    },
+    "keyboardVoiceMacHint": {
+      "zh-Hans": "按住调用 Mac 输入法语音，松开结束；需启用输入法 Fn 语音快捷键",
+      "en": "Hold for Mac input method voice; requires its Fn voice shortcut"
+    },
+    "keyboardVoiceTablet": {
+      "zh-Hans": "平板输入法语音",
+      "en": "Tablet voice input"
+    },
+    "hdrShadows": {
+      "zh-Hans": "HDR 暗部",
+      "en": "HDR shadows"
+    },
+    "hdrShadowsDescription": {
+      "zh-Hans": "调暗 HDR 暗部以适应平板；过强可能损失细节。",
+      "en": "Darken HDR shadows for the tablet; stronger settings may obscure detail."
+    },
+    "hdrShadowsNormal": {
+      "zh-Hans": "原始",
+      "en": "Original"
+    },
+    "hdrShadowsSoft": {
+      "zh-Hans": "柔和",
+      "en": "Gentle"
+    },
+    "hdrShadowsDeep": {
+      "zh-Hans": "更深",
+      "en": "Deeper"
     }
   }
 }

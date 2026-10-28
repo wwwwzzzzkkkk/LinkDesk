@@ -78,6 +78,10 @@ export struct DesktopReceiver {
   private touchStart: TouchPoint = { x: 0, y: 0 };
   private touchLast: TouchPoint = { x: 0, y: 0 };
   private scrollLast: TouchPoint = { x: 0, y: 0 };
+  private multiStart: TouchPoint = { x: 0, y: 0 };
+  private multiDistance: number = 0;
+  private multiLastDistance: number = 0;
+  private multiStartedAt: number = 0;
   private holdTimer: number = -1;
   @State private touchInputMode: string = 'auto';
   @State private microphonePending: boolean = false;
@@ -220,6 +224,11 @@ export struct DesktopReceiver {
     this.touchPoints.forEach((point: TouchPoint) => { x += point.x; y += point.y; count++; });
     return count ? { x: x / count, y: y / count } : this.touchLast;
   }
+  private touchDistance(): number {
+    const points: TouchPoint[] = [];
+    this.touchPoints.forEach((point: TouchPoint) => { if (points.length < 2) points.push(point); });
+    return points.length === 2 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : 0;
+  }
   private handleTouch(event: TouchEvent): void {
     if (this.state !== 3 || !DisplayContext.foreground) { this.cancelTouch(); return; }
     if (event.type === TouchType.Cancel) { this.cancelTouch(); return; }
@@ -236,7 +245,31 @@ export struct DesktopReceiver {
       }, 500);
     } else if (event.type === TouchType.Down && this.touchPoints.size >= 2) {
       this.stopHold(); if (this.touchMode === 'drag') this.sendTouch('up', this.touchLast);
-      this.touchMode = 'scroll'; this.scrollLast = this.touchCenter();
+      if (this.touchMode === 'pinch') this.sendTouch('pinchend', this.touchCenter());
+      if (this.touchMode === 'scroll') this.sendTouch('scrollend', this.touchCenter());
+      if (this.touchPoints.size === 2) {
+        this.touchMode = 'multi'; this.scrollLast = this.touchCenter(); this.multiStart = this.scrollLast;
+        this.multiDistance = this.touchDistance(); this.multiLastDistance = this.multiDistance; this.multiStartedAt = Date.now();
+      } else this.touchMode = 'handled';
+    } else if (event.type === TouchType.Move && this.touchMode === 'multi' && this.touchPoints.size === 2) {
+      const center = this.touchCenter(); const distance = this.touchDistance();
+      const pan = Math.hypot(center.x - this.multiStart.x, center.y - this.multiStart.y);
+      const spread = Math.abs(distance - this.multiDistance);
+      if (spread >= 9 && spread > pan * 1.3 && this.multiDistance >= 20) {
+        this.touchMode = 'pinch'; this.sendTouch('pinchbegin', center);
+        this.sendTouch('pinch', center, Math.max(-0.4, Math.min(0.4, distance / this.multiDistance - 1)));
+        this.multiLastDistance = distance;
+      } else if (pan >= 5 && pan * 1.3 > spread) {
+        this.touchMode = 'scroll';
+        this.sendTouch('scroll', center, Math.max(-200, Math.min(200, (center.x - this.scrollLast.x) * 2)), Math.max(-200, Math.min(200, (center.y - this.scrollLast.y) * 2)));
+        this.scrollLast = center;
+      }
+    } else if (event.type === TouchType.Move && this.touchMode === 'pinch' && this.touchPoints.size === 2) {
+      const distance = this.touchDistance();
+      if (this.multiLastDistance >= 20 && Math.abs(distance - this.multiLastDistance) >= 0.5) {
+        this.sendTouch('pinch', this.touchCenter(), Math.max(-0.4, Math.min(0.4, distance / this.multiLastDistance - 1)));
+        this.multiLastDistance = distance;
+      }
     } else if (event.type === TouchType.Move && this.touchMode === 'scroll' && this.touchPoints.size >= 2) {
       const center = this.touchCenter();
       // Positive wheel delta follows the natural finger direction.
@@ -253,6 +286,11 @@ export struct DesktopReceiver {
     }
     if (event.type === TouchType.Up) {
       if (this.touchMode === 'scroll') { this.sendTouch('scrollend', this.touchCenter()); this.touchMode = 'handled'; }
+      else if (this.touchMode === 'pinch') { this.sendTouch('pinchend', this.touchCenter()); this.touchMode = 'handled'; }
+      else if (this.touchMode === 'multi') {
+        if (Date.now() - this.multiStartedAt < 300 && Math.hypot(this.touchCenter().x - this.multiStart.x, this.touchCenter().y - this.multiStart.y) < 5 && Math.abs(this.touchDistance() - this.multiDistance) < 9) this.sendTouch('right', this.touchCenter());
+        this.touchMode = 'handled';
+      }
       event.changedTouches.forEach((touch: TouchObject) => {
         if (touch.id === this.touchPrimary) {
           const p: TouchPoint = { x: touch.x, y: touch.y };
@@ -279,9 +317,9 @@ export struct DesktopReceiver {
     return Strings.displayEmptyDescription;
   }
   private panelWidth(): number {
-    return this.controlsVisible ? Math.min(DT.dimensionsPanelValue336, this.viewportWidth - DT.dimensionsPanelValue24) : 132;
+    return this.controlsVisible ? Math.min(304, this.viewportWidth - DT.dimensionsPanelValue24) : 132;
   }
-  private panelHeight(): number { return this.controlsVisible ? 224 : 48; }
+  private panelHeight(): number { return this.controlsVisible ? 160 : 48; }
   private clampPanel(): void {
     this.panelRight = Math.max(12, Math.min(this.panelRight, this.viewportWidth - this.panelWidth() - 12));
     this.panelTop = Math.max(12, Math.min(this.panelTop, this.viewportHeight - this.panelHeight() - 12));
@@ -329,59 +367,56 @@ export struct DesktopReceiver {
           this.clampPanel();
         }))
   }
-  @Builder panelAction(title: string, action: () => void, disabled: boolean = false) {
-    Button(title).layoutWeight(1).height(DT.dimensionsPanelValue48).fontSize(DT.dimensionsPanelValue12)
-      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).borderRadius(DT.dimensionsPanelValue12)
+  @Builder panelAction(icon: Resource, title: string, action: () => void, disabled: boolean = false) {
+    Button() {
+      Image(icon).width(DT.layoutIcon).height(DT.layoutIcon).opacity(disabled ? 0.4 : 0.92)
+    }.layoutWeight(1).height(DT.spacingS44)
+      .backgroundColor(DT.keyboardKey(this.darkMode)).borderRadius(DT.dimensionsPanelValue12)
       .enabled(!disabled).accessibilityText(title).onClick(action)
+  }
+  @Builder microphoneIcon() {
+    Button() {
+      Stack({ alignContent: Alignment.BottomEnd }) {
+        Image(this.microphoneAllowed ? (this.darkMode ? $r('app.media.panel_mic_dark') : $r('app.media.panel_mic')) :
+          (this.darkMode ? $r('app.media.panel_mic_off_dark') : $r('app.media.panel_mic_off')))
+          .width(DT.layoutIcon).height(DT.layoutIcon)
+        Row().width(DT.dimensionsPanelValue6).height(DT.dimensionsPanelValue6).borderRadius(DT.dimensionsPanelValue3)
+          .backgroundColor(this.microphoneState === -1 ? DT.warning(this.darkMode) :
+            this.microphoneAllowed && this.microphoneState === 2 ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
+      }.width(DT.layoutIcon).height(DT.layoutIcon)
+    }.width(DT.spacingS44).height(DT.spacingS44).borderRadius(DT.dimensionsPanelValue12)
+      .backgroundColor(this.microphoneAllowed && this.microphoneState === 2 ? DT.accentSoft(this.darkMode) : DT.keyboardKey(this.darkMode))
+      .enabled(!this.microphonePending)
+      .accessibilityText(`${this.microphoneLabel()} · ${this.microphoneDetail()} · ${this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone}`)
+      .onClick(() => { void this.toggleMicrophone(); })
   }
   @Builder floatingPanel() {
     Stack({ alignContent: Alignment.TopStart }) {
       if (this.controlsVisible) {
         Column({ space: 4 }) {
-        this.panelHeader()
-        Row({ space: 8 }) {
-          Column({ space: 2 }) {
-            Text(`${this.realtimeFPS.toFixed(0)} fps`).fontSize(DT.dimensionsPanelValue18).fontWeight(FontWeight.Medium)
-              .fontColor(DT.text(this.darkMode))
-            Text(Strings.panelActualFPS).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
-          }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            .accessibilityText(Strings.get('panelFPSDescription', [this.realtimeFPS.toFixed(0), this.targetFPS.toString()]))
-          Column({ space: 2 }) {
-            Text(this.screenHz > 0 ? `${this.screenHz} Hz` : '— Hz').fontSize(DT.dimensionsPanelValue13).fontColor(DT.text(this.darkMode))
-            Text(`${this.streamWidth} × ${this.streamHeight}${this.hdrActive ? ' · HDR10' : ''}`).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
-          }.alignItems(HorizontalAlign.End)
-            .accessibilityText(Strings.get('panelScreenRefresh', [this.screenHz.toString()]))
-          Toggle({ type: ToggleType.Button, isOn: this.latestMode }) {
-            Text(Strings.lowLatency).fontSize(DT.dimensionsPanelValue11).fontColor(DT.text(this.darkMode))
-          }
-            .height(DT.dimensionsPanelValue48).padding({ left: 10, right: 10 }).borderRadius(DT.dimensionsPanelValue12)
-            .backgroundColor(DT.keyboardKey(this.darkMode)).selectedColor(DT.accentSoft(this.darkMode))
-            .enabled(this.timedSupported).accessibilityText(Strings.lowLatency)
-            .onChange((value: boolean) => { this.latestMode = value; linkdesk.setLatestMode(value); })
-        }.width('100%').height(DT.dimensionsPanelValue48)
-        Button() {
+          this.panelHeader()
           Row({ space: 8 }) {
-            Row().width(DT.dimensionsPanelValue6).height(DT.dimensionsPanelValue6).borderRadius(DT.dimensionsPanelValue3).backgroundColor(this.microphoneAllowed && this.microphoneState === 2
-              ? DT.success(this.darkMode) : DT.secondary(this.darkMode))
             Column({ space: 2 }) {
-              Text(this.microphoneLabel()).fontSize(DT.dimensionsPanelValue12).fontColor(DT.text(this.darkMode))
-              Text(this.microphoneDetail()).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
-                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-            }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-            Text(this.microphoneAllowed ? Strings.panelTurnOff : Strings.panelTurnOn)
-              .fontSize(DT.dimensionsPanelValue11).fontColor(DT.secondary(this.darkMode))
-          }.width('100%').padding({ left: 12, right: 12 })
-        }.width('100%').height(DT.dimensionsPanelValue48).borderRadius(DT.dimensionsPanelValue12).backgroundColor(DT.keyboardKey(this.darkMode))
-          .enabled(!this.microphonePending)
-          .accessibilityText(`${this.microphoneDetail()} · ${this.microphoneAllowed ? Strings.disableMicrophone : Strings.allowMicrophone}`)
-          .onClick(() => { void this.toggleMicrophone(); })
-        Row({ space: 6 }) {
-          this.panelAction(Strings.keyboardShort, () => { KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true); })
-          this.panelAction(Strings.backHome, () => this.onExit())
-          this.panelAction(Strings.reconnect, () => this.connect())
-          this.panelAction(Strings.hide, () => this.setControlsVisible(false))
-        }.width('100%').height(DT.dimensionsPanelValue48)
-        }.padding(DT.dimensionsPanelValue12).width(Math.min(DT.dimensionsPanelValue336, this.viewportWidth - DT.dimensionsPanelValue24)).height(DT.dimensionsPanelValue224)
+              Text(`${this.realtimeFPS.toFixed(0)} fps`).fontSize(DT.dimensionsPanelValue18).fontWeight(FontWeight.Medium)
+                .fontColor(DT.text(this.darkMode))
+              Text(Strings.panelActualFPS).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
+            }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+              .accessibilityText(Strings.get('panelFPSDescription', [this.realtimeFPS.toFixed(0), this.targetFPS.toString()]))
+            Column({ space: 2 }) {
+              Text(this.screenHz > 0 ? `${this.screenHz} Hz` : '— Hz').fontSize(DT.dimensionsPanelValue13).fontColor(DT.text(this.darkMode))
+              Text(`${this.streamWidth} × ${this.streamHeight}${this.hdrActive ? ' · HDR10' : ''}`).fontSize(DT.dimensionsPanelValue10).fontColor(DT.secondary(this.darkMode))
+            }.alignItems(HorizontalAlign.End)
+              .accessibilityText(Strings.get('panelScreenRefresh', [this.screenHz.toString()]))
+            this.microphoneIcon()
+          }.width('100%').height(DT.spacingS48)
+          Row({ space: 6 }) {
+            this.panelAction(this.darkMode ? $r('app.media.panel_keyboard_dark') : $r('app.media.panel_keyboard'), Strings.keyboardShort,
+              () => { KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true); })
+            this.panelAction(this.darkMode ? $r('app.media.panel_home_dark') : $r('app.media.panel_home'), Strings.backHome, () => this.onExit())
+            this.panelAction(this.darkMode ? $r('app.media.panel_reconnect_dark') : $r('app.media.panel_reconnect'), Strings.reconnect, () => this.connect())
+            this.panelAction(this.darkMode ? $r('app.media.panel_hide_dark') : $r('app.media.panel_hide'), Strings.hide, () => this.setControlsVisible(false))
+          }.width('100%').height(DT.spacingS44)
+        }.padding(DT.dimensionsPanelValue12).width(this.panelWidth()).height(this.panelHeight())
           .transition(this.reduceMotion ? TransitionEffect.IDENTITY : TransitionEffect.OPACITY.animation({ duration: DT.durationPanelFade }))
       } else {
         Button() {

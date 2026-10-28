@@ -108,7 +108,8 @@ export class KeyboardClient {
     KeyboardClient.queue = KeyboardClient.queue.filter((pending: Pending) => !(pending.command.type === 'key' && pending.command.repeat === true && (!key || pending.command.key === key)));
   }
   static cancelPending(): void {
-    KeyboardClient.queue = []; KeyboardClient.heldModifiers = 0;
+    // A queued voice release must not be lost when the keyboard closes.
+    KeyboardClient.queue = KeyboardClient.queue.filter((pending: Pending) => pending.command.type === 'key' && pending.command.key === 'voiceUp'); KeyboardClient.heldModifiers = 0;
     if (KeyboardClient.session) {
       const command: Command = { seq: 0, type: 'modifiers', key: '', text: '', modifiers: 0, expires: KeyboardClient.serverTime + Date.now() - KeyboardClient.localTime + 1000 };
       KeyboardClient.queue.push({ command: command, time: Date.now() }); void KeyboardClient.drain();

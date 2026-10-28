@@ -15,6 +15,7 @@ struct Index {
   @StorageLink('LinkDeskKeyboardState') @Watch('keyboardChanged') keyboardState: string = 'disconnected';
   private keyboardChanged(): void { void KeyboardNotification.update(); }
   @StorageLink('LinkDeskDark') darkMode: boolean = false;
+  @StorageLink('LinkDeskReduceMotion') reduceMotion: boolean = false;
   @StorageLink('LinkDeskThemePreference') themePreference: string = 'automatic';
   @StorageLink('LinkDeskDestination') @Watch('routeChanged') destination: string = 'home';
   @StorageLink('LinkDeskInkConnected') inkConnected: boolean = false;
@@ -179,7 +180,12 @@ struct Index {
       if (!this.wide && !this.receiverWorking) { this.bottomNavigation() }
     }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
       .onAreaChange((_old: Area, current: Area) => { this.keyboardWidth = Number(current.width); this.keyboardHeight = Number(current.height); this.wide = Number(current.width) >= DT.layoutWideBreakpoint && Number(current.width) >= Number(current.height); })
-    if (this.keyboardVisible) { KeyboardPanel({ viewportWidth: this.keyboardWidth, viewportHeight: this.keyboardHeight }).zIndex(30) }
+    if (this.keyboardVisible) {
+      KeyboardPanel({ viewportWidth: this.keyboardWidth, viewportHeight: this.keyboardHeight }).zIndex(30)
+        .transition(this.reduceMotion ? TransitionEffect.IDENTITY : TransitionEffect.opacity(0)
+          .combine(TransitionEffect.translate({ y: DT.spacingS20 }))
+          .animation({ duration: DT.durationMenuEnter, curve: DT.curveEnter() }))
+    }
     }.width('100%').height('100%')
   }
 }

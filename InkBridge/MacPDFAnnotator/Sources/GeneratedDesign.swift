@@ -537,6 +537,22 @@ enum L10n {
     case "touchScroll": return english ? "Touch · Scroll" : "触摸·滚动"
     case "touchSelect": return english ? "Touch · Select" : "触摸·选字"
     case "touchModeHint": return english ? "Switch between auto touch, scrolling, and text selection" : "切换智能触摸、滚动和文字选择模式"
+    case "colorEnhancement": return english ? "Display color" : "画面色彩"
+    case "colorEnhancementDescription": return english ? "Adjust the color intensity of the extended display; enhancement may affect frame rate." : "调整扩展屏幕的色彩浓度；增强可能影响帧率。"
+    case "colorOriginal": return english ? "Original" : "原色"
+    case "colorGentle": return english ? "Vivid" : "轻度鲜艳"
+    case "colorStrong": return english ? "More vivid" : "更鲜艳"
+    case "keyboardVoice": return english ? "Voice" : "语音"
+    case "keyboardVoiceHint": return english ? "Tap the input method microphone, then send" : "点输入法话筒说话，完成后发送"
+    case "keyboardVoiceMac": return english ? "Hold to speak" : "按住说话"
+    case "keyboardVoiceActive": return english ? "Release to finish" : "松开发送"
+    case "keyboardVoiceMacHint": return english ? "Hold for Mac input method voice; requires its Fn voice shortcut" : "按住调用 Mac 输入法语音，松开结束；需启用输入法 Fn 语音快捷键"
+    case "keyboardVoiceTablet": return english ? "Tablet voice input" : "平板输入法语音"
+    case "hdrShadows": return english ? "HDR shadows" : "HDR 暗部"
+    case "hdrShadowsDescription": return english ? "Darken HDR shadows for the tablet; stronger settings may obscure detail." : "调暗 HDR 暗部以适应平板；过强可能损失细节。"
+    case "hdrShadowsNormal": return english ? "Original" : "原始"
+    case "hdrShadowsSoft": return english ? "Gentle" : "柔和"
+    case "hdrShadowsDeep": return english ? "Deeper" : "更深"
     default: return key
     }
   }
@@ -873,6 +889,22 @@ enum L10n {
   static var touchScroll: String { value("touchScroll") }
   static var touchSelect: String { value("touchSelect") }
   static var touchModeHint: String { value("touchModeHint") }
+  static var colorEnhancement: String { value("colorEnhancement") }
+  static var colorEnhancementDescription: String { value("colorEnhancementDescription") }
+  static var colorOriginal: String { value("colorOriginal") }
+  static var colorGentle: String { value("colorGentle") }
+  static var colorStrong: String { value("colorStrong") }
+  static var keyboardVoice: String { value("keyboardVoice") }
+  static var keyboardVoiceHint: String { value("keyboardVoiceHint") }
+  static var keyboardVoiceMac: String { value("keyboardVoiceMac") }
+  static var keyboardVoiceActive: String { value("keyboardVoiceActive") }
+  static var keyboardVoiceMacHint: String { value("keyboardVoiceMacHint") }
+  static var keyboardVoiceTablet: String { value("keyboardVoiceTablet") }
+  static var hdrShadows: String { value("hdrShadows") }
+  static var hdrShadowsDescription: String { value("hdrShadowsDescription") }
+  static var hdrShadowsNormal: String { value("hdrShadowsNormal") }
+  static var hdrShadowsSoft: String { value("hdrShadowsSoft") }
+  static var hdrShadowsDeep: String { value("hdrShadowsDeep") }
 }
 
 enum ConnectionState: String, CaseIterable {

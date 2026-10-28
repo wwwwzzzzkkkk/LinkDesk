@@ -14,6 +14,9 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
 @implementation LDCursorBridge {
     NSLock *_lock;
     NSTimer *_timer;
+    dispatch_queue_t _positionQueue;
+    dispatch_source_t _positionTimer;
+    NSUInteger _shapeGeneration, _sentShapeGeneration;
     dispatch_group_t _workers;
     int _listener, _client;
     BOOL _running;
@@ -29,7 +32,7 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
     NSPoint _hotspot;
 }
 - (instancetype)init {
-    if ((self=[super init])) { _lock=[NSLock new]; _workers=dispatch_group_create(); _listener=_client=-1; }
+    if ((self=[super init])) { _lock=[NSLock new]; _workers=dispatch_group_create(); _listener=_client=-1; _positionQueue=dispatch_queue_create("LinkDesk.cursor.position",dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INTERACTIVE,0)); }
     return self;
 }
 - (void)startForDisplay:(CGDirectDisplayID)display modeChanged:(void (^)(BOOL))changed {
@@ -40,9 +43,15 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
     if(bind(fd,(struct sockaddr *)&address,sizeof(address))||listen(fd,1)){close(fd);return;}
     [_lock lock]; _running=YES; _listener=fd; [_lock unlock];
     __weak LDCursorBridge *weakSelf=self;
-    _timer=[NSTimer timerWithTimeInterval:1.0/240 repeats:YES block:^(NSTimer *timer){[weakSelf sample];}];
+    // AppKit cursor images must be read on the main thread. Position sampling
+    // has its own queue so window dragging or a busy UI cannot stall it.
+    _timer=[NSTimer timerWithTimeInterval:1.0/30 repeats:YES block:^(NSTimer *timer){[weakSelf sampleShape];}];
     [NSRunLoop.mainRunLoop addTimer:_timer forMode:NSRunLoopCommonModes];
-    [self sample];
+    [self sampleShape];
+    _positionTimer=dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,_positionQueue);
+    dispatch_source_set_timer(_positionTimer, DISPATCH_TIME_NOW, NSEC_PER_SEC/240, NSEC_PER_MSEC/2);
+    dispatch_source_set_event_handler(_positionTimer, ^{ [weakSelf sample]; });
+    dispatch_resume(_positionTimer);
     dispatch_group_async(_workers,dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE,0),^{
         while(YES){
             int client=accept(fd,NULL,NULL); if(client<0)break;
@@ -91,43 +100,45 @@ static uint64_t ClockUs(void) { return CMTimeGetSeconds(CMClockGetTime(CMClockGe
         }
     });
 }
+- (void)sampleShape {
+    NSCursor *cursor=NSCursor.currentSystemCursor ?: NSCursor.arrowCursor;
+    NSImage *image=cursor.image; NSRect rect=NSMakeRect(0,0,image.size.width,image.size.height);
+    CGImageRef cg=[image CGImageForProposedRect:&rect context:nil hints:nil];
+    if(!cg || CGImageGetWidth(cg)>256 || CGImageGetHeight(cg)>256) return;
+    NSBitmapImageRep *rep=[[NSBitmapImageRep alloc] initWithCGImage:cg];
+    NSData *png=[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+    if(!png.length || png.length>65536) return;
+    [_lock lock];
+    if (![_shape isEqual:png] || !NSEqualSizes(_size,image.size) || !NSEqualPoints(_hotspot,cursor.hotSpot)) {
+        _shape=png; _size=image.size; _hotspot=cursor.hotSpot; _shapeGeneration++;
+    }
+    [_lock unlock];
+}
 - (void)sample {
     CGEventRef event=CGEventCreate(NULL); if(!event)return;
     CGPoint point=CGEventGetLocation(event); CFRelease(event);
     CGRect bounds=CGDisplayBounds(_display); if(bounds.size.width<=0||bounds.size.height<=0)return;
     BOOL visible=CGRectContainsPoint(bounds,point);
-    double now=NSProcessInfo.processInfo.systemUptime; BOOL shapeChanged=NO;
-    if(now-_sampledShapeAt>0.033||!_shape){
-        _sampledShapeAt=now;
-        NSCursor *cursor=NSCursor.currentSystemCursor ?: NSCursor.arrowCursor;
-        NSImage *image=cursor.image; NSRect rect=NSMakeRect(0,0,image.size.width,image.size.height);
-        CGImageRef cg=[image CGImageForProposedRect:&rect context:nil hints:nil];
-        if(cg&&CGImageGetWidth(cg)<=256&&CGImageGetHeight(cg)<=256){
-            NSBitmapImageRep *rep=[[NSBitmapImageRep alloc] initWithCGImage:cg];
-            NSData *png=[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-            if(png.length&&png.length<=65536&&![_shape isEqual:png]){_shape=png;shapeChanged=YES;}
-            _size=image.size;_hotspot=cursor.hotSpot;
-        }
-    }
-    if(!_shape)return;
-    if(!shapeChanged&&visible==_lastVisible&&CGPointEqualToPoint(point,_lastPoint)&&now-_sentHeartbeatAt<0.1)return;
-    _lastPoint=point;_lastVisible=visible;_sentHeartbeatAt=now;
-    // All dimensions are fractions of the virtual display, independent of HiDPI scale.
+    [_lock lock]; NSData *shape=_shape; NSSize size=_size; NSPoint hotspot=_hotspot; NSUInteger shapeGeneration=_shapeGeneration; [_lock unlock];
+    if(!shape)return;
+    double now=NSProcessInfo.processInfo.systemUptime;
+    if(shapeGeneration==_sentShapeGeneration && visible==_lastVisible && CGPointEqualToPoint(point,_lastPoint) && now-_sentHeartbeatAt<0.1)return;
+    _sentShapeGeneration=shapeGeneration; _lastPoint=point; _lastVisible=visible; _sentHeartbeatAt=now;
     NSMutableData *packet=[NSMutableData dataWithBytes:"LDCP" length:4];
-    // Include a small shape on each update: every snapshot is independently recoverable.
-    Put32(packet,(uint32_t)_shape.length);Put32(packet,++_sequence);Put32(packet,visible?1:0);
+    Put32(packet,(uint32_t)shape.length);Put32(packet,++_sequence);Put32(packet,visible?1:0);
     Put32(packet,visible?(uint32_t)((point.x-bounds.origin.x)/bounds.size.width*1000000):0);
     Put32(packet,visible?(uint32_t)((point.y-bounds.origin.y)/bounds.size.height*1000000):0);
-    Put32(packet,(uint32_t)(_size.width/bounds.size.width*1000000));
-    Put32(packet,(uint32_t)(_size.height/bounds.size.height*1000000));
-    Put32(packet,(uint32_t)(_hotspot.x/bounds.size.width*1000000));
-    Put32(packet,(uint32_t)(_hotspot.y/bounds.size.height*1000000));
-    uint64_t stamp=CFSwapInt64HostToBig(ClockUs());[packet appendBytes:&stamp length:8];[packet appendData:_shape];
+    Put32(packet,(uint32_t)(size.width/bounds.size.width*1000000));
+    Put32(packet,(uint32_t)(size.height/bounds.size.height*1000000));
+    Put32(packet,(uint32_t)(hotspot.x/bounds.size.width*1000000));
+    Put32(packet,(uint32_t)(hotspot.y/bounds.size.height*1000000));
+    uint64_t stamp=CFSwapInt64HostToBig(ClockUs());[packet appendBytes:&stamp length:8];[packet appendData:shape];
     [_lock lock];_latest=packet;[_lock unlock];
 }
 - (void)stop {
     ++_epoch;
     [_timer invalidate];_timer=nil;
+    if (_positionTimer) { dispatch_source_cancel(_positionTimer); _positionTimer=nil; dispatch_sync(_positionQueue, ^{}); }
     [_lock lock];_running=NO;
     if(_client>=0)shutdown(_client,SHUT_RDWR);
     if(_listener>=0){shutdown(_listener,SHUT_RDWR);close(_listener);_listener=-1;}

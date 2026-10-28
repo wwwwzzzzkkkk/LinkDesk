@@ -16,6 +16,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) BOOL microphoneEnabled;
 @property(nonatomic, readonly) BOOL hdrEnabled;
 @property(nonatomic, readonly) BOOL hdrAvailable;
+@property(nonatomic, readonly) NSInteger hdrShadows;
+- (void)selectHDRShadows:(NSInteger)level;
+@property(nonatomic, readonly) NSInteger colorEnhancement;
+- (void)selectColorEnhancement:(NSInteger)level;
 - (void)enableHDR:(BOOL)enabled;
 - (BOOL)runDisplaySelfTest;
 - (void)prepare;

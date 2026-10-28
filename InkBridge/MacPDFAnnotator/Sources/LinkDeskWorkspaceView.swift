@@ -193,6 +193,18 @@ struct LinkDeskWorkspaceView: View {
             Button(L10n.testDisplay) { desktop.engine.showDisplayTest() }.disabled(!desktop.engine.active)
           }
           Divider()
+          SettingRow(title: L10n.colorEnhancement, detail: L10n.colorEnhancementDescription) {
+            Picker(L10n.colorEnhancement, selection: Binding(get: { desktop.engine.colorEnhancement }, set: { value in desktop.perform { $0.selectColorEnhancement(value) } })) {
+              Text(L10n.colorOriginal).tag(0); Text(L10n.colorGentle).tag(1); Text(L10n.colorStrong).tag(2)
+            }.labelsHidden()
+          }
+          Divider()
+          SettingRow(title: L10n.hdrShadows, detail: L10n.hdrShadowsDescription) {
+            Picker(L10n.hdrShadows, selection: Binding(get: { desktop.engine.hdrShadows }, set: { value in desktop.perform { $0.selectHDRShadows(value) } })) {
+              Text(L10n.hdrShadowsNormal).tag(0); Text(L10n.hdrShadowsSoft).tag(1); Text(L10n.hdrShadowsDeep).tag(2)
+            }.labelsHidden().disabled(!desktop.engine.hdrEnabled)
+          }
+          Divider()
           SettingRow(title: L10n.hdrTitle, detail: desktop.engine.hdrAvailable ? L10n.hdrDescription : L10n.hdrUnavailable) {
             Toggle(L10n.hdrTitle, isOn: Binding(get: { desktop.engine.hdrEnabled }, set: { value in desktop.perform { $0.enableHDR(value) } }))
               .labelsHidden().disabled(!desktop.engine.hdrAvailable && !desktop.engine.hdrEnabled)

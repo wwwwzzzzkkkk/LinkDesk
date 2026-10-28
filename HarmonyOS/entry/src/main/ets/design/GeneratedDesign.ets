@@ -512,6 +512,22 @@ export class Strings {
       case "touchScroll": return english ? "Touch · Scroll" : "触摸·滚动";
       case "touchSelect": return english ? "Touch · Select" : "触摸·选字";
       case "touchModeHint": return english ? "Switch between auto touch, scrolling, and text selection" : "切换智能触摸、滚动和文字选择模式";
+      case "colorEnhancement": return english ? "Display color" : "画面色彩";
+      case "colorEnhancementDescription": return english ? "Adjust the color intensity of the extended display; enhancement may affect frame rate." : "调整扩展屏幕的色彩浓度；增强可能影响帧率。";
+      case "colorOriginal": return english ? "Original" : "原色";
+      case "colorGentle": return english ? "Vivid" : "轻度鲜艳";
+      case "colorStrong": return english ? "More vivid" : "更鲜艳";
+      case "keyboardVoice": return english ? "Voice" : "语音";
+      case "keyboardVoiceHint": return english ? "Tap the input method microphone, then send" : "点输入法话筒说话，完成后发送";
+      case "keyboardVoiceMac": return english ? "Hold to speak" : "按住说话";
+      case "keyboardVoiceActive": return english ? "Release to finish" : "松开发送";
+      case "keyboardVoiceMacHint": return english ? "Hold for Mac input method voice; requires its Fn voice shortcut" : "按住调用 Mac 输入法语音，松开结束；需启用输入法 Fn 语音快捷键";
+      case "keyboardVoiceTablet": return english ? "Tablet voice input" : "平板输入法语音";
+      case "hdrShadows": return english ? "HDR shadows" : "HDR 暗部";
+      case "hdrShadowsDescription": return english ? "Darken HDR shadows for the tablet; stronger settings may obscure detail." : "调暗 HDR 暗部以适应平板；过强可能损失细节。";
+      case "hdrShadowsNormal": return english ? "Original" : "原始";
+      case "hdrShadowsSoft": return english ? "Gentle" : "柔和";
+      case "hdrShadowsDeep": return english ? "Deeper" : "更深";
       default: return key;
     }
   }
@@ -848,6 +864,22 @@ export class Strings {
   static get touchScroll(): string { return Strings.value("touchScroll"); }
   static get touchSelect(): string { return Strings.value("touchSelect"); }
   static get touchModeHint(): string { return Strings.value("touchModeHint"); }
+  static get colorEnhancement(): string { return Strings.value("colorEnhancement"); }
+  static get colorEnhancementDescription(): string { return Strings.value("colorEnhancementDescription"); }
+  static get colorOriginal(): string { return Strings.value("colorOriginal"); }
+  static get colorGentle(): string { return Strings.value("colorGentle"); }
+  static get colorStrong(): string { return Strings.value("colorStrong"); }
+  static get keyboardVoice(): string { return Strings.value("keyboardVoice"); }
+  static get keyboardVoiceHint(): string { return Strings.value("keyboardVoiceHint"); }
+  static get keyboardVoiceMac(): string { return Strings.value("keyboardVoiceMac"); }
+  static get keyboardVoiceActive(): string { return Strings.value("keyboardVoiceActive"); }
+  static get keyboardVoiceMacHint(): string { return Strings.value("keyboardVoiceMacHint"); }
+  static get keyboardVoiceTablet(): string { return Strings.value("keyboardVoiceTablet"); }
+  static get hdrShadows(): string { return Strings.value("hdrShadows"); }
+  static get hdrShadowsDescription(): string { return Strings.value("hdrShadowsDescription"); }
+  static get hdrShadowsNormal(): string { return Strings.value("hdrShadowsNormal"); }
+  static get hdrShadowsSoft(): string { return Strings.value("hdrShadowsSoft"); }
+  static get hdrShadowsDeep(): string { return Strings.value("hdrShadowsDeep"); }
 }
 
 export enum ConnectionState {

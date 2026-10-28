@@ -67,3 +67,20 @@ test('editable notices are encrypted and cannot be replayed or routed to another
   f.relay.hostMessage(f.host, JSON.stringify({type:'touch:editable',session,seq:2}));
   assert.equal(notices.length,1);
 });
+test('pinch lifecycle remains ordered and rejects unsafe scale deltas', async () => {
+  const f=fixture(), session=(await f.call('session')).value.session;
+  const steps=[{type:'pinchbegin',x:.5,y:.5},{type:'pinch',x:.5,y:.5,dx:.08},{type:'pinchend',x:.5,y:.5}];
+  steps.forEach((v,i)=>f.relay.touchMessage(f.peer,f.encrypt(session,{...v,seq:i+1})));
+  assert.deepEqual(f.received.map(v=>v.type),['touch:pinchbegin','touch:pinch','touch:pinchend']);
+  f.relay.touchMessage(f.peer,f.encrypt(session,{type:'pinch',x:.5,y:.5,dx:5,seq:4}));
+  assert.equal(f.peer.closed,true);
+});
+test('blank-area dismiss notices use the authenticated ordered touch session', async () => {
+  const f=fixture(), session=(await f.call('session')).value.session, notices=[];
+  f.peer.send=raw=>notices.push(raw);
+  f.relay.touchMessage(f.peer,f.encrypt(session,{type:'up',seq:1,x:.5,y:.5,keyboardOpen:true}));
+  f.relay.hostMessage(f.host,JSON.stringify({type:'touch:dismiss',session,seq:1}));
+  f.relay.hostMessage(f.host,JSON.stringify({type:'touch:dismiss',session,seq:1}));
+  assert.equal(notices.length,1);
+  assert.equal(notices[0].includes('dismiss'),false);
+});

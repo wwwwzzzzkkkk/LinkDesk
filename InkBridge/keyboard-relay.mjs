@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-const keys = new Set(['enter', 'backspace', 'delete', 'tab', 'escape', 'space', 'left', 'right', 'up', 'down', 'home', 'end', 'pageup', 'pagedown', 'capslock', 'capslockHold', 'inputsource', 'isoSection', 'jisYen', 'jisUnderscore', 'jisEisu', 'jisKana', 'volumeup', 'volumedown', 'mute', 'playpause', 'nexttrack', 'prevtrack', ...Array.from({ length: 20 }, (_, i) => `f${i+1}`), ...Array.from({ length: 10 }, (_, i) => `numpad${i}`), 'numpadDecimal', 'numpadMultiply', 'numpadPlus', 'numpadClear', 'numpadDivide', 'numpadEnter', 'numpadMinus', 'numpadEquals', ...'abcdefghijklmnopqrstuvwxyz0123456789', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/', '`']);
+const keys = new Set(['enter', 'backspace', 'delete', 'tab', 'escape', 'space', 'left', 'right', 'up', 'down', 'home', 'end', 'pageup', 'pagedown', 'capslock', 'capslockHold', 'inputsource', 'voiceDown', 'voiceKeep', 'voiceUp', 'isoSection', 'jisYen', 'jisUnderscore', 'jisEisu', 'jisKana', 'volumeup', 'volumedown', 'mute', 'playpause', 'nexttrack', 'prevtrack', ...Array.from({ length: 20 }, (_, i) => `f${i+1}`), ...Array.from({ length: 10 }, (_, i) => `numpad${i}`), 'numpadDecimal', 'numpadMultiply', 'numpadPlus', 'numpadClear', 'numpadDivide', 'numpadEnter', 'numpadMinus', 'numpadEquals', ...'abcdefghijklmnopqrstuvwxyz0123456789', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/', '`']);
 export function validKeyboardCommand(value) {
   if (!value || !Number.isSafeInteger(value.seq) || value.seq < 1) return false;
   if (value.type === 'ping') return (value.candidates === undefined || typeof value.candidates === 'boolean') && (value.lease === undefined || (Number.isInteger(value.lease) && value.lease >= 0 && value.lease <= 15 && Number.isSafeInteger(value.expires)));
@@ -33,13 +33,13 @@ export function createKeyboardRelay(encodedKey, now = () => Date.now(), addresse
     let value; try { value = JSON.parse(raw); } catch { return; }
     if (value.type === 'keyboard:status') { permitted = value.permitted === true; secureInput = value.secureInput === true; hostUpdated = now(); }
     if (value.type === 'keyboard:ack' && typeof value.id === 'string') pending.get(value.id)?.(value);
-    if (value.type === 'touch:editable' && typeof value.session === 'string' && Number.isSafeInteger(value.seq)) {
+    if (['touch:editable', 'touch:dismiss'].includes(value.type) && typeof value.session === 'string' && Number.isSafeInteger(value.seq)) {
       const session = sessions.get(value.session);
       if (!session?.touch || value.seq > session.seq || value.seq <= (session.noticeSeq ?? 0) || now() - session.time > 1500 || !permitted || secureInput) return;
       session.noticeSeq = value.seq;
       const nonce = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, nonce);
       cipher.setAAD(Buffer.from(`LDT1:${value.session}:s`));
-      const payload = Buffer.concat([nonce, cipher.update(JSON.stringify({type:'editable', seq:value.seq, expires:now()+1000})), cipher.final(), cipher.getAuthTag()]);
+      const payload = Buffer.concat([nonce, cipher.update(JSON.stringify({type:value.type.slice(6), seq:value.seq, expires:now()+1000})), cipher.final(), cipher.getAuthTag()]);
       session.touch.send(JSON.stringify({payload:payload.toString('base64')}));
     }
   }
@@ -61,7 +61,7 @@ export function createKeyboardRelay(encodedKey, now = () => Date.now(), addresse
       command = JSON.parse(Buffer.concat([cipher.update(data.subarray(12, -16)), cipher.final()]));
       const point = Number.isFinite(command.x) && command.x >= 0 && command.x <= 1 && Number.isFinite(command.y) && command.y >= 0 && command.y <= 1;
       const scroll = Number.isFinite(command.dx) && Math.abs(command.dx) <= 200 && Number.isFinite(command.dy) && Math.abs(command.dy) <= 200;
-      if (!Number.isSafeInteger(command.seq) || command.seq !== session.seq + 1 || !Number.isSafeInteger(command.expires) || command.expires < now() || command.expires > now() + 1500 || !['ping', 'down', 'move', 'up', 'right', 'scroll', 'scrollend', 'cancel', 'halt'].includes(command.type) || (!['ping', 'cancel', 'scrollend', 'halt'].includes(command.type) && !point) || (command.type === 'scroll' && !scroll) || (command.type === 'down' && command.mode !== undefined && !['auto', 'scroll', 'select'].includes(command.mode))) return fail();
+      if (!Number.isSafeInteger(command.seq) || command.seq !== session.seq + 1 || !Number.isSafeInteger(command.expires) || command.expires < now() || command.expires > now() + 1500 || !['ping', 'down', 'move', 'up', 'right', 'scroll', 'scrollend', 'pinchbegin', 'pinch', 'pinchend', 'cancel', 'halt'].includes(command.type) || (!['ping', 'cancel', 'scrollend', 'halt'].includes(command.type) && !point) || (command.type === 'scroll' && !scroll) || (command.type === 'pinch' && (!Number.isFinite(command.dx) || Math.abs(command.dx) > 0.4)) || (command.type === 'down' && command.mode !== undefined && !['auto', 'scroll', 'select'].includes(command.mode))) return fail();
       session.seq = command.seq; session.time = now(); session.touch = socket; socket.touchSession = envelope.session;
       host.send(JSON.stringify({ ...command, type: `touch:${command.type}`, session: envelope.session }));
     } catch { return fail(); }

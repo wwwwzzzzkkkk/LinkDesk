@@ -17,6 +17,16 @@ enum TouchTarget: Sendable {
     var settable = DarwinBoolean(false)
     return AXUIElementIsAttributeSettable(focused, kAXValueAttribute as CFString, &settable) == .success && settable.boolValue
   }
+  // Only unambiguously blank containers qualify; never dismiss on text,
+  // links, controls or unknown accessibility results.
+  nonisolated static func clearlyBlank(at point: CGPoint) -> Bool {
+    let system = AXUIElementCreateSystemWide(); AXUIElementSetMessagingTimeout(system, 0.05)
+    var hit: AXUIElement?
+    guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(point.y), &hit) == .success, let element = hit else { return false }
+    AXUIElementSetMessagingTimeout(element, 0.05); var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &value) == .success, let role = value as? String else { return false }
+    return ["AXWebArea", "AXScrollArea", "AXWindow", "AXGroup"].contains(role)
+  }
   nonisolated static func shouldScroll(_ target: TouchTarget, force: Bool, delta: CGPoint) -> Bool {
     (target == .scroll || target == .unknown) && (force || abs(delta.y) > abs(delta.x) * 1.15)
   }

@@ -107,3 +107,9 @@ test('Mac keys are bounded and malformed modifier leases cannot reach the host',
     {type:'ping',lease:16}, {type:'ping',lease:'8'}, {type:'key',key:'f21',modifiers:0}, {type:'key',key:'a',modifiers:0,repeat:1}
   ]) assert.equal(validKeyboardCommand({seq:1,expires:1000,...value}), false);
 });
+test('Mac voice key lifecycle is explicitly bounded to named commands', () => {
+  for (const key of ['voiceDown', 'voiceKeep', 'voiceUp']) {
+    assert.equal(validKeyboardCommand({type:'key', key, seq:1, expires:Date.now()+1000, modifiers:0}), true);
+  }
+  assert.equal(validKeyboardCommand({type:'key', key:'voiceArbitrary', seq:1, expires:Date.now()+1000, modifiers:0}), false);
+});

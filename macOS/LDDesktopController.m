@@ -15,6 +15,7 @@
 #import "LDMicrophoneBridge.h"
 #import <CoreAudio/CoreAudio.h>
 #import "LDCursorBridge.h"
+#import "LDColorEnhancement.h"
 #import <objc/message.h>
 
 // These private CoreGraphics declarations are isolated here. Resolve at runtime.
@@ -114,6 +115,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     NSSegmentedControl *_fpsPicker;
     BOOL _useHEVC;
     BOOL _hdrRequested, _hdrActive, _loggedHDRFrame, _loggedHDROutput, _hdrCaptureValidated;
+    _Atomic(int) _colorEnhancement, _hdrShadows;
+    LDColorEnhancement *_colorProcessor;
     _Atomic(bool) _tabletHDR10;
     uint64_t _lastStatsAck;
     double _lastStatsTime, _decodedFPS;
@@ -167,6 +170,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         _audio = [LDAudioBridge new];
         _microphone = [LDMicrophoneBridge new];
         _cursorBridge = [LDCursorBridge new];
+        _colorProcessor = [LDColorEnhancement new];
+        atomic_store(&_hdrShadows, (int)MAX(0, MIN(2, [NSUserDefaults.standardUserDefaults integerForKey:@"LinkDeskHDRShadows"])));
+        atomic_store(&_colorEnhancement, (int)MAX(0, MIN(2, [NSUserDefaults.standardUserDefaults integerForKey:@"LinkDeskColorEnhancement"])));
 
         _phase = @"准备连接";
         id savedScale = [NSUserDefaults.standardUserDefaults objectForKey:@"LinkDeskScaleIndex"];
@@ -243,6 +249,16 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (NSInteger)targetFPS { return LDFPS; }
 - (double)audioDelay { return _audioSyncSlider.doubleValue; }
 - (BOOL)microphoneEnabled { return _microphoneToggle.state == NSControlStateValueOn; }
+- (NSInteger)hdrShadows { return atomic_load(&_hdrShadows); }
+- (void)selectHDRShadows:(NSInteger)level {
+    level=MAX(0,MIN(2,level)); atomic_store(&_hdrShadows,(int)level);
+    [NSUserDefaults.standardUserDefaults setInteger:level forKey:@"LinkDeskHDRShadows"];
+}
+- (NSInteger)colorEnhancement { return atomic_load(&_colorEnhancement); }
+- (void)selectColorEnhancement:(NSInteger)level {
+    level = MAX(0, MIN(2, level)); atomic_store(&_colorEnhancement, (int)level);
+    [NSUserDefaults.standardUserDefaults setInteger:level forKey:@"LinkDeskColorEnhancement"];
+}
 - (BOOL)hdrEnabled { return _hdrRequested; }
 - (BOOL)hdrAvailable {
     if(@available(macOS 15.0,*)){
@@ -937,6 +953,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [self->_networkLock unlock];
         if (!current || !self->_encoder) { CFRelease(sample); return; }
         CVImageBufferRef buffer=CMSampleBufferGetImageBuffer(sample);
+        CVPixelBufferRef enhanced = [self->_colorProcessor copyEnhancedBuffer:buffer level:atomic_load(&self->_colorEnhancement) darkLevel:atomic_load(&self->_hdrShadows)];
+        if (enhanced) buffer = enhanced;
         NSDictionary *properties = force ? @{(__bridge NSString *)kVTEncodeFrameOptionKey_ForceKeyFrame:@YES} : nil;
         VTEncodeInfoFlags info = 0;
         double submitBegan=NSProcessInfo.processInfo.systemUptime;
@@ -944,6 +962,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             ^(OSStatus status, VTEncodeInfoFlags flags, CMSampleBufferRef output) {
                 [self encodingFinished:ticket status:status flags:flags sample:output];
             });
+        if (enhanced) CVPixelBufferRelease(enhanced);
         if(self->_logMetrics){double ms=(NSProcessInfo.processInfo.systemUptime-submitBegan)*1000;[self->_metricsLock lock];self->_submitMs+=ms;self->_submitMaxMs=MAX(self->_submitMaxMs,ms);self->_submitCount++;[self->_metricsLock unlock];}
         CFRelease(sample);
         if (encodeStatus != noErr || (info & kVTEncodeInfo_FrameDropped)) {

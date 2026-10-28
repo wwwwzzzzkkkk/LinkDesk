@@ -5,7 +5,7 @@ import { KeyboardClient, TouchCredentials } from '../keyboard/KeyboardClient';
 import { DisplayContext } from '../DisplayContext';
 
 interface TouchSession { identity: string; session: string; serverTime: number; keyboardVersion: number; }
-interface TouchPacket { type: string; x: number; y: number; dx: number; dy: number; seq: number; expires: number; queued: number; mode: string; reduceMotion: boolean; }
+interface TouchPacket { type: string; x: number; y: number; dx: number; dy: number; seq: number; expires: number; queued: number; mode: string; reduceMotion: boolean; keyboardOpen: boolean; }
 interface TouchReply { type: string; seq: number; expires: number; }
 interface TouchEnvelope { payload: string; }
 
@@ -77,15 +77,18 @@ export class TouchClient {
       const plain = await cipher.doFinal({ data: data.slice(12, -16) });
       const reply = JSON.parse(new util.TextDecoder().decodeWithStream(plain.data)) as TouchReply;
       const now = Date.now() + this.offset;
-      if (generation !== this.generation || !this.active || !DisplayContext.foreground || !this.opened || reply.type !== 'editable' || !Number.isSafeInteger(reply.seq) || reply.seq <= this.noticeSequence || reply.seq > this.sequence || reply.expires < now || reply.expires > now + 1500) return;
-      this.noticeSequence = reply.seq; KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true);
+      if (generation !== this.generation || !this.active || !DisplayContext.foreground || !this.opened || !['editable', 'dismiss'].includes(reply.type) || !Number.isSafeInteger(reply.seq) || reply.seq <= this.noticeSequence || reply.seq > this.sequence || reply.expires < now || reply.expires > now + 1500) return;
+      this.noticeSequence = reply.seq;
+      if (reply.type === 'editable') { KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true); }
+      else AppStorage.setOrCreate('LinkDeskKeyboardVisible', false);
     } catch (_) { /* Ignore untrusted or stale notices. */ }
   }
   send(type: string, x: number, y: number, dx: number = 0, dy: number = 0, mode: string = 'auto', reduceMotion: boolean = false): void {
     if (!this.opened || !this.active || !DisplayContext.foreground) return;
-    const packet: TouchPacket = { type: type, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)), dx: dx, dy: dy, seq: 0, expires: 0, queued: Date.now(), mode: mode, reduceMotion: reduceMotion };
+    const packet: TouchPacket = { type: type, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)), dx: dx, dy: dy, seq: 0, expires: 0, queued: Date.now(), mode: mode, reduceMotion: reduceMotion, keyboardOpen: AppStorage.get<boolean>('LinkDeskKeyboardVisible') === true };
     const tail = this.queue.length ? this.queue[this.queue.length - 1] : undefined;
     if (tail && type === 'move' && tail.type === 'move') this.queue[this.queue.length - 1] = packet;
+    else if (tail && type === 'pinch' && tail.type === 'pinch' && Math.abs((1 + tail.dx) * (1 + dx) - 1) <= 0.4) { tail.dx = (1 + tail.dx) * (1 + dx) - 1; tail.x = packet.x; tail.y = packet.y; }
     else if (tail && type === 'scroll' && tail.type === 'scroll' && Math.abs(tail.dx + dx) <= 200 && Math.abs(tail.dy + dy) <= 200) { tail.dx += dx; tail.dy += dy; tail.x = packet.x; tail.y = packet.y; }
     else if (type !== 'ping' || !tail || tail.type !== 'ping') this.queue.push(packet);
     if (this.queue.length > 32) { this.reset(); return; }

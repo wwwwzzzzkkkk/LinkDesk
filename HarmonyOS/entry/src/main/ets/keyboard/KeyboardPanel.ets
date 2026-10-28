@@ -16,7 +16,7 @@ export struct KeyboardPanel {
   @Prop @Watch('viewportChanged') viewportWidth: number = 960;
   @Prop @Watch('viewportChanged') viewportHeight: number = 640;
   @StorageLink('LinkDeskDark') dark: boolean = false;
-  @StorageLink('LinkDeskKeyboardVisible') visible: boolean = false;
+  @StorageLink('LinkDeskKeyboardVisible') @Watch('visibleChanged') visible: boolean = false;
   @StorageLink('LinkDeskKeyboardState') @Watch('stateChanged') state: string = 'disconnected';
   @StorageLink('LinkDeskKeyboardTransport') transport: string = 'usb';
   @StorageLink('LinkDeskKeyboardNotification') notification: boolean = false;
@@ -43,6 +43,9 @@ export struct KeyboardPanel {
   @State private panelHeight: number = 420;
   @State private showPad: boolean = false;
   @State private settingsOpen: boolean = false;
+  @State private voicePressed: boolean = false;
+  private voicePointer: number = -1;
+  private voiceTimer: number = -1;
   @State private settingsHeight: number = 400;
   @State private haptics: boolean = false;
   @State private heldMask: number = 0;
@@ -112,11 +115,24 @@ export struct KeyboardPanel {
     this.releaseAll(); KeyboardClient.cancelPending(); this.saveSizing();
     this.layout = value; this.loadSizing(); this.saveSizing();
   }
+  private stopMacVoice(): void {
+    if (this.voiceTimer >= 0) clearInterval(this.voiceTimer); this.voiceTimer = -1;
+    if (this.voicePressed) { this.voicePressed = false; KeyboardClient.key('voiceUp'); }
+    this.voicePointer = -1;
+  }
+  private startMacVoice(id: number): void {
+    if (this.state !== 'ready' || this.voicePointer >= 0) return;
+    this.releaseAll(); this.voicePointer = id;
+    if (!KeyboardClient.key('voiceDown')) { this.voicePointer = -1; return; }
+    this.voicePressed = true;
+    this.voiceTimer = setInterval(() => { if (this.voicePressed && !KeyboardClient.key('voiceKeep')) this.stopMacVoice(); }, 400);
+  }
   private releaseAll(): void {
-    KeyboardClient.cancelRepeats();
+    this.stopMacVoice(); KeyboardClient.cancelRepeats();
     this.held.clear(); this.heldMask = this.armedMask = this.lockedMask = 0;
     this.lastTapMask = 0; KeyboardClient.setHeldModifiers(0);
   }
+  private visibleChanged(): void { if (!this.visible && this.alive) { this.releaseAll(); KeyboardClient.cancelPending(); try { void inputMethod.getController().hideTextInput(); } catch (_) {} } }
   private stateChanged(): void { if (this.state !== 'ready') this.releaseAll(); }
   private candidatesChanged(): void {
     if (this.candidateHideTimer >= 0) clearTimeout(this.candidateHideTimer);
@@ -328,7 +344,8 @@ export struct KeyboardPanel {
       }
       Row({ space: DT.spacingS8 }) {
         this.thumbSide('left')
-        Blank().layoutWeight(1)
+        Blank().layoutWeight(1).height(this.thumbHeight()).hitTestBehavior(HitTestMode.Default)
+          .gesture(TapGesture({ count: 2 }).onAction(() => this.close()))
         this.thumbSide('right')
       }.width('100%')
     } else {
@@ -378,7 +395,18 @@ export struct KeyboardPanel {
               .bindMenu([{ value: 'ABC', action: () => { this.releaseAll(); KeyboardClient.cancelPending(); this.splitPage = 'letters'; } }, { value: '123', action: () => { this.releaseAll(); KeyboardClient.cancelPending(); this.splitPage = 'numbers'; } }, { value: Strings.keyboardSymbols, action: () => { this.releaseAll(); KeyboardClient.cancelPending(); this.splitPage = 'symbols'; } }])
           }
           Button(Strings.keyboardLanguageMenu).id('LinkDeskKeyboardLanguage').fontSize(DT.fontCaption).fontColor(DT.text(this.dark)).backgroundColor(Color.Transparent).height(DT.layoutTouchTarget)
-            .bindMenu([{ value: this.composing ? Strings.keyboardShort : Strings.keyboardCompose, action: () => this.toggleCompose() }, { value: this.inputSource || Strings.keyboardMacInput, action: () => { this.releaseAll(); KeyboardClient.key('inputsource'); } }])
+            .bindMenu([{ value: this.composing ? Strings.keyboardShort : Strings.keyboardCompose, action: () => this.toggleCompose() }, { value: this.inputSource || Strings.keyboardMacInput, action: () => { this.releaseAll(); KeyboardClient.key('inputsource'); } }, { value: Strings.keyboardVoiceTablet, action: () => {
+              this.releaseAll(); this.composing = true; this.previewing = false;
+              setTimeout(() => { if (this.alive && this.composing) { try { this.getUIContext().getFocusController().requestFocus('LinkDeskKeyboardComposition'); void inputMethod.getController().showTextInput().catch(() => {}); } catch (_) {} } }, 100);
+            } }])
+          Button(this.voicePressed ? Strings.keyboardVoiceActive : Strings.keyboardVoiceMac).id('LinkDeskKeyboardVoice')
+            .fontSize(DT.fontCaption).fontColor(DT.text(this.dark)).backgroundColor(this.voicePressed ? DT.accentSoft(this.dark) : Color.Transparent)
+            .height(DT.layoutTouchTarget).enabled(this.state === 'ready').accessibilityText(Strings.keyboardVoiceMacHint)
+            .onTouch((event: TouchEvent) => {
+              event.stopPropagation();
+              if (event.type === TouchType.Down && event.changedTouches.length) this.startMacVoice(event.changedTouches[0].id);
+              else if (event.type === TouchType.Cancel || (event.type === TouchType.Up && event.changedTouches.some((t: TouchObject) => t.id === this.voicePointer))) this.stopMacVoice();
+            })
           Button(Strings.keyboardAdjust).id('LinkDeskKeyboardAdjust').fontSize(DT.fontCaption).fontColor(DT.text(this.dark)).backgroundColor(Color.Transparent).height(DT.layoutTouchTarget)
             .onClick(() => { this.releaseAll(); this.settingsOpen = !this.settingsOpen; })
           Button(Strings.hide).id('LinkDeskKeyboardHide').fontSize(DT.fontCaption).fontColor(DT.text(this.dark)).backgroundColor(Color.Transparent).height(DT.layoutTouchTarget).onClick(() => this.close())
@@ -392,7 +420,7 @@ export struct KeyboardPanel {
       if (!this.composing) this.keys()
       if (this.composing) {
         Row({ space: DT.spacingS8 }) {
-          TextInput({ text: this.draft, placeholder: Strings.keyboardComposeHint }).id('LinkDeskKeyboardComposition')
+          TextInput({ text: this.draft, placeholder: Strings.keyboardVoiceHint }).id('LinkDeskKeyboardComposition')
             .layoutWeight(1).height(DT.layoutTouchTarget).fontSize(DT.fontBody).maxLength(1024).backgroundColor(DT.control(this.dark)).fontColor(DT.text(this.dark)).defaultFocus(true)
             .onChange((value: string, preview: PreviewText) => { this.draft = value; this.previewing = preview.value.length > 0; })
             .onSubmit(() => this.sendDraft())

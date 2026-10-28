@@ -15,6 +15,8 @@ final class KeyboardHost: ObservableObject {
   private let eventSource = CGEventSource(stateID: .privateState)
   private var leaseTimer: Timer?
   private var virtualCaps = false
+  private var voiceOwner: String?
+  private var voiceRenewed: TimeInterval = 0
   private var running = false
   private var generation = 0
   private var testWindow: NSWindow?
@@ -87,6 +89,7 @@ final class KeyboardHost: ObservableObject {
         guard let self else { return }
         self.postModifiers(self.modifierLease.expire(now: ProcessInfo.processInfo.systemUptime))
         self.refreshCandidates()
+        if self.voiceOwner != nil && ProcessInfo.processInfo.systemUptime - self.voiceRenewed > 1.5 { self.releaseVoice() }
         if self.touchOwner != nil && ProcessInfo.processInfo.systemUptime - self.touchRenewed > 1.5 { self.releaseTouch() }
       }
     }
@@ -96,7 +99,7 @@ final class KeyboardHost: ObservableObject {
     }
     if let timer { RunLoop.main.add(timer, forMode: .common) }
   }
-  func stop() { stopMomentum(); releaseTouch(); virtualCaps = false; postModifiers(modifierLease.release()); leaseTimer?.invalidate(); leaseTimer = nil; running = false; generation += 1; timer?.invalidate(); timer = nil; socket?.cancel(with: .goingAway, reason: nil); socket = nil }
+  func stop() { releaseVoice(); stopMomentum(); releaseTouch(); virtualCaps = false; postModifiers(modifierLease.release()); leaseTimer?.invalidate(); leaseTimer = nil; running = false; generation += 1; timer?.invalidate(); timer = nil; socket?.cancel(with: .goingAway, reason: nil); socket = nil }
   func requestPermission() { _ = CGRequestPostEventAccess(); permitted = CGPreflightPostEventAccess(); report() }
   private func connect() {
     guard running else { return }
@@ -110,7 +113,7 @@ final class KeyboardHost: ObservableObject {
   private func lost(_ expected: Int) {
     guard running, expected == generation else { return }
     postModifiers(modifierLease.release())
-    stopMomentum()
+    releaseVoice(); stopMomentum()
     releaseTouch()
     generation += 1; socket?.cancel(with: .goingAway, reason: nil); socket = nil
     Task { @MainActor [weak self] in
@@ -121,7 +124,7 @@ final class KeyboardHost: ObservableObject {
   }
   private func report() {
     permitted = CGPreflightPostEventAccess()
-    if !permitted || IsSecureEventInputEnabled() { postModifiers(modifierLease.release()); releaseTouch() }
+    if !permitted || IsSecureEventInputEnabled() { postModifiers(modifierLease.release()); releaseVoice(); releaseTouch() }
     send(["type": "keyboard:status", "permitted": permitted, "secureInput": IsSecureEventInputEnabled()])
   }
   private func send(_ value: [String: Any]) {
@@ -147,7 +150,7 @@ final class KeyboardHost: ObservableObject {
   }
   private func apply(_ value: [String: Any]) {
     if value["type"] as? String == "keyboard:release", let session = value["session"] as? String {
-      postModifiers(modifierLease.release(owner: session)); if touchOwner == session { releaseTouch() }; return
+      postModifiers(modifierLease.release(owner: session)); if voiceOwner == session { releaseVoice() }; if touchOwner == session { releaseTouch() }; return
     }
     if let type = value["type"] as? String, type.hasPrefix("touch:") { applyTouch(value, type: type); return }
     guard let id = value["id"] as? String, id.count == 32 else { return }
@@ -166,6 +169,16 @@ final class KeyboardHost: ObservableObject {
         postModifiers(modifierLease.set(mask, owner: session, now: ProcessInfo.processInfo.systemUptime))
       } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, key == "inputsource" {
         postModifiers(modifierLease.release(owner: session)); selectNextInputSource()
+      } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, ["voiceDown", "voiceKeep", "voiceUp"].contains(key) {
+        if key == "voiceDown" {
+          if voiceOwner == nil {
+            if CGEventSource.keyState(.combinedSessionState, key: 63) { error = "busy" }
+            else if postVoiceFn(true) { voiceOwner = session; voiceRenewed = ProcessInfo.processInfo.systemUptime }
+            else { error = "event" }
+          } else if voiceOwner != session { error = "busy" }
+        } else if voiceOwner == session {
+          if key == "voiceUp" { releaseVoice() } else { voiceRenewed = ProcessInfo.processInfo.systemUptime }
+        } else { error = "expired" }
       } else if value["type"] as? String == "keyboard:key", let key = value["key"] as? String, ["capslock", "capslockHold"].contains(key) {
         postModifiers(modifierLease.release(owner: session))
         if key == "capslockHold" { virtualCaps.toggle() }
@@ -227,6 +240,7 @@ final class KeyboardHost: ObservableObject {
   }
   private func releaseTouch() {
     if touchOwner != nil && touchKind == "drag" { mouse(.leftMouseUp, touchLast) }
+    if touchOwner != nil && touchKind == "pinch" { TouchMagnification.post(0, phase: 4) }
     touchOwner = nil; touchDisplay = kCGNullDirectDisplay; touchKind = "idle"; touchToken += 1
   }
   private func stopMomentum() {
@@ -369,19 +383,30 @@ final class KeyboardHost: ObservableObject {
         let doubleClick = touchClickCount == 2 && hypot(p.x - touchStart.x, p.y - touchStart.y) <= 5
         touchLast = p; releaseTouch()
         if doubleClick, let sequence = value["seq"] as? Int {
+          let keyboardOpen = value["keyboardOpen"] as? Bool ?? false
           let token = touchToken
           Task.detached(priority: .userInitiated) { [weak self] in
             try? await Task.sleep(for: .milliseconds(100))
-            guard TouchTarget.focusedEditable() else { return }
+            let notice = keyboardOpen && TouchTarget.clearlyBlank(at: p) ? "touch:dismiss" : TouchTarget.focusedEditable() ? "touch:editable" : ""
+            guard !notice.isEmpty else { return }
             await MainActor.run { [weak self] in
               guard let self, self.touchToken == token, self.running, CGPreflightPostEventAccess(), !IsSecureEventInputEnabled(), DesktopSession.shared.engine.touchDisplayID != kCGNullDirectDisplay else { return }
-              self.send(["type":"touch:editable", "session":session, "seq":sequence])
+              self.send(["type":notice, "session":session, "seq":sequence])
             }
           }
         }
       }
       else if touchKind == "scroll" { releaseTouch(); startMomentum() }
       else { releaseTouch() }
+    case "touch:pinchbegin":
+      stopMomentum(); if touchOwner != nil { releaseTouch() }
+      touchOwner = session; touchDisplay = display; touchKind = "pinch"; touchLast = p
+      mouse(.mouseMoved, p); TouchMagnification.post(0, phase: 1)
+    case "touch:pinch":
+      guard touchOwner == session, touchKind == "pinch", let delta = value["dx"] as? Double, delta.isFinite, abs(delta) <= 0.4 else { return }
+      touchLast = p; mouse(.mouseMoved, p); TouchMagnification.post(delta, phase: 2)
+    case "touch:pinchend":
+      if touchOwner == session && touchKind == "pinch" { releaseTouch() }
     case "touch:right":
       stopMomentum(); guard touchOwner == nil else { return }; mouse(.mouseMoved, p); mouse(.rightMouseDown, p, .right); mouse(.rightMouseUp, p, .right)
     case "touch:scroll":
@@ -391,6 +416,13 @@ final class KeyboardHost: ObservableObject {
       trackScroll(CGPoint(x: dx, y: dy), at: p, sample: sample)
     default: break
     }
+  }
+  private func postVoiceFn(_ down: Bool) -> Bool {
+    guard let event = CGEvent(keyboardEventSource: eventSource, virtualKey: 63, keyDown: down) else { return false }
+    event.type = .flagsChanged; event.flags = down ? .maskSecondaryFn : []; event.post(tap: .cghidEventTap); return true
+  }
+  private func releaseVoice() {
+    guard voiceOwner != nil else { return }; _ = postVoiceFn(false); voiceOwner = nil; voiceRenewed = 0
   }
   private func eventFlags(_ mask: Int) -> CGEventFlags {
     var flags: CGEventFlags = capsLockState() ? .maskAlphaShift : []
