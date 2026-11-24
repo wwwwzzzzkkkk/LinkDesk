@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) NSInteger targetFPS;
 @property(nonatomic, readonly) double audioDelay;
 @property(nonatomic, readonly) BOOL microphoneEnabled;
+@property(nonatomic, readonly) BOOL wirelessMicrophoneActive;
 @property(nonatomic, readonly) BOOL hdrEnabled;
 @property(nonatomic, readonly) BOOL hdrAvailable;
 @property(nonatomic, readonly) NSInteger hdrShadows;

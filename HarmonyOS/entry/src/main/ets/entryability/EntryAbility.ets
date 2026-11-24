@@ -7,17 +7,53 @@ import { DisplayContext } from '../DisplayContext';
 import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { wantConstant } from '@kit.AbilityKit';
+import { FileNoticeAction, IncomingFileNotifications } from '../roundtrip/IncomingFileNotifications';
+import { FileTransferClient } from '../roundtrip/FileTransferClient';
+import { WirelessMicrophone } from '../microphone/WirelessMicrophone';
 import { RoundTripBridge } from '../roundtrip/RoundTripBridge';
 import { KeyboardClient } from '../keyboard/KeyboardClient';
 import { KeyboardNotification } from '../keyboard/KeyboardNotification';
 
 export default class EntryAbility extends UIAbility {
-  onForeground(): void { DisplayContext.foreground = true; PlatformUI.foreground(); KeyboardClient.refresh(); }
+  private pendingShare: Want | undefined;
+  private pendingFileNotice: FileNoticeAction | undefined;
+  private micAction: string = '';
+  private isForeground: boolean = false;
+
+  onForeground(): void {
+    DisplayContext.foreground = true;
+    this.isForeground = true;
+    WirelessMicrophone.shared.onForeground();
+    PlatformUI.foreground();
+    LinkDeskTheme.refreshConnection();
+    KeyboardClient.refresh();
+    void KeyboardNotification.update();
+    FileTransferClient.foreground();
+    if (this.pendingFileNotice) {
+      const notice = this.pendingFileNotice;
+      this.pendingFileNotice = undefined;
+      this.openFileNotice(notice);
+    }
+    if (this.micAction) {
+      const action = this.micAction;
+      this.micAction = '';
+      if (action === 'start') void WirelessMicrophone.shared.start();
+      else void WirelessMicrophone.shared.stop();
+    }
+    if (this.pendingShare) {
+      const want = this.pendingShare;
+      this.pendingShare = undefined;
+      void this.handleSharedFiles(want);
+    }
+  }
 
   onBackground(): void {
     DisplayContext.foreground = false;
+    this.isForeground = false;
+    WirelessMicrophone.shared.onBackground();
     KeyboardClient.background();
     PlatformUI.background();
+    FileTransferClient.background();
     DisplayContext.microphoneAllowed = false;
     linkdesk.setMicrophoneRequested(false);
     linkdesk.setMicrophoneEnabled(false);
@@ -25,6 +61,8 @@ export default class EntryAbility extends UIAbility {
   onDestroy(): void {
     KeyboardClient.stop();
     PlatformUI.stop();
+    WirelessMicrophone.shared.destroy();
+    FileTransferClient.destroy();
     LinkDeskTheme.stop();
     linkdesk.setMicrophoneRequested(false);
     linkdesk.setMicrophoneEnabled(false);
@@ -36,7 +74,9 @@ export default class EntryAbility extends UIAbility {
     Strings.language = this.context.config.language ?? 'zh-Hans';
     PlatformUI.start();
     LinkDeskTheme.start(this.context);
+    FileTransferClient.start(this.context);
     KeyboardClient.start(this.context);
+    WirelessMicrophone.shared.setup(this.context);
     KeyboardNotification.start(this.context);
     this.handleIncomingWant(want);
   }
@@ -46,18 +86,52 @@ export default class EntryAbility extends UIAbility {
   }
 
   private handleIncomingWant(want: Want): void {
+    const notice = IncomingFileNotifications.actionFor(want);
+    if (notice) {
+      if (this.isForeground) this.openFileNotice(notice);
+      else this.pendingFileNotice = notice;
+    }
+    const mic = want.parameters?.wirelessMicrophone;
+    const token = want.parameters?.wirelessMicrophoneToken;
+    if ((mic === 'start' || mic === 'stop') && typeof token === 'string' &&
+      WirelessMicrophone.shared.acceptsNotification(token)) {
+      if (mic === 'stop') void WirelessMicrophone.shared.stop();
+      else if (this.isForeground) void WirelessMicrophone.shared.start();
+      else this.micAction = 'start';
+    }
     if (want.parameters?.linkdeskKeyboard === true) {
       KeyboardClient.refresh();
       AppStorage.setOrCreate('LinkDeskKeyboardVisible', true);
     }
     const reviewOrientation = want.parameters?.linkdeskUIReviewOrientation;
     if (typeof reviewOrientation === 'string') PlatformUI.reviewOrientation(reviewOrientation);
-    this.handleSharedPDF(want);
+    if (want.action === 'ohos.want.action.sendData' || want.action === 'ohos.want.action.sendMultipleData') {
+      if (DisplayContext.foreground) void this.handleSharedFiles(want);
+      else this.pendingShare = want;
+    } else {
+      this.handleSharedPDF(want);
+    }
     const action = want.parameters?.liveViewAction;
     if (typeof action === 'string') {
       AppStorage.setOrCreate('LinkDeskDestination', 'ink');
       RoundTripBridge.submitLiveViewAction(action);
     }
+  }
+
+  private openFileNotice(notice: FileNoticeAction): void {
+    AppStorage.setOrCreate('LinkDeskFilesVisible', true);
+    void FileTransferClient.receiveFromNotification(notice.id, notice.action);
+  }
+
+  private async handleSharedFiles(want: Want): Promise<void> {
+    const uris = await FileTransferClient.sharedSources(want);
+    if (uris.length === 1 && !FileTransferClient.hasAnnotation() &&
+      FileTransferClient.hasLegacyAnnotation() && (want.type === 'application/pdf' || /\.pdf$/i.test(uris[0]))) {
+      AppStorage.setOrCreate('LinkDeskDestination', 'ink');
+      RoundTripBridge.submit(uris[0]);
+      return;
+    }
+    await FileTransferClient.sendShared(uris);
   }
 
   private handleSharedPDF(want: Want): void {

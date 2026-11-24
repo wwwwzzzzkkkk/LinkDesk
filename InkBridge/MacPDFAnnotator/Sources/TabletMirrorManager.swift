@@ -14,6 +14,12 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
   private var receiver: TabletMirrorReceiver?
   private var mirrorWindow: NSWindow?
   private var mirrorView: TabletMirrorView?
+  private let questionStream = MirrorQuestionStream()
+  private var receivedVideoSize: CGSize?
+
+  func configureCameraWake(target: @escaping () -> TabletCameraWakeTarget?) {
+    questionStream.cameraWakeTarget = target
+  }
 
   func arm() {
     prepareReceiver(showWindow: false)
@@ -28,6 +34,7 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
       if showWindow {
         isReceiving = true
         status = isConnected ? status : "等待平板开始投屏…"
+        questionStream.videoSize = receivedVideoSize
         mirrorWindow?.makeKeyAndOrderFront(nil)
       }
       return
@@ -47,7 +54,7 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
           defer: false
         )
         window.title = L10n.mirrorTitle
-        window.contentView = view
+        window.contentView = NSHostingView(rootView: TabletMirrorQuestionView(stream: questionStream, videoView: view))
         window.delegate = self
         window.isReleasedWhenClosed = false
         window.contentAspectRatio = NSSize(width: 3, height: 2)
@@ -69,6 +76,8 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
             if let width, let height { self.applyStreamAspectRatio(width: width, height: height) }
             self.mirrorWindow?.makeKeyAndOrderFront(nil)
           } else {
+            self.receivedVideoSize = nil
+            self.questionStream.videoSize = nil
             self.mirrorWindow?.orderOut(nil)
           }
         }
@@ -87,26 +96,32 @@ final class TabletMirrorManager: NSObject, ObservableObject, NSWindowDelegate {
     mirrorWindow?.orderOut(nil)
     isReceiving = false
     isConnected = false
+    questionStream.videoSize = nil
     status = receiver == nil ? "平板投屏已停止" : "投屏接收已就绪"
   }
 
   func remoteStartWasAccepted() {
     isReceiving = true
     status = isConnected ? status : "平板正在启动投屏…"
+    questionStream.videoSize = receivedVideoSize
     mirrorWindow?.makeKeyAndOrderFront(nil)
   }
 
   func remoteStartFailed(_ message: String) {
     isReceiving = false
     isConnected = false
+    questionStream.videoSize = nil
     status = "投屏启动失败：\(message)"
     mirrorWindow?.orderOut(nil)
   }
 
   private func applyStreamAspectRatio(width: Int, height: Int) {
     guard width > 0, height > 0, let window = mirrorWindow else { return }
+    let size = CGSize(width: width, height: height)
+    receivedVideoSize = size
+    questionStream.videoSize = size
     let aspect = CGFloat(width) / CGFloat(height)
-    window.contentAspectRatio = NSSize(width: CGFloat(width), height: CGFloat(height))
+    window.contentAspectRatio = size
     let visibleHeight = NSScreen.main?.visibleFrame.height ?? DT.layout.mirrorWindowFallbackHeight
     let targetHeight = min(DT.layout.mirrorWindowMaxHeight, visibleHeight * DT.layout.mirrorWindowVisibleFraction)
     window.setContentSize(NSSize(width: targetHeight * aspect, height: targetHeight))
@@ -125,7 +140,7 @@ private enum TabletMirrorReceiverError: LocalizedError {
   var errorDescription: String? { "USB 媒体端口 3211 不可用" }
 }
 
-private final class TabletMirrorView: NSView {
+final class TabletMirrorView: NSView {
   let displayLayer = AVSampleBufferDisplayLayer()
 
   override init(frame frameRect: NSRect) {

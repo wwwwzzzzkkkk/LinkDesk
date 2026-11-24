@@ -65,21 +65,25 @@ final class PDFWorkspace: ObservableObject {
   private var roundTripSourceURLs: [String: URL] = [:]
 
   init() {
-    let savedRoom = UserDefaults.standard.string(forKey: Self.roomDefaultsKey) ?? ""
-    if savedRoom.range(of: "^[A-Z0-9]{6}$", options: .regularExpression) != nil {
-      room = savedRoom
-    } else {
-      room = Self.makeRoomCode()
-      UserDefaults.standard.set(room, forKey: Self.roomDefaultsKey)
-    }
+    room = Self.savedRoomCode()
     recentPDFs = Self.loadRecentPDFs()
+  }
+
+  static func savedRoomCode() -> String {
+    let saved = UserDefaults.standard.string(forKey: roomDefaultsKey) ?? ""
+    if saved.range(of: "^[A-Z0-9]{6}$", options: .regularExpression) != nil { return saved }
+    let room = makeRoomCode()
+    UserDefaults.standard.set(room, forKey: roomDefaultsKey)
+    return room
   }
 
   func start() {
     guard !hasStarted else { return }
     hasStarted = true
+    WorkspaceFiles.shared.start(room: room)
     LocalRelayLauncher.shared.startIfNeeded()
     LocalRelayLauncher.shared.publishDiscoveryService(room: room)
+    tabletMirror.configureCameraWake { [weak usbRelay] in usbRelay?.cameraWakeTarget() }
     tabletMirror.arm()
     relay.onDrawing = { [weak self] message in self?.handleDrawing(message) }
     relay.onHistory = { [weak self] message in

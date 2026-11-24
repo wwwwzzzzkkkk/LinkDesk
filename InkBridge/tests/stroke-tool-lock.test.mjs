@@ -208,15 +208,17 @@ test("Mac accepts bounded snapshots from long highlighter sessions", () => {
 });
 
 test("Mac native toolbar keeps real mouse hit testing", () => {
-  const content = source("MacPDFAnnotator/Sources/ContentView.swift");
-  const configurator = content.slice(
-    content.indexOf("private final class WindowLiquidGlassConfigurationView"),
-    content.indexOf("private struct MacModePicker"),
+  const workspace = source("MacPDFAnnotator/Sources/LinkDeskWorkspaceView.swift");
+  const design = source("MacPDFAnnotator/Sources/DesignComponents.swift");
+  const chrome = design.slice(
+    design.indexOf("struct WorkspaceWindowChrome"),
+    design.indexOf("struct WorkspaceScrollEdges"),
   );
-  assert.match(content, /ToolbarItem\(placement: \.navigation\)/);
-  assert.match(configurator, /styleMask\.remove\(\.fullSizeContentView\)/);
-  assert.doesNotMatch(configurator, /styleMask\.insert\(\.fullSizeContentView\)/);
-  assert.match(configurator, /isMovableByWindowBackground = false/);
+  assert.match(workspace, /ToolbarItem\(placement: \.navigation\)/);
+  assert.match(workspace, /\.background\(WorkspaceWindowChrome\(\)\)/);
+  assert.match(chrome, /titlebarAppearsTransparent = true/);
+  assert.match(chrome, /isMovableByWindowBackground = false/);
+  assert.match(chrome, /override func hitTest[^\n]+\{ nil \}/);
 });
 
 test("Mac recovery toast uses shared motion tokens and dismisses automatically", () => {

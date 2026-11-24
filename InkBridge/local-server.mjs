@@ -12,6 +12,8 @@ import { createServer } from "node:http";
 import { homedir, networkInterfaces } from "node:os";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createWirelessMicRelay } from './wireless-mic-relay.mjs';
+import { createFileTransfer } from './file-transfer.mjs';
 import { createKeyboardRelay } from './keyboard-relay.mjs';
 import {
   INKBRIDGE_APP_VERSION,
@@ -24,12 +26,19 @@ import {
 const directory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(directory, "public");
 const port = Number.parseInt(process.env.PORT ?? "3210", 10);
-const relayVersion = 16;
+const finderPort = Number.parseInt(process.env.LINKDESK_FINDER_PORT ?? "3212", 10);
+const relayVersion = 20;
+const managedHost = /^[A-Z0-9]{6}$/.test(process.env.LINKDESK_FINDER_ROOM ?? "");
+const hostHeartbeatMaxAge = 5500;
+let hostHeartbeatAt = Number.NEGATIVE_INFINITY;
+const hostOnline = () => !managedHost || performance.now() - hostHeartbeatAt <= hostHeartbeatMaxAge;
+const wirelessMicRelay = createWirelessMicRelay(process.env.LINKDESK_KEYBOARD_KEY);
 const keyboardRelay = createKeyboardRelay(process.env.LINKDESK_KEYBOARD_KEY, undefined, addresses);
 const serverSourceId = "inkbridge-relay";
 const rooms = new Map();
 const persistenceDirectory = process.env.INKBRIDGE_DATA_DIR
   || join(homedir(), "Library", "Application Support", "InkBridge");
+const fileTransfer = createFileTransfer(join(persistenceDirectory, "file-transfer"), (room) => rooms.has(room));
 const projectDirectory = join(persistenceDirectory, "projects");
 const roomDirectory = join(persistenceDirectory, "rooms");
 const roundTripDirectory = join(persistenceDirectory, "roundtrip");
@@ -587,6 +596,7 @@ function storedWhiteboardViewport(viewport) {
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   if (await keyboardRelay.handle(request, response, url)) return;
+  if (await fileTransfer(request, response, url)) return;
   if (url.pathname === "/config") {
     const localAddresses = addresses();
     response.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -603,7 +613,7 @@ const server = createServer(async (request, response) => {
       response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
       response.end(JSON.stringify(value));
     };
-    if (request.method === "GET") return reply(200, sharedAppearance);
+    if (request.method === "GET") return reply(200, managedHost ? { ...sharedAppearance, hostOnline: hostOnline() } : sharedAppearance);
     if (request.method !== "PUT") return reply(405, { error: "method-not-allowed" });
     let body = "";
     try {
@@ -929,11 +939,20 @@ class LocalWebSocket {
 
 server.on("upgrade", (request, socket, head) => {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
-  if (path !== '/ws' && path !== '/keyboard-host' && path !== '/touch') return socket.destroy();
+  if (path !== '/ws' && path !== '/keyboard-host' && path !== '/touch' && path !== '/wireless-mic') return socket.destroy();
   const key = request.headers["sec-websocket-key"];
   if (typeof key !== "string") return socket.destroy();
   const accept = createHash("sha1").update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
   socket.write(["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade", `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
+  if (path === '/wireless-mic') {
+    socket.setNoDelay(true);
+    let session = null;
+    const peer = new LocalWebSocket(socket, null, raw => session?.message(raw), () => session?.close());
+    const wired = ['127.0.0.1', '::ffff:127.0.0.1', '::1'].includes(socket.remoteAddress);
+    session = wirelessMicRelay(peer, wired);
+    if (head?.length && session) peer.receive(head);
+    return;
+  }
   if (path === '/keyboard-host') {
     // Touch motion is forwarded over this local socket too; do not batch
     // latency-sensitive pointer events while TCP waits for acknowledgements.
@@ -1281,6 +1300,36 @@ function attachWebSocket(rawSocket, head) {
   });
 }
 server.listen(port, "0.0.0.0", () => {
+  const finderRoom = process.env.LINKDESK_FINDER_ROOM;
+  if (validRoom(finderRoom)) {
+    const finderShare = createServer(async (request, response) => {
+      const path = request.url ?? "";
+      if (request.headers.host !== `127.0.0.1:${finderPort}` || request.headers.origin ||
+          request.headers["x-linkdesk-finder"] !== "1") {
+        request.resume();
+        response.writeHead(404).end();
+        return;
+      }
+      if (path === "/host/heartbeat" && request.method === "POST") {
+        hostHeartbeatAt = performance.now();
+        request.resume();
+        response.writeHead(204).end();
+        return;
+      }
+      const upload = new RegExp("^/share/([a-f0-9-]{36})$").exec(path);
+      if (path === "/share" && request.method === "GET") {
+        response.writeHead(rooms.has(finderRoom) ? 204 : 503).end();
+      } else if (upload && request.method === "PUT" &&
+          await fileTransfer(request, response, { pathname: "/api/files/" + finderRoom + "/tablet/" + upload[1] })) {
+        return;
+      } else {
+        request.resume();
+        response.writeHead(404).end();
+      }
+    });
+    finderShare.on("error", (error) => console.error("Finder sharing listener:", error.code));
+    finderShare.listen(finderPort, "127.0.0.1");
+  }
   console.log(`\nLinkDesk ${INKBRIDGE_APP_VERSION}（协议 v${INKBRIDGE_PROTOCOL_VERSION}）已启动： http://localhost:${port}`);
   for (const address of addresses()) console.log(`平板连接地址： http://${address}:${port}`);
   console.log("在 Mac 浏览器打开地址后，用页面二维码连接平板。\n");

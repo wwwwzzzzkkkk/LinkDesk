@@ -31,8 +31,15 @@ export class PlatformUI {
   }
   static bind(main: window.Window): void { PlatformUI.main = main; }
   static setReceiver(active: boolean): void { if (PlatformUI.receiver === active) return; PlatformUI.receiver = active; PlatformUI.applyBars(active); }
-  static foreground(): void { PlatformUI.refreshMotion(); PlatformUI.applyBars(PlatformUI.receiver); }
-  static background(): void { PlatformUI.applyBars(false); }
+  static foreground(): void {
+    AppStorage.setOrCreate('LinkDeskForeground', true);
+    PlatformUI.refreshMotion();
+    PlatformUI.applyBars(PlatformUI.receiver);
+  }
+  static background(): void {
+    AppStorage.setOrCreate('LinkDeskForeground', false);
+    PlatformUI.applyBars(false);
+  }
   private static applyBars(immersive: boolean): void {
     // Serialize transitions so an old enter completion cannot override a later exit.
     const generation = ++PlatformUI.barGeneration;

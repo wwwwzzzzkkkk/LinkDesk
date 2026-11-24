@@ -45,6 +45,22 @@ enum DT {
   static var keyboardShade: Color { color("#140C2038", "#30000000") }
   static var keyboardTrack: Color { color("#180E2544", "#22D3E2F5") }
   static var keyboardFloat: Color { color("#60F8FAFF", "#60212C3D") }
+  static var workspaceCanvas: Color { color("#EDF0F8", "#191D29") }
+  static var workspaceWash: Color { color("#DDE4FC", "#262E48") }
+  static var workspaceGlow: Color { color("#E8DFF6", "#2D283A") }
+  static var connectionBlue: Color { color("#3B68D4", "#7CA8FF") }
+  static var connectionBlueTrace: Color { color("#383B68D4", "#387CA8FF") }
+  static var connectionCyan: Color { color("#087D98", "#82E2F2") }
+  static var connectionViolet: Color { color("#7868D4", "#A99CFF") }
+  static var workspaceSurface: Color { color("#F6F7FD", "#2B3142") }
+  static var workspaceTint: Color { color("#E7EBFC", "#333C58") }
+  static var workspaceRim: Color { color("#BCC6DD", "#50586D") }
+  static var workspaceControl: Color { color("#E8ECF8", "#3B4255") }
+  static var workspaceSelection: Color { color("#D9E1F6", "#4D5672") }
+  static var workspaceAccent: Color { color("#4F5E9E", "#535F92") }
+  static var workspaceOnAccent: Color { color("#FFFFFF", "#FFFFFF") }
+  static var workspaceDevice: Color { color("#FAFBFF", "#E2E7FE") }
+  static var workspaceDeviceInk: Color { color("#B0BBD7", "#7F889E") }
   enum font {
     static let caption: CGFloat = 12
     static let body: CGFloat = 14
@@ -87,12 +103,12 @@ enum DT {
   enum layout {
     static let touchTarget: CGFloat = 48
     static let macControl: CGFloat = 28
-    static let sidebar: CGFloat = 224
+    static let sidebar: CGFloat = 248
     static let sidebarMin: CGFloat = 208
     static let sidebarMax: CGFloat = 272
     static let wideBreakpoint: CGFloat = 840
     static let singleColumnBreakpoint: CGFloat = 600
-    static let pageMax: CGFloat = 960
+    static let pageMax: CGFloat = 980
     static let pagePadding: CGFloat = 32
     static let compactPadding: CGFloat = 16
     static let settingRowMac: CGFloat = 64
@@ -108,6 +124,8 @@ enum DT {
     static let toolbarHeight: CGFloat = 64
     static let formMaxWidth: CGFloat = 480
     static let stroke: CGFloat = 1
+    static let connectionRimStroke: CGFloat = 2
+    static let connectionRimGlow: CGFloat = 5
     static let mirrorWindowWidth: CGFloat = 960
     static let mirrorWindowHeight: CGFloat = 640
     static let mirrorWindowFallbackHeight: CGFloat = 900
@@ -118,6 +136,15 @@ enum DT {
     static let keyboardKeyHeight: CGFloat = 44
     static let keyboardMaxWidth: CGFloat = 760
     static let keyboardPressOffset: CGFloat = 2
+    static let sidebarCompact: CGFloat = 72
+    static let sidebarCollapseBreakpoint: CGFloat = 1040
+    static let workspaceMinimum: CGFloat = 760
+    static let heroIllustrationWidth: CGFloat = 256
+    static let heroIllustrationHeight: CGFloat = 160
+    static let heroDeviceWidth: CGFloat = 104
+    static let heroDeviceHeight: CGFloat = 128
+    static let workspaceFourCards: CGFloat = 840
+    static let workspaceControlWidth: CGFloat = 216
   }
   enum dimensions {
     static let d120: CGFloat = 120
@@ -160,10 +187,19 @@ enum DT {
     static let panelFade: Double = 0.16
     static let keyboardPress: Double = 0.065
     static let keyboardHaptic: Double = 0.008
+    static let workspaceExit: Double = 0.09
+    static let workspaceEnter: Double = 0.185
+    static let workspaceCard: Double = 0.155
+    static let workspaceStagger: Double = 0.035
+    static let workspacePulseIn: Double = 0.26
+    static let workspacePulseOut: Double = 0.52
+    static let workspaceLayoutFrame: Double = 0.016
     static let muted: Double = 0.6
     static let subtle: Double = 0.08
     static let border: Double = 0.16
     static let pressed: Double = 0.84
+    static let workspaceDim: Double = 0.72
+    static let workspacePulse: Double = 0.55
     static let menuScale: Double = 0.96
     static let exitScale: Double = 0.98
     static let searchScale: Double = 0.96
@@ -171,6 +207,7 @@ enum DT {
     static func standard(_ duration: Double) -> Animation { .timingCurve(0.42, 0, 0.58, 1, duration: duration) }
     static func enter(_ duration: Double) -> Animation { .timingCurve(0.16, 1, 0.3, 1, duration: duration) }
     static func exit(_ duration: Double) -> Animation { .timingCurve(0.4, 0, 1, 1, duration: duration) }
+    static func workspace(_ duration: Double) -> Animation { .timingCurve(0.2, 0.75, 0.25, 1, duration: duration) }
   }
   enum icon {
     static let home = "square.grid.2x2"
@@ -178,6 +215,7 @@ enum DT {
     static let pdf = "doc.richtext"
     static let whiteboard = "pencil.and.outline"
     static let mirror = "ipad.and.arrow.forward"
+    static let sidebar = "sidebar.left"
   }
   enum inkPalette {
     static let ink = "#152441"
@@ -204,6 +242,25 @@ enum L10n {
   static func source(_ key: String) -> String { value(key, english: false) }
   static func value(_ key: String, english: Bool = language.hasPrefix("en")) -> String {
     switch key {
+    case "micInputActiveMarker": return english ? "Set as Mac input" : "已设为 Mac 输入"
+    case "finderSendUnavailable": return english ? "Choose a file or wait for the current transfer to finish." : "请选择文件，或等待当前传输完成。"
+    case "stopMicBeforeMirror": return english ? "Turn off the wireless microphone before starting tablet mirroring" : "请先关闭无线麦克风，再开启平板投屏"
+    case "transferFiles": return english ? "File Transfer" : "文件传送"
+    case "filesShort": return english ? "Files" : "文件"
+    case "selectAndSendToMac": return english ? "Choose a file to send to Mac" : "选择文件发送到 Mac"
+    case "backgroundInboxNotifications": return english ? "Background file notifications" : "后台收件通知"
+    case "finishAnnotationSession": return english ? "End the current annotation session" : "结束当前批注任务"
+    case "emptyFileInbox": return english ? "No files waiting to be received" : "暂无待接收文件"
+    case "annotateInHuaweiNotes": return english ? "Annotate in Huawei Notes" : "用华为笔记批注"
+    case "openReceivedFile": return english ? "Open" : "打开"
+    case "saveReceivedCopy": return english ? "Save a copy" : "另存"
+    case "connectingToMac": return english ? "Connecting to Mac…" : "正在连接 Mac…"
+    case "shareOpenFailed": return english ? "Unable to open the share" : "无法打开分享"
+    case "shareAnnotationChoice": return english ? "Choose whether to return this PDF as the annotated copy for the current session." : "选择是否将此 PDF 作为当前批注任务的副本回传。"
+    case "shareAnnotationFailed": return english ? "Unable to return the annotated copy. Open the annotation session in LinkDesk." : "无法回传批注副本，请从 LinkDesk 打开批注任务"
+    case "shareToMac": return english ? "Send to Mac" : "发送到 Mac"
+    case "shareAnnotatedCopy": return english ? "Return the annotated copy" : "回传批注副本"
+    case "shareRegularFile": return english ? "Send as a regular file" : "发送普通文件"
     case "productName": return english ? "LinkDesk" : "LinkDesk"
     case "productSubtitle": return english ? "Your workspace across screens" : "你的跨屏工作空间"
     case "workspaces": return english ? "Workspaces" : "工作空间"
@@ -240,7 +297,12 @@ enum L10n {
     case "themeHelp": return english ? "Follow your Mac appearance, or sync a light or dark theme." : "跟随 Mac 系统外观，或选择两端同步的浅色／深色主题。"
     case "themeAccessibility": return english ? "Change appearance on both devices" : "切换外观，两端同步"
     case "stateDisconnected": return english ? "Disconnected" : "未连接"
+    case "deviceOnline": return english ? "Online" : "在线"
+    case "deviceOffline": return english ? "Offline" : "离线"
+    case "usbDetectedOffline": return english ? "USB device detected · Offline" : "已发现 USB 设备 · 离线"
+    case "usbOfflineHint": return english ? "The device was detected, but its USB data connection is offline. Unlock the tablet, enable USB debugging and authorize this Mac. Reconnect the cable if needed." : "已发现设备，但 USB 数据通道离线。请解锁平板，开启 USB 调试并允许此 Mac；必要时重新插拔数据线。"
     case "stateUSBConnected": return english ? "USB connected" : "USB 已连接"
+    case "stateConnected": return english ? "Connected" : "已连接"
     case "stateWaitingForMode": return english ? "Choose a mode on your tablet" : "等待平板选择模式"
     case "stateWorking": return english ? "Working" : "工作中"
     case "stateError": return english ? "Connection issue" : "异常"
@@ -498,7 +560,7 @@ enum L10n {
     case "keyboardSpace": return english ? "Space" : "空格"
     case "keyboardEnableNotice": return english ? "Enable notification shortcut" : "启用下拉入口"
     case "keyboardDisableNotice": return english ? "Disable notification shortcut" : "关闭下拉入口"
-    case "keyboardNotificationHint": return english ? "Mac connected · tap to open keyboard; connection rechecked before typing" : "Mac 已连接 · 点击打开键盘，输入前重新检查连接"
+    case "keyboardNotificationHint": return english ? "Tap to open the keyboard and check your Mac connection" : "点击打开键盘 · 输入前检查 Mac 连接"
     case "keyboardNoticeError": return english ? "Notification shortcut unavailable. Check notification permission." : "通知入口不可用，请检查系统通知权限"
     case "keyboardUSBPriority": return english ? "Prefer USB; use Wi-Fi when unavailable" : "USB 优先，断开后使用 Wi-Fi"
     case "keyboardWiFiPriority": return english ? "Prefer Wi-Fi; use USB when unavailable" : "Wi-Fi 优先，不可用时使用 USB"
@@ -553,9 +615,30 @@ enum L10n {
     case "hdrShadowsNormal": return english ? "Original" : "原始"
     case "hdrShadowsSoft": return english ? "Gentle" : "柔和"
     case "hdrShadowsDeep": return english ? "Deeper" : "更深"
+    case "expandSidebar": return english ? "Expand sidebar" : "展开侧栏"
+    case "collapseSidebar": return english ? "Collapse sidebar" : "收起侧栏"
     default: return key
     }
   }
+  static var micInputActiveMarker: String { value("micInputActiveMarker") }
+  static var finderSendUnavailable: String { value("finderSendUnavailable") }
+  static var stopMicBeforeMirror: String { value("stopMicBeforeMirror") }
+  static var transferFiles: String { value("transferFiles") }
+  static var filesShort: String { value("filesShort") }
+  static var selectAndSendToMac: String { value("selectAndSendToMac") }
+  static var backgroundInboxNotifications: String { value("backgroundInboxNotifications") }
+  static var finishAnnotationSession: String { value("finishAnnotationSession") }
+  static var emptyFileInbox: String { value("emptyFileInbox") }
+  static var annotateInHuaweiNotes: String { value("annotateInHuaweiNotes") }
+  static var openReceivedFile: String { value("openReceivedFile") }
+  static var saveReceivedCopy: String { value("saveReceivedCopy") }
+  static var connectingToMac: String { value("connectingToMac") }
+  static var shareOpenFailed: String { value("shareOpenFailed") }
+  static var shareAnnotationChoice: String { value("shareAnnotationChoice") }
+  static var shareAnnotationFailed: String { value("shareAnnotationFailed") }
+  static var shareToMac: String { value("shareToMac") }
+  static var shareAnnotatedCopy: String { value("shareAnnotatedCopy") }
+  static var shareRegularFile: String { value("shareRegularFile") }
   static var productName: String { value("productName") }
   static var productSubtitle: String { value("productSubtitle") }
   static var workspaces: String { value("workspaces") }
@@ -592,7 +675,12 @@ enum L10n {
   static var themeHelp: String { value("themeHelp") }
   static var themeAccessibility: String { value("themeAccessibility") }
   static var stateDisconnected: String { value("stateDisconnected") }
+  static var deviceOnline: String { value("deviceOnline") }
+  static var deviceOffline: String { value("deviceOffline") }
+  static var usbDetectedOffline: String { value("usbDetectedOffline") }
+  static var usbOfflineHint: String { value("usbOfflineHint") }
   static var stateUSBConnected: String { value("stateUSBConnected") }
+  static var stateConnected: String { value("stateConnected") }
   static var stateWaitingForMode: String { value("stateWaitingForMode") }
   static var stateWorking: String { value("stateWorking") }
   static var stateError: String { value("stateError") }
@@ -905,6 +993,8 @@ enum L10n {
   static var hdrShadowsNormal: String { value("hdrShadowsNormal") }
   static var hdrShadowsSoft: String { value("hdrShadowsSoft") }
   static var hdrShadowsDeep: String { value("hdrShadowsDeep") }
+  static var expandSidebar: String { value("expandSidebar") }
+  static var collapseSidebar: String { value("collapseSidebar") }
 }
 
 enum ConnectionState: String, CaseIterable {

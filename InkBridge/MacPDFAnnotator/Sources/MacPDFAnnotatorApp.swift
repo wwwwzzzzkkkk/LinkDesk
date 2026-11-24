@@ -6,6 +6,8 @@ import Darwin
 @MainActor
 final class InkBridgeAppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
+    NSApp.servicesProvider = self
+    NSUpdateDynamicServices()
     if ProcessInfo.processInfo.arguments.contains("--keyboard-test") { KeyboardHost.shared.showTestWindow() }
     if let iconURL = Bundle.main.url(forResource: "linkdesk-icon", withExtension: "png"), let icon = NSImage(contentsOf: iconURL) {
       NSApp.applicationIconImage = icon
@@ -14,6 +16,18 @@ final class InkBridgeAppDelegate: NSObject, NSApplicationDelegate {
       NSApp.setActivationPolicy(.accessory)
       NSApp.windows.forEach { $0.orderOut(nil) }
     }
+  }
+  @objc func sendFilesToLinkDesk(_ pasteboard: NSPasteboard, userData: String?,
+    error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+    let files = pasteboard.readObjects(forClasses: [NSURL.self],
+      options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+    guard WorkspaceFiles.shared.send(files) else {
+      error.pointee = L10n.finderSendUnavailable as NSString
+      return
+    }
+    NSApp.setActivationPolicy(.regular)
+    NSApp.activate(ignoringOtherApps: true)
+    _ = applicationShouldHandleReopen(NSApp, hasVisibleWindows: NSApp.windows.contains { $0.isVisible })
   }
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     NSApp.setActivationPolicy(.regular)
@@ -58,13 +72,13 @@ struct MacPDFAnnotatorApp: App {
     Window(L10n.productName, id: "main") {
       LinkDeskWorkspaceView()
         .environmentObject(workspace)
-        .frame(minWidth: DT.dimensions.d1000, minHeight: DT.dimensions.d680)
+        .frame(minWidth: DT.layout.workspaceMinimum, minHeight: DT.dimensions.d680)
         .onAppear { workspace.start() }
         .onOpenURL { url in
           if url.isFileURL && url.pathExtension.lowercased() == "pdf" { workspace.openPDF(at: url) }
         }
     }
-    .windowToolbarStyle(.unified(showsTitle: false))
+    .windowToolbarStyle(.unifiedCompact(showsTitle: false))
     .commands {
       CommandGroup(replacing: .newItem) {
         Button(L10n.openPDF, action: workspace.openPDF)

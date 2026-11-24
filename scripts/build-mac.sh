@@ -20,7 +20,7 @@ swift build -c "$CONFIGURATION" --package-path "$ROOT" --jobs 2
 BIN="$(swift build -c "$CONFIGURATION" --package-path "$ROOT" --show-bin-path)"
 cp "$BIN/LinkDesk" "$APP/Contents/MacOS/LinkDesk"
 mkdir -p "$APP/Contents/Resources/public"
-cp "$ROOT/InkBridge/local-server.mjs" "$APP/Contents/Resources/local-server.mjs"
+cp "$ROOT/InkBridge/local-server.mjs" "$ROOT/InkBridge/file-transfer.mjs" "$ROOT/InkBridge/wireless-mic-relay.mjs" "$APP/Contents/Resources/"
 cp "$ROOT/InkBridge/keyboard-relay.mjs" "$APP/Contents/Resources/keyboard-relay.mjs"
 rsync -a --delete "$ROOT/InkBridge/public/" "$APP/Contents/Resources/public/"
 # A self-contained app does not depend on a separately installed Node or npm tree.
@@ -53,6 +53,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>NSHighResolutionCapable</key><true/>
 <key>NSLocalNetworkUsageDescription</key><string>发现同一网络的平板，同步 PDF、白板与笔迹。</string>
 <key>NSBonjourServices</key><array><string>_inkbridge._tcp</string></array>
+<key>NSServices</key><array><dict>
+<key>NSMenuItem</key><dict><key>default</key><string>发送到 LinkDesk 平板</string></dict>
+<key>NSMessage</key><string>sendFilesToLinkDesk</string>
+<key>NSPortName</key><string>LinkDesk</string>
+<key>NSSendTypes</key><array><string>public.file-url</string><string>NSFilenamesPboardType</string></array>
+<key>NSRequiredContext</key><dict/>
+</dict></array>
 <key>CFBundleDocumentTypes</key><array><dict>
 <key>CFBundleTypeName</key><string>PDF Document</string>
 <key>CFBundleTypeRole</key><string>Editor</string>
@@ -74,9 +81,43 @@ if [[ "${LINKDESK_BUNDLE_HDC:-0}" == 1 ]]; then
 else
   rm -rf "$APP/Contents/Resources/tools"
 fi
+SHARE="$APP/Contents/PlugIns/LinkDeskFinderShare.appex"
+mkdir -p "$SHARE/Contents/MacOS" "$SHARE/Contents/Resources"
+xcrun swiftc -O -application-extension -target "$(uname -m)-apple-macos14.0" \
+  -Xlinker -e -Xlinker _NSExtensionMain \
+  "$ROOT/macOS/FinderShare/ShareViewController.swift" -o "$SHARE/Contents/MacOS/LinkDeskFinderShare"
+cp "$ROOT/assets/LinkDesk.icns" "$SHARE/Contents/Resources/LinkDesk.icns"
+cat > "$SHARE/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>LinkDeskFinderShare</string>
+<key>CFBundleIdentifier</key><string>com.zhekuan.linkdesk.mac.findershare</string>
+<key>CFBundleName</key><string>发送到 LinkDesk 平板</string>
+<key>CFBundleDisplayName</key><string>发送到 LinkDesk 平板</string>
+<key>CFBundleIconFile</key><string>LinkDesk.icns</string>
+<key>CFBundlePackageType</key><string>XPC!</string>
+<key>CFBundleShortVersionString</key><string>$VERSION</string>
+<key>CFBundleVersion</key><string>$BUILD</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
+<key>NSExtension</key><dict>
+<key>NSExtensionPointIdentifier</key><string>com.apple.share-services</string>
+<key>NSExtensionPrincipalClass</key><string>ShareViewController</string>
+<key>NSExtensionAttributes</key><dict>
+<key>NSExtensionActivationRule</key><dict>
+<key>NSExtensionActivationSupportsFileWithMaxCount</key><integer>9</integer>
+<key>NSExtensionActivationSupportsImageWithMaxCount</key><integer>9</integer>
+<key>NSExtensionActivationSupportsMovieWithMaxCount</key><integer>9</integer>
+</dict>
+</dict>
+</dict>
+</dict></plist>
+PLIST
 for attempt in 1 2 3; do
   xattr -cr "$APP"
   codesign --force --sign "$SIGN_IDENTITY" "$APP/Contents/Resources/node"
+  codesign --force --sign "$SIGN_IDENTITY" --entitlements "$ROOT/macOS/FinderShare/Share.entitlements" "$SHARE"
   if [[ -d "$APP/Contents/Resources/tools" ]]; then
     codesign --force --sign "$SIGN_IDENTITY" "$APP/Contents/Resources/tools/libusb_shared.dylib"
     codesign --force --sign "$SIGN_IDENTITY" "$APP/Contents/Resources/tools/hdc"

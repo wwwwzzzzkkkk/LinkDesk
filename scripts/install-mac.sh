@@ -50,8 +50,13 @@ xattr -cr "$NEW"
 codesign --verify --deep --strict "$NEW"
 BACKUPS="${LINKDESK_BACKUP_DIR:-$HOME/Library/Application Support/LinkDesk/Backups}"
 mkdir -p "$BACKUPS"
-BACKUP="$BACKUPS/LinkDesk-$(date +%Y%m%d-%H%M%S).app"
-if [[ -d "$DEST" ]]; then mv "$DEST" "$BACKUP"; fi
+# A backup ending in .app is discovered as a separate PDF handler by Finder.
+# Keep the complete signed bundle recoverable without registering it as an app.
+BACKUP="$BACKUPS/LinkDesk-$(date +%Y%m%d-%H%M%S).app.backup"
+if [[ -d "$DEST" ]]; then
+  mv "$DEST" "$BACKUP"
+  "$LSREGISTER" -u "$BACKUP" >/dev/null 2>&1 || true
+fi
 if ! mv "$NEW" "$DEST"; then
   [[ ! -d "$BACKUP" ]] || mv "$BACKUP" "$DEST"
   exit 1

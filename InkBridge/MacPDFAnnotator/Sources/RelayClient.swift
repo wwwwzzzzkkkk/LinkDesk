@@ -67,7 +67,6 @@ final class RelayClient: ObservableObject {
   }
 
   func connect(room: String) {
-    reconnectWorkItem?.cancel()
     disconnect()
     self.room = room
     lastRevision = 0
@@ -87,6 +86,8 @@ final class RelayClient: ObservableObject {
   }
 
   func disconnect() {
+    reconnectWorkItem?.cancel()
+    reconnectWorkItem = nil
     task?.cancel(with: .goingAway, reason: nil)
     task = nil
     pendingAcks = [:]

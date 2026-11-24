@@ -25,6 +25,7 @@ test("portable SHA-256 keeps PDF verification available without WebCrypto", asyn
 });
 
 const room = "P1TEST";
+const relayVersion = 20;
 let relay;
 let baseURL;
 const dataDirectory = mkdtempSync(join(tmpdir(), "inkbridge-phase5-"));
@@ -204,7 +205,7 @@ before(async () => {
   const config = await waitUntilReady(baseURL);
   assert.equal(config.appVersion, "1.6.10");
   assert.equal(config.protocolVersion, 2);
-  assert.equal(config.relayVersion, 16);
+  assert.equal(config.relayVersion, relayVersion);
 });
 
 after(() => {
@@ -1334,7 +1335,7 @@ test("phase 5 persists complete operations and keeps undo/redo canonical across 
     stdio: ["ignore", "pipe", "pipe"],
   });
   const configuration = await waitUntilReady(baseURL);
-  assert.equal(configuration.relayVersion, 16);
+  assert.equal(configuration.relayVersion, relayVersion);
 
   const recovered = makeClient("pdfpad", "phase5-after-restart");
   const recoveredSnapshot = await recovered.join();
@@ -1374,4 +1375,38 @@ test("appearance persists through a relay restart without needing a PDF", async 
     await waitUntilReady(nextURL);
     assert.deepEqual(await (await fetch(`${nextURL}/api/appearance`)).json(), { preference: "dark", appearance: "dark", revision: 1 });
   } finally { second.kill("SIGTERM"); }
+});
+
+test("tablet observes a stopped Mac app while its relay is still running", async () => {
+  const port = await unusedPort();
+  let finderPort = await unusedPort();
+  while (finderPort === port) finderPort = await unusedPort();
+  const url = `http://127.0.0.1:${port}`;
+  const directory = mkdtempSync(join(tmpdir(), "linkdesk-host-health-"));
+  const child = spawn(process.execPath, ["local-server.mjs"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env, PORT: String(port), INKBRIDGE_DATA_DIR: directory,
+      LINKDESK_FINDER_ROOM: "ABC123", LINKDESK_FINDER_PORT: String(finderPort),
+    },
+    stdio: "ignore",
+  });
+  const heartbeat = { method: "POST", headers: { "X-LinkDesk-Finder": "1" } };
+  const online = async () => (await (await fetch(url + "/api/appearance")).json()).hostOnline;
+  try {
+    await waitUntilReady(url);
+    assert.equal(await online(), false);
+    assert.equal((await fetch(url + "/host/heartbeat", heartbeat)).status, 404);
+    const privateURL = `http://127.0.0.1:${finderPort}/host/heartbeat`;
+    assert.equal((await fetch(privateURL, { method: "POST" })).status, 404);
+    assert.equal((await fetch(privateURL, heartbeat)).status, 204);
+    assert.equal(await online(), true);
+    await new Promise(resolve => setTimeout(resolve, 5600));
+    assert.equal(await online(), false);
+    assert.equal((await fetch(privateURL, heartbeat)).status, 204);
+    assert.equal(await online(), true);
+  } finally {
+    child.kill("SIGTERM");
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

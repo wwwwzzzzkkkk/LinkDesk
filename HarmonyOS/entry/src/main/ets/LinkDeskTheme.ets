@@ -9,6 +9,7 @@ interface SharedTheme {
   preference: string;
   appearance: string;
   revision: number;
+  hostOnline?: boolean;
 }
 interface ThemeUpdate {
   preference: string;
@@ -24,6 +25,7 @@ export class LinkDeskTheme {
   private static busy: boolean = false;
   private static pending: string = '';
   private static generation: number = 0;
+  private static lastReachable: number = 0;
 
   static start(context: common.UIAbilityContext): void {
     LinkDeskTheme.context = context;
@@ -52,6 +54,7 @@ export class LinkDeskTheme {
     if (LinkDeskTheme.timer >= 0) clearInterval(LinkDeskTheme.timer);
     LinkDeskTheme.timer = -1;
     LinkDeskTheme.generation += 1;
+    LinkDeskTheme.reportConnection(false);
     LinkDeskTheme.context = undefined;
   }
   static select(value: string): void {
@@ -86,13 +89,27 @@ export class LinkDeskTheme {
     const dark = AppStorage.get<boolean>('LinkDeskDark') ?? false;
       void window.getLastWindow(LinkDeskTheme.context).then((main: window.Window) => {
         return main.setWindowSystemBarProperties({
-          statusBarColor: DT.canvas(dark), navigationBarColor: DT.canvas(dark),
+          statusBarColor: DT.clear(dark), navigationBarColor: DT.clear(dark),
           isStatusBarLightIcon: dark, isNavigationBarLightIcon: dark,
           statusBarContentColor: DT.text(dark),
           navigationBarContentColor: DT.text(dark)
         });
       }).catch(() => {});
   }
+  static refreshConnection(): void {
+    if (Date.now() - LinkDeskTheme.lastReachable > 4500) LinkDeskTheme.reportConnection(false);
+    void LinkDeskTheme.synchronize();
+  }
+
+  private static reportConnection(online: boolean): void {
+    AppStorage.setOrCreate('LinkDeskRelayReachable', online);
+    AppStorage.setOrCreate('LinkDeskMacUnavailable', !online);
+    if (online) {
+      LinkDeskTheme.lastReachable = Date.now();
+      AppStorage.setOrCreate('LinkDeskRelayTransport', LinkDeskTheme.host === '127.0.0.1' ? 'usb' : 'wifi');
+    }
+  }
+
   private static async synchronize(): Promise<void> {
     if (LinkDeskTheme.busy || !LinkDeskTheme.host || !LinkDeskTheme.room) return;
     LinkDeskTheme.busy = true;
@@ -100,12 +117,18 @@ export class LinkDeskTheme {
     const address = LinkDeskTheme.host.includes(':') ? `[${LinkDeskTheme.host}]` : LinkDeskTheme.host;
     const url = `http://${address}:3210/api/appearance`;
     const request = http.createHttp();
+    let relayResponded: boolean = false;
     try {
       const response = await request.request(url, { method: http.RequestMethod.GET, connectTimeout: 1500, readTimeout: 1500 });
-      if (response.responseCode !== 200 || generation !== LinkDeskTheme.generation) return;
-      AppStorage.setOrCreate('LinkDeskRelayReachable', true);
-      AppStorage.setOrCreate('LinkDeskTransport', LinkDeskTheme.host === '127.0.0.1' ? 'usb' : 'wifi');
-      const shared = JSON.parse(response.result as string) as SharedTheme;
+      if (generation !== LinkDeskTheme.generation) return;
+      if (response.responseCode !== 200 || typeof response.result !== 'string') {
+        if (Date.now() - LinkDeskTheme.lastReachable > 2500) LinkDeskTheme.reportConnection(false);
+        return;
+      }
+      const shared = JSON.parse(response.result) as SharedTheme;
+      relayResponded = true;
+      LinkDeskTheme.reportConnection(shared.hostOnline !== false);
+      if (shared.hostOnline === false) return;
       if (!['automatic', 'light', 'dark'].includes(shared.preference) || !['light', 'dark'].includes(shared.appearance)) return;
       if (LinkDeskTheme.pending) {
         const selected = LinkDeskTheme.pending;
@@ -130,7 +153,10 @@ export class LinkDeskTheme {
       } else if (shared.revision > 0) {
         LinkDeskTheme.apply(shared.preference, shared.appearance === 'dark');
       }
-    } catch (_) { AppStorage.setOrCreate('LinkDeskRelayReachable', false); /* Keep the last appearance while reconnecting. */ }
+    } catch (_) {
+      if (!relayResponded && generation === LinkDeskTheme.generation &&
+        Date.now() - LinkDeskTheme.lastReachable > 2500) LinkDeskTheme.reportConnection(false);
+    }
     finally { request.destroy(); LinkDeskTheme.busy = false; }
   }
 }

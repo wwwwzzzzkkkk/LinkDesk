@@ -23,4 +23,13 @@ if [[ ${#TARGETS[@]} -ne 1 ]]; then
   exit 1
 fi
 "$HDC" -t "${TARGETS[0]}" install -r "$HAP"
-"$HDC" -t "${TARGETS[0]}" shell aa start -a EntryAbility -b com.zhekuan.linkdesk
+launch_output="$("$HDC" -t "${TARGETS[0]}" shell aa start -a EntryAbility -b com.zhekuan.linkdesk 2>&1)" || {
+  printf '%s\n' "$launch_output" >&2
+  exit 1
+}
+printf '%s\n' "$launch_output"
+# HDC can return zero even when the device rejected the launch.
+if [[ "$launch_output" != *"start ability successfully."* ]]; then
+  echo '平板上的 LinkDesk 未能打开，请查看上方的系统提示。' >&2
+  exit 1
+fi

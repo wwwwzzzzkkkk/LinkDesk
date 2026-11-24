@@ -19,6 +19,14 @@
     {
       "name": "screen_mirror_background_reason",
       "value": "在后台持续将平板屏幕通过 USB 投射到 Mac"
+    },
+    {
+      "name": "send_to_mac_label",
+      "value": "LinkDesk · 发送到 Mac"
+    },
+    {
+      "name": "send_to_mac_desc",
+      "value": "将共享的文件发送给已配对的 Mac。"
     }
   ]
 }

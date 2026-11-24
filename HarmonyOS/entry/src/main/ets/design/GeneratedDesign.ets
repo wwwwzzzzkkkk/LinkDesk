@@ -36,6 +36,22 @@ export class DT {
   static keyboardShade(dark: boolean): string { return dark ? "#30000000" : "#140C2038"; }
   static keyboardTrack(dark: boolean): string { return dark ? "#22D3E2F5" : "#180E2544"; }
   static keyboardFloat(dark: boolean): string { return dark ? "#60212C3D" : "#60F8FAFF"; }
+  static workspaceCanvas(dark: boolean): string { return dark ? "#191D29" : "#EDF0F8"; }
+  static workspaceWash(dark: boolean): string { return dark ? "#262E48" : "#DDE4FC"; }
+  static workspaceGlow(dark: boolean): string { return dark ? "#2D283A" : "#E8DFF6"; }
+  static connectionBlue(dark: boolean): string { return dark ? "#7CA8FF" : "#3B68D4"; }
+  static connectionBlueTrace(dark: boolean): string { return dark ? "#387CA8FF" : "#383B68D4"; }
+  static connectionCyan(dark: boolean): string { return dark ? "#82E2F2" : "#087D98"; }
+  static connectionViolet(dark: boolean): string { return dark ? "#A99CFF" : "#7868D4"; }
+  static workspaceSurface(dark: boolean): string { return dark ? "#2B3142" : "#F6F7FD"; }
+  static workspaceTint(dark: boolean): string { return dark ? "#333C58" : "#E7EBFC"; }
+  static workspaceRim(dark: boolean): string { return dark ? "#50586D" : "#BCC6DD"; }
+  static workspaceControl(dark: boolean): string { return dark ? "#3B4255" : "#E8ECF8"; }
+  static workspaceSelection(dark: boolean): string { return dark ? "#4D5672" : "#D9E1F6"; }
+  static workspaceAccent(dark: boolean): string { return dark ? "#535F92" : "#4F5E9E"; }
+  static workspaceOnAccent(dark: boolean): string { return dark ? "#FFFFFF" : "#FFFFFF"; }
+  static workspaceDevice(dark: boolean): string { return dark ? "#E2E7FE" : "#FAFBFF"; }
+  static workspaceDeviceInk(dark: boolean): string { return dark ? "#7F889E" : "#B0BBD7"; }
   static readonly fontCaption = "12fp";
   static readonly fontBody = "16fp";
   static readonly fontLabel = "20fp";
@@ -71,12 +87,12 @@ export class DT {
   static readonly radiusLarge = 28;
   static readonly layoutTouchTarget = 48;
   static readonly layoutMacControl = 28;
-  static readonly layoutSidebar = 224;
+  static readonly layoutSidebar = 248;
   static readonly layoutSidebarMin = 208;
   static readonly layoutSidebarMax = 272;
   static readonly layoutWideBreakpoint = 840;
   static readonly layoutSingleColumnBreakpoint = 600;
-  static readonly layoutPageMax = 960;
+  static readonly layoutPageMax = 980;
   static readonly layoutPagePadding = 32;
   static readonly layoutCompactPadding = 16;
   static readonly layoutSettingRowMac = 64;
@@ -92,6 +108,8 @@ export class DT {
   static readonly layoutToolbarHeight = 64;
   static readonly layoutFormMaxWidth = 480;
   static readonly layoutStroke = 1;
+  static readonly layoutConnectionRimStroke = 2;
+  static readonly layoutConnectionRimGlow = 5;
   static readonly layoutMirrorWindowWidth = 960;
   static readonly layoutMirrorWindowHeight = 640;
   static readonly layoutMirrorWindowFallbackHeight = 900;
@@ -102,6 +120,15 @@ export class DT {
   static readonly layoutKeyboardKeyHeight = 44;
   static readonly layoutKeyboardMaxWidth = 760;
   static readonly layoutKeyboardPressOffset = 2;
+  static readonly layoutSidebarCompact = 72;
+  static readonly layoutSidebarCollapseBreakpoint = 1040;
+  static readonly layoutWorkspaceMinimum = 760;
+  static readonly layoutHeroIllustrationWidth = 256;
+  static readonly layoutHeroIllustrationHeight = 160;
+  static readonly layoutHeroDeviceWidth = 104;
+  static readonly layoutHeroDeviceHeight = 128;
+  static readonly layoutWorkspaceFourCards = 840;
+  static readonly layoutWorkspaceControlWidth = 216;
   static readonly dimensionsD120 = 120;
   static readonly dimensionsD112 = 112;
   static readonly dimensionsD144 = 144;
@@ -140,10 +167,19 @@ export class DT {
   static readonly durationPanelFade: number = 160;
   static readonly durationKeyboardPress: number = 65;
   static readonly durationKeyboardHaptic: number = 8;
+  static readonly durationWorkspaceExit: number = 90;
+  static readonly durationWorkspaceEnter: number = 185;
+  static readonly durationWorkspaceCard: number = 155;
+  static readonly durationWorkspaceStagger: number = 35;
+  static readonly durationWorkspacePulseIn: number = 260;
+  static readonly durationWorkspacePulseOut: number = 520;
+  static readonly durationWorkspaceLayoutFrame: number = 16;
   static readonly opacityMuted: number = 0.6;
   static readonly opacitySubtle: number = 0.08;
   static readonly opacityBorder: number = 0.16;
   static readonly opacityPressed: number = 0.84;
+  static readonly opacityWorkspaceDim: number = 0.72;
+  static readonly opacityWorkspacePulse: number = 0.55;
   static readonly transformMenuScale: number = 0.96;
   static readonly transformExitScale: number = 0.98;
   static readonly transformSearchScale: number = 0.96;
@@ -151,11 +187,13 @@ export class DT {
   static curveStandard(): ICurve { return curves.cubicBezierCurve(0.42, 0, 0.58, 1); }
   static curveEnter(): ICurve { return curves.cubicBezierCurve(0.16, 1, 0.3, 1); }
   static curveExit(): ICurve { return curves.cubicBezierCurve(0.4, 0, 1, 1); }
+  static curveWorkspace(): ICurve { return curves.cubicBezierCurve(0.2, 0.75, 0.25, 1); }
   static iconHome(dark: boolean): Resource { return dark ? $r("app.media.workspace_home_dark") : $r("app.media.workspace_home"); }
   static iconDisplay(dark: boolean): Resource { return dark ? $r("app.media.workspace_display_dark") : $r("app.media.workspace_display"); }
   static iconPdf(dark: boolean): Resource { return dark ? $r("app.media.workspace_pdf_dark") : $r("app.media.workspace_pdf"); }
   static iconWhiteboard(dark: boolean): Resource { return dark ? $r("app.media.workspace_whiteboard_dark") : $r("app.media.workspace_whiteboard"); }
   static iconMirror(dark: boolean): Resource { return dark ? $r("app.media.workspace_mirror_dark") : $r("app.media.workspace_mirror"); }
+  static iconSidebar(dark: boolean): Resource { return dark ? $r("app.media.workspace_sidebar_dark") : $r("app.media.workspace_sidebar"); }
   static readonly inkInk: string = "#152441";
   static readonly inkRed: string = "#e74c3c";
   static readonly inkBlue: string = "#2980b9";
@@ -179,6 +217,25 @@ export class Strings {
   static source(key: string): string { return Strings.value(key, false); }
   private static value(key: string, english: boolean = Strings.language.startsWith("en")): string {
     switch (key) {
+      case "micInputActiveMarker": return english ? "Set as Mac input" : "已设为 Mac 输入";
+      case "finderSendUnavailable": return english ? "Choose a file or wait for the current transfer to finish." : "请选择文件，或等待当前传输完成。";
+      case "stopMicBeforeMirror": return english ? "Turn off the wireless microphone before starting tablet mirroring" : "请先关闭无线麦克风，再开启平板投屏";
+      case "transferFiles": return english ? "File Transfer" : "文件传送";
+      case "filesShort": return english ? "Files" : "文件";
+      case "selectAndSendToMac": return english ? "Choose a file to send to Mac" : "选择文件发送到 Mac";
+      case "backgroundInboxNotifications": return english ? "Background file notifications" : "后台收件通知";
+      case "finishAnnotationSession": return english ? "End the current annotation session" : "结束当前批注任务";
+      case "emptyFileInbox": return english ? "No files waiting to be received" : "暂无待接收文件";
+      case "annotateInHuaweiNotes": return english ? "Annotate in Huawei Notes" : "用华为笔记批注";
+      case "openReceivedFile": return english ? "Open" : "打开";
+      case "saveReceivedCopy": return english ? "Save a copy" : "另存";
+      case "connectingToMac": return english ? "Connecting to Mac…" : "正在连接 Mac…";
+      case "shareOpenFailed": return english ? "Unable to open the share" : "无法打开分享";
+      case "shareAnnotationChoice": return english ? "Choose whether to return this PDF as the annotated copy for the current session." : "选择是否将此 PDF 作为当前批注任务的副本回传。";
+      case "shareAnnotationFailed": return english ? "Unable to return the annotated copy. Open the annotation session in LinkDesk." : "无法回传批注副本，请从 LinkDesk 打开批注任务";
+      case "shareToMac": return english ? "Send to Mac" : "发送到 Mac";
+      case "shareAnnotatedCopy": return english ? "Return the annotated copy" : "回传批注副本";
+      case "shareRegularFile": return english ? "Send as a regular file" : "发送普通文件";
       case "productName": return english ? "LinkDesk" : "LinkDesk";
       case "productSubtitle": return english ? "Your workspace across screens" : "你的跨屏工作空间";
       case "workspaces": return english ? "Workspaces" : "工作空间";
@@ -215,7 +272,12 @@ export class Strings {
       case "themeHelp": return english ? "Follow your Mac appearance, or sync a light or dark theme." : "跟随 Mac 系统外观，或选择两端同步的浅色／深色主题。";
       case "themeAccessibility": return english ? "Change appearance on both devices" : "切换外观，两端同步";
       case "stateDisconnected": return english ? "Disconnected" : "未连接";
+      case "deviceOnline": return english ? "Online" : "在线";
+      case "deviceOffline": return english ? "Offline" : "离线";
+      case "usbDetectedOffline": return english ? "USB device detected · Offline" : "已发现 USB 设备 · 离线";
+      case "usbOfflineHint": return english ? "The device was detected, but its USB data connection is offline. Unlock the tablet, enable USB debugging and authorize this Mac. Reconnect the cable if needed." : "已发现设备，但 USB 数据通道离线。请解锁平板，开启 USB 调试并允许此 Mac；必要时重新插拔数据线。";
       case "stateUSBConnected": return english ? "USB connected" : "USB 已连接";
+      case "stateConnected": return english ? "Connected" : "已连接";
       case "stateWaitingForMode": return english ? "Choose a mode on your tablet" : "等待平板选择模式";
       case "stateWorking": return english ? "Working" : "工作中";
       case "stateError": return english ? "Connection issue" : "异常";
@@ -473,7 +535,7 @@ export class Strings {
       case "keyboardSpace": return english ? "Space" : "空格";
       case "keyboardEnableNotice": return english ? "Enable notification shortcut" : "启用下拉入口";
       case "keyboardDisableNotice": return english ? "Disable notification shortcut" : "关闭下拉入口";
-      case "keyboardNotificationHint": return english ? "Mac connected · tap to open keyboard; connection rechecked before typing" : "Mac 已连接 · 点击打开键盘，输入前重新检查连接";
+      case "keyboardNotificationHint": return english ? "Tap to open the keyboard and check your Mac connection" : "点击打开键盘 · 输入前检查 Mac 连接";
       case "keyboardNoticeError": return english ? "Notification shortcut unavailable. Check notification permission." : "通知入口不可用，请检查系统通知权限";
       case "keyboardUSBPriority": return english ? "Prefer USB; use Wi-Fi when unavailable" : "USB 优先，断开后使用 Wi-Fi";
       case "keyboardWiFiPriority": return english ? "Prefer Wi-Fi; use USB when unavailable" : "Wi-Fi 优先，不可用时使用 USB";
@@ -528,9 +590,30 @@ export class Strings {
       case "hdrShadowsNormal": return english ? "Original" : "原始";
       case "hdrShadowsSoft": return english ? "Gentle" : "柔和";
       case "hdrShadowsDeep": return english ? "Deeper" : "更深";
+      case "expandSidebar": return english ? "Expand sidebar" : "展开侧栏";
+      case "collapseSidebar": return english ? "Collapse sidebar" : "收起侧栏";
       default: return key;
     }
   }
+  static get micInputActiveMarker(): string { return Strings.value("micInputActiveMarker"); }
+  static get finderSendUnavailable(): string { return Strings.value("finderSendUnavailable"); }
+  static get stopMicBeforeMirror(): string { return Strings.value("stopMicBeforeMirror"); }
+  static get transferFiles(): string { return Strings.value("transferFiles"); }
+  static get filesShort(): string { return Strings.value("filesShort"); }
+  static get selectAndSendToMac(): string { return Strings.value("selectAndSendToMac"); }
+  static get backgroundInboxNotifications(): string { return Strings.value("backgroundInboxNotifications"); }
+  static get finishAnnotationSession(): string { return Strings.value("finishAnnotationSession"); }
+  static get emptyFileInbox(): string { return Strings.value("emptyFileInbox"); }
+  static get annotateInHuaweiNotes(): string { return Strings.value("annotateInHuaweiNotes"); }
+  static get openReceivedFile(): string { return Strings.value("openReceivedFile"); }
+  static get saveReceivedCopy(): string { return Strings.value("saveReceivedCopy"); }
+  static get connectingToMac(): string { return Strings.value("connectingToMac"); }
+  static get shareOpenFailed(): string { return Strings.value("shareOpenFailed"); }
+  static get shareAnnotationChoice(): string { return Strings.value("shareAnnotationChoice"); }
+  static get shareAnnotationFailed(): string { return Strings.value("shareAnnotationFailed"); }
+  static get shareToMac(): string { return Strings.value("shareToMac"); }
+  static get shareAnnotatedCopy(): string { return Strings.value("shareAnnotatedCopy"); }
+  static get shareRegularFile(): string { return Strings.value("shareRegularFile"); }
   static get productName(): string { return Strings.value("productName"); }
   static get productSubtitle(): string { return Strings.value("productSubtitle"); }
   static get workspaces(): string { return Strings.value("workspaces"); }
@@ -567,7 +650,12 @@ export class Strings {
   static get themeHelp(): string { return Strings.value("themeHelp"); }
   static get themeAccessibility(): string { return Strings.value("themeAccessibility"); }
   static get stateDisconnected(): string { return Strings.value("stateDisconnected"); }
+  static get deviceOnline(): string { return Strings.value("deviceOnline"); }
+  static get deviceOffline(): string { return Strings.value("deviceOffline"); }
+  static get usbDetectedOffline(): string { return Strings.value("usbDetectedOffline"); }
+  static get usbOfflineHint(): string { return Strings.value("usbOfflineHint"); }
   static get stateUSBConnected(): string { return Strings.value("stateUSBConnected"); }
+  static get stateConnected(): string { return Strings.value("stateConnected"); }
   static get stateWaitingForMode(): string { return Strings.value("stateWaitingForMode"); }
   static get stateWorking(): string { return Strings.value("stateWorking"); }
   static get stateError(): string { return Strings.value("stateError"); }
@@ -880,6 +968,8 @@ export class Strings {
   static get hdrShadowsNormal(): string { return Strings.value("hdrShadowsNormal"); }
   static get hdrShadowsSoft(): string { return Strings.value("hdrShadowsSoft"); }
   static get hdrShadowsDeep(): string { return Strings.value("hdrShadowsDeep"); }
+  static get expandSidebar(): string { return Strings.value("expandSidebar"); }
+  static get collapseSidebar(): string { return Strings.value("collapseSidebar"); }
 }
 
 export enum ConnectionState {

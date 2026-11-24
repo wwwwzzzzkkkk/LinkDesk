@@ -33,6 +33,22 @@
   --ld-keyboardShade: #0C203814;
   --ld-keyboardTrack: #0E254418;
   --ld-keyboardFloat: #F8FAFF60;
+  --ld-workspaceCanvas: #EDF0F8;
+  --ld-workspaceWash: #DDE4FC;
+  --ld-workspaceGlow: #E8DFF6;
+  --ld-connectionBlue: #3B68D4;
+  --ld-connectionBlueTrace: #3B68D438;
+  --ld-connectionCyan: #087D98;
+  --ld-connectionViolet: #7868D4;
+  --ld-workspaceSurface: #F6F7FD;
+  --ld-workspaceTint: #E7EBFC;
+  --ld-workspaceRim: #BCC6DD;
+  --ld-workspaceControl: #E8ECF8;
+  --ld-workspaceSelection: #D9E1F6;
+  --ld-workspaceAccent: #4F5E9E;
+  --ld-workspaceOnAccent: #FFFFFF;
+  --ld-workspaceDevice: #FAFBFF;
+  --ld-workspaceDeviceInk: #B0BBD7;
 }
 :root[data-linkdesk-theme="light"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="light"] .pdf-scroll { background: var(--ld-canvas); }
@@ -73,6 +89,22 @@
   --ld-keyboardShade: #00000030;
   --ld-keyboardTrack: #D3E2F522;
   --ld-keyboardFloat: #212C3D60;
+  --ld-workspaceCanvas: #191D29;
+  --ld-workspaceWash: #262E48;
+  --ld-workspaceGlow: #2D283A;
+  --ld-connectionBlue: #7CA8FF;
+  --ld-connectionBlueTrace: #7CA8FF38;
+  --ld-connectionCyan: #82E2F2;
+  --ld-connectionViolet: #A99CFF;
+  --ld-workspaceSurface: #2B3142;
+  --ld-workspaceTint: #333C58;
+  --ld-workspaceRim: #50586D;
+  --ld-workspaceControl: #3B4255;
+  --ld-workspaceSelection: #4D5672;
+  --ld-workspaceAccent: #535F92;
+  --ld-workspaceOnAccent: #FFFFFF;
+  --ld-workspaceDevice: #E2E7FE;
+  --ld-workspaceDeviceInk: #7F889E;
 }
 :root[data-linkdesk-theme="dark"] .pdfpad-shell { background: var(--ld-canvas); }
 :root[data-linkdesk-theme="dark"] .pdf-scroll { background: var(--ld-canvas); }

@@ -12,8 +12,20 @@ interface Reply { seq: number; ok: boolean; error: string; inputSource?: string;
 interface Command { seq: number; type: string; key: string; text: string; modifiers: number; expires: number; lease?: number; repeat?: boolean; candidates?: boolean; }
 interface Pending { command: Command; time: number; }
 export interface TouchCredentials { host: string; identity: string; key: cryptoFramework.SymKey; }
+export interface WirelessMicrophoneCredentials { hosts: string[]; key: cryptoFramework.SymKey; }
 
 export class KeyboardClient {
+  static async wirelessMicrophoneCredentials(): Promise<WirelessMicrophoneCredentials | undefined> {
+    const pairing = KeyboardClient.pairing;
+    if (!/^[0-9a-f]{64}$/.test(pairing.key)) return undefined;
+    const hosts = Array.from(new Set([KeyboardClient.wireless, KeyboardClient.preferred,
+      KeyboardClient.host, ...KeyboardClient.discovered, ...(pairing.hosts ?? [])]))
+      .filter((host: string) => host !== '127.0.0.1' && host !== 'localhost' &&
+        /^[a-zA-Z0-9.:-]+$/.test(host)).slice(0, 5);
+    const key = await cryptoFramework.createSymKeyGenerator('AES256').convertKey({ data: KeyboardClient.hex(pairing.key) });
+    return { hosts, key };
+  }
+
   static touchCredentials(): TouchCredentials | undefined {
     if (AppStorage.get<string>('LinkDeskKeyboardState') !== 'ready' || !KeyboardClient.host || !KeyboardClient.symKey) return undefined;
     return { host: KeyboardClient.host, identity: KeyboardClient.pairing.identity, key: KeyboardClient.symKey };

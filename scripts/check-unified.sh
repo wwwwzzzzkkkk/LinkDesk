@@ -36,3 +36,7 @@ xcrun swiftc "$SOURCES/WeTypeCandidates.swift" "$ROOT/tests/test-wetype-candidat
 "$RESULTS/wetype-candidates"
 xcrun swiftc "$SOURCES/TabletPen.swift" "$ROOT/tests/test-tablet-pen.swift" -o "$RESULTS/tablet-pen"
 "$RESULTS/tablet-pen"
+xcrun swiftc -swift-version 6 "$SOURCES/GeneratedDesign.swift" "$SOURCES/MirrorQuestionSearch.swift" "$SOURCES/MirrorGPTQuestionSolver.swift" "$SOURCES/MirrorQuestionCoordinator.swift" "$ROOT/tests/test-mirror-question-search.swift" -o "$RESULTS/mirror-question-search"
+"$RESULTS/mirror-question-search"
+xcrun swiftc -swift-version 6 "$SOURCES/GeneratedDesign.swift" "$SOURCES/USBRelayManager.swift" "$SOURCES/TabletCameraWake.swift" "$ROOT/tests/test-tablet-camera-wake.swift" -o "$RESULTS/tablet-camera-wake"
+"$RESULTS/tablet-camera-wake"

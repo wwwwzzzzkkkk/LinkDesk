@@ -35,7 +35,23 @@
       "keyboardRim": "#99FFFFFF",
       "keyboardShade": "#140C2038",
       "keyboardTrack": "#180E2544",
-      "keyboardFloat": "#60F8FAFF"
+      "keyboardFloat": "#60F8FAFF",
+      "workspaceCanvas": "#EDF0F8",
+      "workspaceWash": "#DDE4FC",
+      "workspaceGlow": "#E8DFF6",
+      "connectionBlue": "#3B68D4",
+      "connectionBlueTrace": "#383B68D4",
+      "connectionCyan": "#087D98",
+      "connectionViolet": "#7868D4",
+      "workspaceSurface": "#F6F7FD",
+      "workspaceTint": "#E7EBFC",
+      "workspaceRim": "#BCC6DD",
+      "workspaceControl": "#E8ECF8",
+      "workspaceSelection": "#D9E1F6",
+      "workspaceAccent": "#4F5E9E",
+      "workspaceOnAccent": "#FFFFFF",
+      "workspaceDevice": "#FAFBFF",
+      "workspaceDeviceInk": "#B0BBD7"
     },
     "dark": {
       "accent": "#78ACFF",
@@ -70,7 +86,23 @@
       "keyboardRim": "#508FABC4",
       "keyboardShade": "#30000000",
       "keyboardTrack": "#22D3E2F5",
-      "keyboardFloat": "#60212C3D"
+      "keyboardFloat": "#60212C3D",
+      "workspaceCanvas": "#191D29",
+      "workspaceWash": "#262E48",
+      "workspaceGlow": "#2D283A",
+      "connectionBlue": "#7CA8FF",
+      "connectionBlueTrace": "#387CA8FF",
+      "connectionCyan": "#82E2F2",
+      "connectionViolet": "#A99CFF",
+      "workspaceSurface": "#2B3142",
+      "workspaceTint": "#333C58",
+      "workspaceRim": "#50586D",
+      "workspaceControl": "#3B4255",
+      "workspaceSelection": "#4D5672",
+      "workspaceAccent": "#535F92",
+      "workspaceOnAccent": "#FFFFFF",
+      "workspaceDevice": "#E2E7FE",
+      "workspaceDeviceInk": "#7F889E"
     }
   },
   "typography": {
@@ -130,12 +162,12 @@
   "layout": {
     "touchTarget": 48,
     "macControl": 28,
-    "sidebar": 224,
+    "sidebar": 248,
     "sidebarMin": 208,
     "sidebarMax": 272,
     "wideBreakpoint": 840,
     "singleColumnBreakpoint": 600,
-    "pageMax": 960,
+    "pageMax": 980,
     "pagePadding": 32,
     "compactPadding": 16,
     "settingRowMac": 64,
@@ -151,6 +183,8 @@
     "toolbarHeight": 64,
     "formMaxWidth": 480,
     "stroke": 1,
+    "connectionRimStroke": 2,
+    "connectionRimGlow": 5,
     "mirrorWindowWidth": 960,
     "mirrorWindowHeight": 640,
     "mirrorWindowFallbackHeight": 900,
@@ -160,7 +194,16 @@
     "mirrorWindowMinHeight": 480,
     "keyboardKeyHeight": 44,
     "keyboardMaxWidth": 760,
-    "keyboardPressOffset": 2
+    "keyboardPressOffset": 2,
+    "sidebarCompact": 72,
+    "sidebarCollapseBreakpoint": 1040,
+    "workspaceMinimum": 760,
+    "heroIllustrationWidth": 256,
+    "heroIllustrationHeight": 160,
+    "heroDeviceWidth": 104,
+    "heroDeviceHeight": 128,
+    "workspaceFourCards": 840,
+    "workspaceControlWidth": 216
   },
   "motion": {
     "duration": {
@@ -173,7 +216,14 @@
       "errorNotice": 4200,
       "panelFade": 160,
       "keyboardPress": 65,
-      "keyboardHaptic": 8
+      "keyboardHaptic": 8,
+      "workspaceExit": 90,
+      "workspaceEnter": 185,
+      "workspaceCard": 155,
+      "workspaceStagger": 35,
+      "workspacePulseIn": 260,
+      "workspacePulseOut": 520,
+      "workspaceLayoutFrame": 16
     },
     "curve": {
       "standard": [
@@ -193,13 +243,21 @@
         0,
         1,
         1
+      ],
+      "workspace": [
+        0.2,
+        0.75,
+        0.25,
+        1
       ]
     },
     "opacity": {
       "muted": 0.6,
       "subtle": 0.08,
       "border": 0.16,
-      "pressed": 0.84
+      "pressed": 0.84,
+      "workspaceDim": 0.72,
+      "workspacePulse": 0.55
     },
     "transform": {
       "menuScale": 0.96,
@@ -233,6 +291,11 @@
       "mac": "ipad.and.arrow.forward",
       "harmony": "workspace_mirror",
       "svgBody": "<rect x=\"3\" y=\"2\" width=\"14\" height=\"20\" rx=\"3\"/><path d=\"M8 18h4M12 8h10m-4-4 4 4-4 4\"/>"
+    },
+    "sidebar": {
+      "mac": "sidebar.left",
+      "harmony": "workspace_sidebar",
+      "svgBody": "<rect x=\"2.5\" y=\"4\" width=\"19\" height=\"16\" rx=\"3\"/><path d=\"M9 4v16M5.5 8h1M5.5 11h1\"/>"
     }
   },
   "connectionStates": [

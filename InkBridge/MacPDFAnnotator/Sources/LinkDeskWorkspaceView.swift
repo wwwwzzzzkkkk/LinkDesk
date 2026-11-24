@@ -59,120 +59,241 @@ struct LinkDeskWorkspaceView: View {
   @ObservedObject private var keyboard = KeyboardHost.shared
   @StateObject private var navigation = WorkspaceNavigation()
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  private var selection: LinkDeskDestination? {
-    get { navigation.selection }
-    nonmutating set { navigation.selection = newValue }
+  @AppStorage("LinkDeskSidebarCollapsed") private var prefersCompactSidebar = false
+  @State private var displayedDestination: LinkDeskDestination = .home
+  @State private var contentVisible = true
+  @State private var contentOffset: CGFloat = 0
+  @State private var cardsVisible = false
+  @State private var connectionPaused = false
+  @State private var fileDrag = SidebarFileDragState()
+
+  private var destination: LinkDeskDestination { navigation.selection ?? .home }
+  private var isCanvas: Bool { displayedDestination == .pdf || displayedDestination == .whiteboard }
+  private var state: ConnectionState {
+    connectionPaused ? .disconnected : workspace.connectionState(for: destination, engine: desktop.engine)
   }
-  private var destination: LinkDeskDestination { selection ?? .home }
-  private var isCanvas: Bool { destination == .pdf || destination == .whiteboard }
-  private var state: ConnectionState { workspace.connectionState(for: destination, engine: desktop.engine) }
+
+  private var sidebarDevice: SidebarTabletStatus {
+    let engine = desktop.engine
+    let mic = engine.microphoneStatus
+    let microphoneTransport: ConnectionTransport? =
+      mic.contains("Wi-Fi") ? .wifi : (mic.contains("USB") || mic.contains(L10n.source("micInputActiveMarker")) ? .usb : nil)
+    guard !connectionPaused else { return SidebarTabletStatus() }
+    let home = workspace.connectionState(for: .home, engine: engine)
+    guard home.isConnected || engine.wirelessMicrophoneActive else { return SidebarTabletStatus() }
+    let transport: ConnectionTransport
+    if workspace.relay.isConnected, workspace.relay.peerCount > 1, let actual = workspace.relay.tabletTransport {
+      transport = actual
+    } else if workspace.tabletMirror.isConnected || engine.usbReady || workspace.usbRelay.isReady {
+      transport = .usb
+    } else {
+      transport = microphoneTransport ?? workspace.usbRelay.activeTransport ?? .wifi
+    }
+    return SidebarTabletStatus(transport: transport, keyboardReady: keyboard.permitted,
+      microphoneTransport: microphoneTransport)
+  }
 
   var body: some View {
-    NavigationSplitView {
-      VStack(alignment: .leading, spacing: DT.spacing.s0) {
-        HStack(spacing: DT.spacing.s12) {
-          Image(nsImage: NSApp.applicationIconImage).resizable().scaledToFit()
-            .frame(width: DT.layout.iconTile, height: DT.layout.iconTile)
-          VStack(alignment: .leading, spacing: DT.spacing.s4) {
-            Text(L10n.productName).font(.system(size: DT.font.section, weight: .semibold, design: .rounded))
-            Text(L10n.productSubtitle).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
-          }
-        }.padding(DT.spacing.s16)
-        List(selection: $navigation.selection) {
-          ForEach(LinkDeskDestination.allCases) { item in
-            Label { Text(item.title) } icon: {
-              Image(systemName: item.symbol).foregroundStyle(selection == item ? DT.onAccent : DT.accent)
-            }.tag(item)
-              .padding(.vertical, DT.spacing.s4)
-          }
-        }.listStyle(.sidebar)
-        VStack(alignment: .leading, spacing: DT.spacing.s12) {
-          ConnectionPill(state: state)
-          HStack {
-            Text(L10n.pairingCode).foregroundStyle(DT.secondary)
-            Spacer()
-            Text(workspace.room).monospaced().textSelection(.enabled)
-          }.font(.system(size: DT.font.caption))
-          Picker(L10n.appearance, selection: Binding(get: { theme.preference }, set: { value in theme.select(value) })) {
-            ForEach(ThemePreference.allCases) { Text($0.title).tag($0) }
-          }.pickerStyle(.menu).help(L10n.themeHelp)
-          Button(L10n.pairingTitle) { workspace.isShowingPairing = true }.buttonStyle(.bordered)
-          Button(keyboard.permitted ? L10n.keyboardReady : L10n.keyboardPermissionAction) { keyboard.requestPermission() }
-            .buttonStyle(.bordered).disabled(keyboard.permitted).help(L10n.keyboardPermissionHint)
-        }.padding(DT.spacing.s16)
-      }.foregroundStyle(DT.text)
-        .navigationSplitViewColumnWidth(min: DT.layout.sidebarMin, ideal: DT.layout.sidebar, max: DT.layout.sidebarMax)
-    } detail: {
-      ZStack {
-        VStack(spacing: DT.spacing.s0) {
-          PageHeader(title: destination.title, subtitle: destination.subtitle, state: state)
-            .padding(.horizontal, DT.layout.pagePadding).padding(.vertical, DT.spacing.s16)
-          ContentView(isActive: isCanvas)
-        }.opacity(isCanvas ? 1 : 0).allowsHitTesting(isCanvas).accessibilityHidden(!isCanvas)
-        if !isCanvas {
-          ScrollView {
-            VStack(alignment: .leading, spacing: DT.spacing.s24) {
-              PageHeader(title: destination.title, subtitle: destination.subtitle, state: state)
-              if destination == .home { home }
-              if destination == .display { displaySettings }
-              if destination == .mirror { mirrorSettings }
-            }.frame(maxWidth: DT.layout.pageMax).padding(DT.layout.pagePadding).frame(maxWidth: .infinity)
-          }
+    GeometryReader { geometry in
+      let forcedCompact = geometry.size.width < DT.layout.sidebarCollapseBreakpoint
+      let compact = forcedCompact || prefersCompactSidebar
+      let sidebarWidth = compact ? DT.layout.sidebarCompact : SidebarDesign.width
+      let pageWidth = min(DT.layout.pageMax, geometry.size.width - sidebarWidth - DT.spacing.s64)
+      HStack(spacing: DT.spacing.s16) {
+        WorkspaceSidebar(compact: compact, selection: destination, device: sidebarDevice,
+          pairingCode: workspace.room, theme: theme, keyboard: keyboard, fileDrag: fileDrag,
+          navigate: { navigation.selection = $0 },
+          connect: { workspace.isShowingPairing = true }, disconnect: disconnectTablet)
+          .frame(width: sidebarWidth)
+          .padding(.leading, DT.spacing.s16)
+          .padding(.vertical, DT.spacing.s16)
+          .animation(reduceMotion ? nil : .snappy(duration: DT.motion.workspaceEnter, extraBounce: 0), value: compact)
+        VStack(spacing: DT.spacing.s16) {
+          PageHeader(title: destination.title, subtitle: destination.subtitle, state: state, home: destination == .home)
+            .frame(maxWidth: DT.layout.pageMax)
+            .padding(.horizontal, DT.spacing.s16)
+            .padding(.top, DT.spacing.s16)
+            .accessibilityAddTraits(.isHeader)
+          pageContent(width: pageWidth)
         }
-      }.background(DT.canvas).navigationTitle(destination.title)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      }
+      .coordinateSpace(name: SidebarFileDragState.coordinateSpace)
+      .modifier(SidebarWindowDrop(available: sidebarDevice.isConnected, state: fileDrag))
+      .toolbar {
+        ToolbarItem(placement: .navigation) {
+          Button { prefersCompactSidebar.toggle() } label: {
+            Label(compact ? L10n.expandSidebar : L10n.collapseSidebar, systemImage: DT.icon.sidebar)
+          }.disabled(forcedCompact)
+        }
+      }
+      .modifier(WorkspaceToolbarBackground())
     }
-    .tint(DT.accent).preferredColorScheme(navigation.reviewColorScheme ?? theme.colorScheme)
+    .background {
+      LinearGradient(colors: [DT.workspaceWash, DT.workspaceCanvas, DT.workspaceGlow],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+        .ignoresSafeArea()
+    }
+    .background(WorkspaceWindowChrome())
+    .tint(DT.workspaceAccent).preferredColorScheme(navigation.reviewColorScheme ?? theme.colorScheme)
     .onAppear { desktop.start(); workspace.start(); theme.start(room: workspace.room) }
+    .task(id: workspace.room) { WorkspaceFiles.shared.start(room: workspace.room) }
     .task { await captureReviewImagesIfRequested() }
-    .onChange(of: selection) { _, value in
-      if value == .pdf { workspace.selectMode(.pdf) }
-      if value == .whiteboard { workspace.selectMode(.whiteboard) }
+    .task(id: destination) { await present(destination) }
+    .onChange(of: workspace.isShowingPairing) { _, showing in
+      guard showing, connectionPaused else { return }
+      connectionPaused = false
+      desktop.start()
+      keyboard.start()
+      workspace.relay.connect(room: workspace.room)
     }
     .onChange(of: workspace.mode) { _, mode in
-      if isCanvas { selection = mode == .pdf ? .pdf : .whiteboard }
+      if destination == .pdf || destination == .whiteboard {
+        navigation.selection = mode == .pdf ? .pdf : .whiteboard
+      }
     }
     .onReceive(NotificationCenter.default.publisher(for: .linkDeskOpenCanvas)) { _ in
-      selection = workspace.mode == .pdf ? .pdf : .whiteboard
+      navigation.selection = workspace.mode == .pdf ? .pdf : .whiteboard
     }
   }
 
-  private var home: some View {
+  private func disconnectTablet() {
+    if workspace.tabletMirror.isReceiving { workspace.toggleTabletMirror() }
+    workspace.relay.disconnect()
+    desktop.stop()
+    keyboard.stop()
+    connectionPaused = true
+  }
+
+  private func pageContent(width: CGFloat) -> some View {
+    ZStack(alignment: .top) {
+      VStack(spacing: DT.spacing.s16) {
+        if isCanvas && state == .disconnected {
+          connectionAction
+            .frame(maxWidth: DT.layout.pageMax)
+            .padding(.horizontal, DT.spacing.s16)
+        }
+        ContentView(isActive: isCanvas)
+      }
+      .opacity(isCanvas ? 1 : 0).allowsHitTesting(isCanvas).accessibilityHidden(!isCanvas)
+
+      if !isCanvas {
+        ScrollView {
+          Group {
+            switch displayedDestination {
+            case .home: home(width: width)
+            case .display: displaySettings
+            case .mirror: mirrorSettings
+            default: EmptyView()
+            }
+          }
+          .frame(maxWidth: DT.layout.pageMax)
+          .padding(.horizontal, DT.spacing.s16)
+          .padding(.bottom, DT.spacing.s32)
+          .frame(maxWidth: .infinity)
+        }
+        .modifier(WorkspaceScrollEdges())
+        .id(displayedDestination)
+      }
+    }
+    .opacity(contentVisible ? 1 : 0)
+    .offset(y: contentOffset)
+    .clipped()
+  }
+
+  @MainActor private func present(_ next: LinkDeskDestination) async {
+    if next != displayedDestination {
+      withAnimation(.easeOut(duration: DT.motion.workspaceExit)) { contentVisible = false }
+      do { try await Task.sleep(for: .seconds(DT.motion.workspaceExit)) } catch { return }
+      guard !Task.isCancelled else { return }
+      cardsVisible = false
+      contentOffset = reduceMotion ? 0 : DT.spacing.s8
+      displayedDestination = next
+      if next == .pdf { workspace.selectMode(.pdf) }
+      if next == .whiteboard { workspace.selectMode(.whiteboard) }
+      // Commit the incoming layout at its initial offset before animating it.
+      do { try await Task.sleep(for: .seconds(DT.motion.workspaceLayoutFrame)) } catch { return }
+    }
+    guard !Task.isCancelled else { return }
+    withAnimation(DT.motion.workspace(DT.motion.workspaceEnter)) {
+      contentOffset = 0
+      contentVisible = true
+    }
+    cardsVisible = true
+  }
+
+  private var connectionAction: some View {
+    SurfacePanel {
+      SettingRow(title: L10n.pairingTitle, detail: L10n.connectionHint) {
+        WorkspacePrimaryButton(title: L10n.connectTablet) { workspace.isShowingPairing = true }
+      }
+    }
+  }
+
+  private func home(width: CGFloat) -> some View {
     VStack(alignment: .leading, spacing: DT.spacing.s24) {
       SurfacePanel {
-        VStack(alignment: .leading, spacing: DT.spacing.s16) {
-          Text(L10n.macAndTablet).font(.system(size: DT.font.caption, weight: .semibold, design: .monospaced)).foregroundStyle(DT.accent)
-          Text(L10n.heroTitle).font(.system(size: DT.font.title, weight: .semibold, design: .rounded)).foregroundStyle(DT.text)
-          Text(L10n.heroSubtitle).font(.system(size: DT.font.body)).foregroundStyle(DT.secondary)
-          Button(L10n.connectTablet) { workspace.isShowingPairing = true }.buttonStyle(.borderedProminent).controlSize(.large)
-        }
+        HStack(spacing: DT.spacing.s24) {
+          heroCopy
+          Spacer(minLength: DT.spacing.s0)
+          if width >= DT.layout.singleColumnBreakpoint { WorkspaceDeviceIllustration() }
+        }.padding(DT.spacing.s16)
       }
-      LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DT.spacing.s16) {
-        ForEach(Array(LinkDeskDestination.allCases.dropFirst())) { item in
-          Button { selection = item } label: {
-            VStack(alignment: .leading, spacing: DT.spacing.s16) {
-              Image(systemName: item.symbol).font(.system(size: DT.font.section, weight: .medium)).foregroundStyle(DT.accent)
-                .frame(width: DT.layout.iconTile, height: DT.layout.iconTile)
-                .background(DT.accentSoft, in: RoundedRectangle(cornerRadius: DT.radius.small))
-              Text(item.title).font(.system(size: DT.font.label, weight: .semibold)).foregroundStyle(DT.text)
-              Text(item.subtitle).font(.system(size: DT.font.body)).foregroundStyle(DT.secondary).fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .topLeading)
-              .padding(DT.spacing.s24).frame(minHeight: DT.layout.cardMinHeight).background(DT.surface, in: RoundedRectangle(cornerRadius: DT.radius.medium))
-              .overlay(RoundedRectangle(cornerRadius: DT.radius.medium).strokeBorder(DT.border, lineWidth: DT.layout.stroke))
-              .contentShape(RoundedRectangle(cornerRadius: DT.radius.medium))
+      .overlay {
+        if state.isConnected { WorkspaceConnectionRim() }
+      }
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DT.spacing.s16),
+        count: width >= DT.layout.workspaceFourCards ? 4 : 2), spacing: DT.spacing.s16) {
+        ForEach(Array(LinkDeskDestination.allCases.dropFirst().enumerated()), id: \.element) { index, item in
+          Button { navigation.selection = item } label: {
+            SurfacePanel {
+              VStack(alignment: .leading, spacing: DT.spacing.s16) {
+                Image(systemName: item.symbol).font(.system(size: DT.font.section, weight: .medium)).foregroundStyle(DT.secondary)
+                  .frame(width: DT.layout.iconTile, height: DT.layout.iconTile)
+                  .background(DT.workspaceControl, in: RoundedRectangle(cornerRadius: DT.radius.small))
+                VStack(alignment: .leading, spacing: DT.spacing.s8) {
+                  Text(item.title).font(.system(size: DT.font.label, weight: .semibold)).foregroundStyle(DT.text)
+                  Text(item.subtitle).font(.system(size: DT.font.body)).foregroundStyle(DT.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+              }.frame(maxWidth: .infinity, minHeight: DT.layout.cardMinHeight - DT.spacing.s48, alignment: .topLeading)
+            }.contentShape(RoundedRectangle(cornerRadius: DT.radius.large))
           }.buttonStyle(.plain).accessibilityLabel(item.title)
+            .opacity(cardsVisible || reduceMotion ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: DT.motion.workspaceCard)
+              .delay(Double(index) * DT.motion.workspaceStagger), value: cardsVisible)
         }
       }
-      Text(L10n.connectionHint).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
+    }
+  }
+
+  private var heroCopy: some View {
+    VStack(alignment: .leading, spacing: DT.spacing.s16) {
+      Text(L10n.macAndTablet).font(.system(size: DT.font.caption, weight: .semibold)).tracking(2).foregroundStyle(DT.secondary)
+      Text(L10n.heroTitle).font(.system(size: DT.font.title, weight: .bold)).foregroundStyle(DT.text)
+        .fixedSize(horizontal: false, vertical: true)
+      Text(L10n.heroSubtitle).font(.system(size: DT.font.body)).foregroundStyle(DT.secondary)
+      if state.isConnected {
+        Button(L10n.pairingTitle) { workspace.isShowingPairing = true }
+          .buttonStyle(.bordered).tint(DT.text)
+      } else {
+        WorkspacePrimaryButton(title: L10n.connectTablet) { workspace.isShowingPairing = true }
+      }
     }
   }
 
   private var displaySettings: some View {
-    VStack(spacing: DT.spacing.s24) {
-      SurfacePanel {
-        SettingRow(title: L10n.displayTitle, detail: state.title) {
-          Button(desktop.engine.active || desktop.engine.starting ? L10n.stopDisplay : L10n.startDisplay) {
-            desktop.perform { $0.toggleDesktop() }
-          }.buttonStyle(.borderedProminent)
+    let running = desktop.engine.active || desktop.engine.starting
+    let canStart = desktop.engine.usbReady || workspace.usbRelay.isReady
+    return VStack(spacing: DT.spacing.s24) {
+      if !canStart && !running {
+        connectionAction
+      } else {
+        SurfacePanel(highlighted: canStart) {
+          SettingRow(title: L10n.displayTitle, detail: state.title) {
+            WorkspacePrimaryButton(title: running ? L10n.stopDisplay : L10n.startDisplay) {
+              desktop.perform { $0.toggleDesktop() }
+            }
+          }
         }
       }
       SurfacePanel {
@@ -180,37 +301,39 @@ struct LinkDeskWorkspaceView: View {
           SettingRow(title: L10n.displayScale, detail: L10n.displayScaleDescription) {
             Picker(L10n.displayScale, selection: Binding(get: { desktop.engine.scaleIndex }, set: { value in desktop.perform { $0.selectScale(value) } })) {
               ForEach(Array([L10n.scaleLarger, L10n.scaleLarge, L10n.scaleDefault, L10n.scaleMore, L10n.scaleMost].enumerated()), id: \.offset) { index, title in Text(title).tag(index) }
-            }.labelsHidden().frame(maxWidth: DT.layout.formMaxWidth)
+            }.labelsHidden().frame(width: DT.layout.workspaceControlWidth, alignment: .trailing)
           }
           Divider()
           SettingRow(title: L10n.frameRate, detail: L10n.frameRateDescription) {
             Picker(L10n.frameRate, selection: Binding(get: { desktop.engine.targetFPS }, set: { value in desktop.perform { $0.selectFrameRate(value) } })) {
               ForEach([60, 120, 144], id: \.self) { Text(L10n.format("frameRateValue", $0)).tag($0) }
-            }.labelsHidden()
-          }
-          HStack {
-            Button(L10n.arrangeDisplays) { desktop.engine.openDisplaySettings() }
-            Button(L10n.testDisplay) { desktop.engine.showDisplayTest() }.disabled(!desktop.engine.active)
+            }.labelsHidden().frame(width: DT.layout.workspaceControlWidth, alignment: .trailing)
           }
           Divider()
           SettingRow(title: L10n.colorEnhancement, detail: L10n.colorEnhancementDescription) {
             Picker(L10n.colorEnhancement, selection: Binding(get: { desktop.engine.colorEnhancement }, set: { value in desktop.perform { $0.selectColorEnhancement(value) } })) {
               Text(L10n.colorOriginal).tag(0); Text(L10n.colorGentle).tag(1); Text(L10n.colorStrong).tag(2)
-            }.labelsHidden()
+            }.labelsHidden().frame(width: DT.layout.workspaceControlWidth, alignment: .trailing)
           }
           Divider()
           SettingRow(title: L10n.hdrShadows, detail: L10n.hdrShadowsDescription) {
             Picker(L10n.hdrShadows, selection: Binding(get: { desktop.engine.hdrShadows }, set: { value in desktop.perform { $0.selectHDRShadows(value) } })) {
               Text(L10n.hdrShadowsNormal).tag(0); Text(L10n.hdrShadowsSoft).tag(1); Text(L10n.hdrShadowsDeep).tag(2)
-            }.labelsHidden().disabled(!desktop.engine.hdrEnabled)
+            }.labelsHidden().frame(width: DT.layout.workspaceControlWidth, alignment: .trailing).disabled(!desktop.engine.hdrEnabled)
           }
           Divider()
           SettingRow(title: L10n.hdrTitle, detail: desktop.engine.hdrAvailable ? L10n.hdrDescription : L10n.hdrUnavailable) {
             Toggle(L10n.hdrTitle, isOn: Binding(get: { desktop.engine.hdrEnabled }, set: { value in desktop.perform { $0.enableHDR(value) } }))
               .labelsHidden().disabled(!desktop.engine.hdrAvailable && !desktop.engine.hdrEnabled)
           }
+          Divider()
+          HStack {
+            Button(L10n.arrangeDisplays) { desktop.engine.openDisplaySettings() }
+            Button(L10n.testDisplay) { desktop.engine.showDisplayTest() }.disabled(!desktop.engine.active)
+            Spacer()
+          }
         }
-      }
+      }.opacity(canStart || running ? 1 : DT.motion.workspaceDim)
       SurfacePanel {
         VStack(spacing: DT.spacing.s16) {
           SettingRow(title: L10n.tabletSpeaker, detail: L10n.speakerDescription) {
@@ -231,13 +354,16 @@ struct LinkDeskWorkspaceView: View {
             }.frame(maxWidth: DT.layout.formMaxWidth)
           }
         }
-      }
+      }.opacity(canStart || running ? 1 : DT.motion.workspaceDim)
     }
   }
 
   private var mirrorSettings: some View {
     VStack(spacing: DT.spacing.s24) {
-      SurfacePanel { MirrorControlPanel(workspace: workspace, mirror: workspace.tabletMirror, usb: workspace.usbRelay) }
+      if !workspace.usbRelay.isReady && !workspace.tabletMirror.isReceiving { connectionAction }
+      SurfacePanel(highlighted: workspace.tabletMirror.isConnected) {
+        MirrorControlPanel(workspace: workspace, mirror: workspace.tabletMirror, usb: workspace.usbRelay)
+      }.opacity(workspace.usbRelay.isReady || workspace.tabletMirror.isReceiving ? 1 : DT.motion.workspaceDim)
       SurfacePanel {
         SettingRow(title: L10n.roundTripTitle, detail: L10n.roundTripDescription) {
           Button(L10n.sendToNotes, action: workspace.startPDFRoundTrip).buttonStyle(.bordered)
@@ -259,24 +385,26 @@ struct LinkDeskWorkspaceView: View {
       try? await Task.sleep(for: .seconds(1))
     }
     for dark in [false, true] {
-      for item in LinkDeskDestination.allCases {
-      let name = "mac-" + item.rawValue + (dark ? "-dark" : "-light")
-      let width = DT.dimensions.d1160
-      selection = item
       navigation.reviewColorScheme = dark ? .dark : .light
       window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-      window.setContentSize(NSSize(width: width, height: DT.dimensions.d800))
-      try? await Task.sleep(for: .milliseconds(650))
-      guard let view = window.contentView else { continue }
-      view.layoutSubtreeIfNeeded()
-      guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
-      view.cacheDisplay(in: view.bounds, to: bitmap)
-      if let data = bitmap.representation(using: .png, properties: [:]) {
-        try? data.write(to: directory.appendingPathComponent(name + ".png"))
+      for width in [DT.dimensions.d1160, DT.layout.workspaceMinimum] {
+        window.setContentSize(NSSize(width: width, height: DT.dimensions.d800))
+        for item in LinkDeskDestination.allCases {
+          navigation.selection = item
+          let name = "mac-" + item.rawValue + (dark ? "-dark" : "-light")
+            + (width == DT.layout.workspaceMinimum ? "-compact" : "")
+          try? await Task.sleep(for: .milliseconds(650))
+          guard let view = window.contentView else { continue }
+          view.layoutSubtreeIfNeeded()
+          guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+          view.cacheDisplay(in: view.bounds, to: bitmap)
+          if let data = bitmap.representation(using: .png, properties: [:]) {
+            try? data.write(to: directory.appendingPathComponent(name + ".png"))
+          }
+        }
       }
     }
-    }
-    selection = .home
+    navigation.selection = .home
     window.appearance = nil
     navigation.reviewColorScheme = nil
   }
@@ -301,12 +429,14 @@ extension PDFWorkspace {
       if engine.active && engine.status == L10n.source("stateUSBConnected") { return .working }
       if engine.active || engine.starting { return .waitingForMode }
     }
-    if destination == .mirror && tabletMirror.isConnected { return .working }
+    if destination == .home && (engine.wirelessMicrophoneActive ||
+        (engine.active && engine.status == L10n.source("stateUSBConnected"))) { return .working }
+    if (destination == .mirror || destination == .home) && tabletMirror.isConnected { return .working }
     if relay.isConnected && relay.peerCount > 1 {
-      if destination == .home { return .waitingForMode }
+      if destination == .home { return .working }
       if destination == .pdf || destination == .whiteboard { return .working }
     }
-    if engine.usbReady || usbRelay.isReady { return .usbConnected }
+    if destination == .display && (engine.usbReady || usbRelay.isReady) { return .usbConnected }
     return .disconnected
   }
 }

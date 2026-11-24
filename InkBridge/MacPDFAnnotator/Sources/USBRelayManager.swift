@@ -30,7 +30,7 @@ struct DiscoveredTablet: Identifiable, Equatable, Sendable {
 
   var displayName: String {
     let shortId = id.count > 28 ? "\(id.prefix(25))…" : id
-    return "\(transport.title) · \(shortId)"
+    return "\(transport.title) · \(shortId) · \(isConnected ? L10n.deviceOnline : L10n.deviceOffline)"
   }
 }
 
@@ -187,7 +187,8 @@ final class USBRelayManager: ObservableObject {
     let devices = parseTargets(targetsOutput)
     let connectedUSB = devices.filter { $0.transport == .usb && $0.isConnected }
     guard !connectedUSB.isEmpty else {
-      return USBRelayInspection(isReady: false, text: "USB 未连接", devices: devices)
+      let offline = devices.contains { $0.transport == .usb && !$0.isConnected }
+      return USBRelayInspection(isReady: false, text: offline ? L10n.usbOfflineHint : L10n.usbHint, devices: devices)
     }
 
     var readyCount = 0
@@ -241,7 +242,7 @@ final class USBRelayManager: ObservableObject {
     }
   }
 
-  nonisolated private static func run(
+  nonisolated static func run(
     _ executable: URL,
     arguments: [String],
     timeout: TimeInterval = 3
@@ -264,6 +265,12 @@ final class USBRelayManager: ObservableObject {
       output.fileHandleForWriting.closeFile()
       return ""
     }
+  }
+
+  func cameraWakeTarget() -> TabletCameraWakeTarget? {
+    let connected = discoveredDevices.filter { $0.transport == .usb && $0.isConnected }
+    guard isReady, connected.count == 1, let device = connected.first, let hdc = hdcURL() else { return nil }
+    return TabletCameraWakeTarget(hdc: hdc, deviceID: device.id)
   }
 
   private func hdcURL() -> URL? {

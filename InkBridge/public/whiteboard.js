@@ -154,21 +154,35 @@ if (pdfPreview) pdfPreview.addEventListener("load", () => {
   redraw();
 });
 
+let canvasResizeTimer = 0;
+let fittedRatio = 0;
+
 function fitCanvas() {
+  clearTimeout(canvasResizeTimer);
+  canvasResizeTimer = 0;
   const rect = canvas.getBoundingClientRect();
   const ratio = Math.min(devicePixelRatio || 1, 2);
-  canvas.width = Math.max(1, Math.round(rect.width * ratio));
-  canvas.height = Math.max(1, Math.round(rect.height * ratio));
-  gridCanvas.width = canvas.width;
-  gridCanvas.height = canvas.height;
-  liveHighlighterCanvas.width = canvas.width;
-  liveHighlighterCanvas.height = canvas.height;
+  const width = Math.max(1, Math.round(rect.width * ratio));
+  const height = Math.max(1, Math.round(rect.height * ratio));
+  if (width === canvas.width && height === canvas.height && ratio === fittedRatio) return;
+  fittedRatio = ratio;
+  for (const surface of [canvas, gridCanvas, liveHighlighterCanvas]) {
+    surface.width = width;
+    surface.height = height;
+  }
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   gridContext.setTransform(ratio, 0, 0, ratio, 0, 0);
   liveHighlighterContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-  drawWorldGrid();
   redraw();
   redrawLiveHighlighters();
+}
+
+function scheduleCanvasResize() {
+  if (!isPad) { fitCanvas(); return; }
+  // CSS fits the current bitmap during a live window resize. Reallocate the
+  // three high-resolution surfaces once the viewport settles.
+  clearTimeout(canvasResizeTimer);
+  canvasResizeTimer = setTimeout(fitCanvas, 100);
 }
 
 function localViewportSize() {
@@ -1090,6 +1104,7 @@ function acceptsPointer(event) {
 
 let drawing = false;
 canvas.addEventListener("pointerdown", (event) => {
+  if (canvasResizeTimer && !drawing) fitCanvas();
   if (isPad && event.pointerType === "touch") {
     if (drawing) return;
     event.preventDefault();
@@ -1385,7 +1400,7 @@ document.querySelector("#connectPad")?.addEventListener("click", pair);
 document.querySelector("#closePair")?.addEventListener("click", () => document.querySelector("#pairDialog").close());
 document.querySelector("#copyRoom")?.addEventListener("click", (event) => copy(room, event.currentTarget));
 
-new ResizeObserver(fitCanvas).observe(canvas.parentElement);
+new ResizeObserver(scheduleCanvasResize).observe(canvas.parentElement);
 fitCanvas();
 updatePadControls();
 connect();
@@ -1412,6 +1427,7 @@ function nativePoint(x, y, pressure, metadata = null) {
 
 function startNativeStroke(sampleOrX, yOrEraser, legacyPressure, legacyPressureEraser = false) {
   if (!isPad || drawing) return;
+  if (canvasResizeTimer) fitCanvas();
   const sample = sampleOrX && typeof sampleOrX === "object"
     ? sampleOrX
     : { x: sampleOrX, y: yOrEraser, p: legacyPressure };

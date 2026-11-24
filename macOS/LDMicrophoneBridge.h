@@ -3,6 +3,7 @@
 @property(nonatomic, readonly) NSString *status;
 @property(nonatomic, readonly) BOOL enabled;
 @property(nonatomic, readonly) BOOL running;
+@property(nonatomic, readonly) BOOL wireless;
 - (void)updateRoute;
 - (char)controlReplyForCommand:(const char *)command length:(size_t)length;
 - (BOOL)start;

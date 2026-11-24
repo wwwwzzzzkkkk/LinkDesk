@@ -1,5 +1,5 @@
 import { PlatformUI } from '../design/PlatformUI';
-import { PageHeader, EmptyState, SettingRow } from '../design/Components';
+import { EmptyState, SettingRow } from '../design/Components';
 import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
 import { curves } from '@kit.ArkUI';
 import abilityAccessCtrl from '@ohos.abilityAccessCtrl';
@@ -470,6 +470,9 @@ export struct DesktopReceiver {
           Row({ space: 6 }) {
             this.panelAction(this.darkMode ? $r('app.media.panel_keyboard_dark') : $r('app.media.panel_keyboard'), Strings.keyboardShort,
               () => { KeyboardClient.refresh(); AppStorage.setOrCreate('LinkDeskKeyboardVisible', true); })
+            Button(Strings.filesShort).height(DT.layoutTouchTarget).layoutWeight(1)
+              .fontSize(DT.fontCaption).backgroundColor(DT.workspaceControl(this.darkMode)).fontColor(DT.text(this.darkMode))
+              .accessibilityText(Strings.transferFiles).onClick(() => AppStorage.setOrCreate('LinkDeskFilesVisible', true))
             this.panelAction(this.darkMode ? $r('app.media.panel_home_dark') : $r('app.media.panel_home'), Strings.backHome, () => this.onExit())
             this.panelAction(this.darkMode ? $r('app.media.panel_reconnect_dark') : $r('app.media.panel_reconnect'), Strings.reconnect, () => this.connect())
             this.panelAction(this.darkMode ? $r('app.media.panel_hide_dark') : $r('app.media.panel_hide'), Strings.hide, () => this.setControlsVisible(false))
@@ -510,15 +513,15 @@ export struct DesktopReceiver {
       if (this.state !== 3) {
         Scroll() {
           Column({ space: DT.spacingS24 }) {
-            PageHeader({ title: Strings.displayTitle, subtitle: Strings.displaySubtitle, state: this.connectionState() })
             EmptyState({ icon: DT.iconDisplay(this.darkMode), title: Strings.displayEmptyTitle, message: this.connectionHint(),
-              actionTitle: Strings.reconnect, action: () => this.connect() })
+              actionTitle: this.state === 1 ? Strings.connectMac : Strings.reconnect, action: () => this.connect() })
             if (this.error !== 0) {
               Text(Strings.get('diagnosticCode', [this.error.toString()])).fontSize(DT.fontCaption).fontColor(DT.error(this.darkMode))
             }
-            this.microphoneControl()
-          }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
-        }.width('100%').height('100%').align(Alignment.Top).backgroundColor(DT.canvas(this.darkMode))
+            Column() { this.microphoneControl() }.width('100%').opacity(DT.opacityWorkspaceDim)
+          }.width('100%').padding({ left: DT.spacingS16, right: DT.spacingS16, bottom: DT.spacingS24 })
+            .constraintSize({ maxWidth: DT.layoutPageMax + DT.spacingS32 })
+        }.width('100%').height('100%').align(Alignment.Top).backgroundColor(DT.workspaceCanvas(this.darkMode))
       }
       // Explicitly above the decoder SURFACE, including connection/error screens.
       this.floatingPanel()

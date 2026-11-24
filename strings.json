@@ -2,6 +2,82 @@
   "schemaVersion": 1,
   "defaultLocale": "zh-Hans",
   "strings": {
+    "micInputActiveMarker": {
+      "zh-Hans": "已设为 Mac 输入",
+      "en": "Set as Mac input"
+    },
+    "finderSendUnavailable": {
+      "zh-Hans": "请选择文件，或等待当前传输完成。",
+      "en": "Choose a file or wait for the current transfer to finish."
+    },
+    "stopMicBeforeMirror": {
+      "zh-Hans": "请先关闭无线麦克风，再开启平板投屏",
+      "en": "Turn off the wireless microphone before starting tablet mirroring"
+    },
+    "transferFiles": {
+      "zh-Hans": "文件传送",
+      "en": "File Transfer"
+    },
+    "filesShort": {
+      "zh-Hans": "文件",
+      "en": "Files"
+    },
+    "selectAndSendToMac": {
+      "zh-Hans": "选择文件发送到 Mac",
+      "en": "Choose a file to send to Mac"
+    },
+    "backgroundInboxNotifications": {
+      "zh-Hans": "后台收件通知",
+      "en": "Background file notifications"
+    },
+    "finishAnnotationSession": {
+      "zh-Hans": "结束当前批注任务",
+      "en": "End the current annotation session"
+    },
+    "emptyFileInbox": {
+      "zh-Hans": "暂无待接收文件",
+      "en": "No files waiting to be received"
+    },
+    "annotateInHuaweiNotes": {
+      "zh-Hans": "用华为笔记批注",
+      "en": "Annotate in Huawei Notes"
+    },
+    "openReceivedFile": {
+      "zh-Hans": "打开",
+      "en": "Open"
+    },
+    "saveReceivedCopy": {
+      "zh-Hans": "另存",
+      "en": "Save a copy"
+    },
+    "connectingToMac": {
+      "zh-Hans": "正在连接 Mac…",
+      "en": "Connecting to Mac…"
+    },
+    "shareOpenFailed": {
+      "zh-Hans": "无法打开分享",
+      "en": "Unable to open the share"
+    },
+    "shareAnnotationChoice": {
+      "zh-Hans": "选择是否将此 PDF 作为当前批注任务的副本回传。",
+      "en": "Choose whether to return this PDF as the annotated copy for the current session."
+    },
+    "shareAnnotationFailed": {
+      "zh-Hans": "无法回传批注副本，请从 LinkDesk 打开批注任务",
+      "en": "Unable to return the annotated copy. Open the annotation session in LinkDesk."
+    },
+    "shareToMac": {
+      "zh-Hans": "发送到 Mac",
+      "en": "Send to Mac"
+    },
+    "shareAnnotatedCopy": {
+      "zh-Hans": "回传批注副本",
+      "en": "Return the annotated copy"
+    },
+    "shareRegularFile": {
+      "zh-Hans": "发送普通文件",
+      "en": "Send as a regular file"
+    },
     "productName": {
       "zh-Hans": "LinkDesk",
       "en": "LinkDesk"
@@ -146,9 +222,29 @@
       "zh-Hans": "未连接",
       "en": "Disconnected"
     },
+    "deviceOnline": {
+      "zh-Hans": "在线",
+      "en": "Online"
+    },
+    "deviceOffline": {
+      "zh-Hans": "离线",
+      "en": "Offline"
+    },
+    "usbDetectedOffline": {
+      "zh-Hans": "已发现 USB 设备 · 离线",
+      "en": "USB device detected · Offline"
+    },
+    "usbOfflineHint": {
+      "zh-Hans": "已发现设备，但 USB 数据通道离线。请解锁平板，开启 USB 调试并允许此 Mac；必要时重新插拔数据线。",
+      "en": "The device was detected, but its USB data connection is offline. Unlock the tablet, enable USB debugging and authorize this Mac. Reconnect the cable if needed."
+    },
     "stateUSBConnected": {
       "zh-Hans": "USB 已连接",
       "en": "USB connected"
+    },
+    "stateConnected": {
+      "zh-Hans": "已连接",
+      "en": "Connected"
     },
     "stateWaitingForMode": {
       "zh-Hans": "等待平板选择模式",
@@ -1179,8 +1275,8 @@
       "en": "Disable notification shortcut"
     },
     "keyboardNotificationHint": {
-      "zh-Hans": "Mac 已连接 · 点击打开键盘，输入前重新检查连接",
-      "en": "Mac connected · tap to open keyboard; connection rechecked before typing"
+      "zh-Hans": "点击打开键盘 · 输入前检查 Mac 连接",
+      "en": "Tap to open the keyboard and check your Mac connection"
     },
     "keyboardNoticeError": {
       "zh-Hans": "通知入口不可用，请检查系统通知权限",
@@ -1397,6 +1493,14 @@
     "hdrShadowsDeep": {
       "zh-Hans": "更深",
       "en": "Deeper"
+    },
+    "expandSidebar": {
+      "zh-Hans": "展开侧栏",
+      "en": "Expand sidebar"
+    },
+    "collapseSidebar": {
+      "zh-Hans": "收起侧栏",
+      "en": "Collapse sidebar"
     }
   }
 }

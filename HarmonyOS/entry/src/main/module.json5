@@ -48,7 +48,8 @@
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "backgroundModes": [
-          "audioRecording"
+          "audioRecording",
+          "multiDeviceConnection"
         ],
         "skills": [
           {
@@ -64,7 +65,6 @@
               "entity.system.default"
             ],
             "actions": [
-              "ohos.want.action.sendData",
               "ohos.want.action.viewData"
             ],
             "uris": [
@@ -85,6 +85,72 @@
       {
         "name": "ohos.arkui.UIMaterial.state",
         "value": "enable"
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "SendToMacAbility",
+        "srcEntry": "./ets/share/SendToMacAbility.ets",
+        "type": "share",
+        "label": "$string:send_to_mac_label",
+        "icon": "$media:app_icon",
+        "description": "$string:send_to_mac_desc",
+        "exported": true,
+        "skills": [
+          {
+            "actions": [
+              "ohos.want.action.sendData",
+              "ohos.want.action.sendMultipleData"
+            ],
+            "uris": [
+              {
+                "scheme": "file",
+                "utd": "general.file",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "general.image",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "general.video",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "general.audio",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "com.adobe.pdf",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "general.text",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "utd": "general.archive",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "datashare",
+                "type": "*/*",
+                "maxFileSupported": 9
+              },
+              {
+                "scheme": "file",
+                "type": "*/*",
+                "maxFileSupported": 9
+              }
+            ]
+          }
+        ]
       }
     ]
   }

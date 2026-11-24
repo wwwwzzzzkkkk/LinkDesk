@@ -1,6 +1,5 @@
-import { DT, Strings, ConnectionState, ConnectionPresentation } from '../design/GeneratedDesign';
-import { PageHeader, ConnectionPill, SettingRow, EmptyState } from '../design/Components';
-import { WorkspaceSpec } from '../design/WorkspaceSpec';
+import { DT, Strings } from '../design/GeneratedDesign';
+import { EmptyState } from '../design/Components';
 import { LinkDeskTheme } from '../LinkDeskTheme';
 import { webview } from '@kit.ArkWeb';
 import { promptAction } from '@kit.ArkUI';
@@ -14,6 +13,8 @@ import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { Want, common, wantAgent, WantAgent, wantConstant } from '@kit.AbilityKit';
 import { fileIo, fileUri, picker } from '@kit.CoreFileKit';
 import screenMirror from 'libscreenmirror.so';
+import { startIndependentTask } from '../BackgroundTask';
+import { WirelessMicrophone } from '../microphone/WirelessMicrophone';
 import { RoundTripBridge } from '../roundtrip/RoundTripBridge';
 import { RoundTripLiveViewController } from '../roundtrip/RoundTripLiveViewController';
 
@@ -53,7 +54,7 @@ const PEN_BRIDGE_MAX_PENDING_SAMPLES: number = 960;
 @Component
 export struct InkWorkspace {
   @StorageLink('LinkDeskDark') @Watch('applyWebTheme') darkMode: boolean = false;
-  @StorageLink('LinkDeskThemePreference') themePreference: string = 'automatic';
+  @Prop resizing: boolean = false;
   @Prop @Watch('requestedModeDidChange') requestedMode: string = 'pdf';
   @Prop @Watch('requestedModeDidChange') activation: number = 0;
   onExit: () => void = () => {};
@@ -73,6 +74,7 @@ export struct InkWorkspace {
 
   @State host: string = '';
   @State @Watch('publishConnection') room: string = '';
+  @StorageLink('LinkDeskSidebarDisconnected') @Watch('sidebarConnectionChanged') sidebarDisconnected: boolean = false;
   @StorageLink('LinkDeskShowPairing') @Watch('showPairingRequested') showPairing: boolean = false;
   @State connectionMode: string = 'wifi';
   @State connectionPreference: string = 'automatic';
@@ -99,7 +101,6 @@ export struct InkWorkspace {
   @State cursorY: number = 0;
   @State padAreaWidth: number = 1;
   @State padAreaHeight: number = 1;
-  @State topBarCollapsed: boolean = false;
   @State headerWidth: number = 1000;
   @State headerLeftWidth: number = 0;
   @State headerRightWidth: number = 0;
@@ -148,6 +149,8 @@ export struct InkWorkspace {
   private discoveredWirelessHost: string = '';
   private connectionAttemptInFlight: boolean = false;
   private connectionGeneration: number = 0;
+  private mirrorBackgroundId: number = -1;
+  private mirrorBackgroundGeneration: number = 0;
 
   aboutToAppear(): void {
     try {
@@ -192,8 +195,10 @@ export struct InkWorkspace {
       this.pendingInitialMode = this.requestedMode !== 'mirror';
       this.pendingMirrorStart = false;
     }
+    const pairingRequested = this.showPairing;
+    if (pairingRequested) this.showPairingRequested();
     this.startRelayDiscovery();
-    if (/^[A-Z0-9]{6}$/.test(this.room)) this.scheduleReconnect(120);
+    if (!pairingRequested && /^[A-Z0-9]{6}$/.test(this.room)) this.scheduleReconnect(120);
   }
 
   aboutToDisappear(): void {
@@ -220,6 +225,14 @@ export struct InkWorkspace {
     this.resetPenBridge();
   }
 
+  private sidebarConnectionChanged(): void {
+    if (!this.sidebarDisconnected) return;
+    this.connectionGeneration += 1;
+    if (this.screenMirroring) this.stopScreenMirror(`workspace-disconnect-${Date.now()}`);
+    void WirelessMicrophone.shared.stop();
+    this.disconnect();
+  }
+
   private showPairingRequested(): void {
     if (this.showPairing) { this.disconnect(); this.showPairing = false; }
   }
@@ -229,53 +242,19 @@ export struct InkWorkspace {
     AppStorage.setOrCreate('LinkDeskInkConnected', this.connected);
     AppStorage.setOrCreate('LinkDeskTransport', this.connectionMode);
   }
-  private connectionState(): ConnectionState {
-    if (this.connected) return ConnectionState.working;
-    return ConnectionState.disconnected;
-  }
-
-  @Builder themeControl() {
-    Button(this.themePreference === 'automatic' ? Strings.themeAutomatic : this.darkMode ? Strings.themeDark : Strings.themeLight)
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
-      .fontSize(DT.fontCaption).height(DT.layoutTouchTarget).fontColor(DT.secondary(this.darkMode))
-      .backgroundColor(DT.keyboardKey(this.darkMode)).borderRadius(DT.radiusMedium)
-      .accessibilityText(Strings.themeAccessibility)
-      .bindMenu([
-        { value: Strings.themeAutomatic, action: () => LinkDeskTheme.select('automatic') },
-        { value: Strings.themeLight, action: () => LinkDeskTheme.select('light') },
-        { value: Strings.themeDark, action: () => LinkDeskTheme.select('dark') }
-      ])
-  }
-
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       if (this.showPad) {
-        Stack() {
+        Stack({ alignContent: Alignment.Bottom }) {
           this.PadArea()
           if (this.requestedMode === 'mirror') {
             this.MirrorPanel()
+          } else {
+            Column() { this.ToolbarRow() }
+              .width('100%').padding({ left: DT.spacingS12, right: DT.spacingS12, bottom: DT.spacingS8 })
+              .hitTestBehavior(HitTestMode.Transparent)
           }
-          Column() {
-            if (this.topBarCollapsed) {
-              this.CollapsedHeaderButton()
-            } else {
-              this.HeaderRow()
-            }
-            Blank(1)
-            this.ToolbarRow()
-          }.visibility(this.requestedMode === 'mirror' ? Visibility.Hidden : Visibility.Visible)
-          .width('100%').height('100%')
-          .alignItems(HorizontalAlign.Start)
-          .padding({
-            left: DT.spacingS12,
-            right: DT.spacingS12,
-            top: DT.spacingS16,
-            bottom: DT.spacingS8
-          })
-          .hitTestBehavior(HitTestMode.Transparent)
-        }
-        .width('100%').height('100%')
-.backgroundColor(DT.canvas(this.darkMode))
+        }.width('100%').height('100%').backgroundColor(DT.canvas(this.darkMode))
       } else {
         this.ConnectionPanel()
       }
@@ -291,18 +270,16 @@ export struct InkWorkspace {
       }
     }
     .width('100%').height('100%')
-    .backgroundColor(DT.canvas(this.darkMode))
   }
 
   @Builder MirrorPanel() {
     Scroll() {
       Column({ space: DT.spacingS24 }) {
-        PageHeader({ title: Strings.mirrorTitle, subtitle: Strings.mirrorSubtitle,
-          state: this.screenMirroring ? ConnectionState.working : this.connected && this.connectionMode === 'usb' ? ConnectionState.usbConnected : ConnectionState.disconnected })
         EmptyState({ icon: DT.iconMirror(this.darkMode), title: this.screenMirroring ? Strings.mirrorRunning : Strings.mirrorEmptyTitle,
           message: Strings.mirrorEmptyDescription, actionTitle: this.screenMirroring ? Strings.stopMirror : Strings.startMirror,
           action: () => this.toggleScreenMirror(), disabled: this.connectionMode !== 'usb' })
-      }.width('100%').constraintSize({ maxWidth: DT.layoutPageMax }).padding(DT.layoutPagePadding)
+      }.width('100%').padding({ left: DT.spacingS16, right: DT.spacingS16, bottom: DT.spacingS24 })
+        .constraintSize({ maxWidth: DT.layoutPageMax + DT.spacingS32 })
     }.width('100%').height('100%').align(Alignment.Top).backgroundColor(DT.canvas(this.darkMode))
   }
 
@@ -310,9 +287,24 @@ export struct InkWorkspace {
   @Builder ConnectionPanel() {
     Scroll() {
     Column({ space: DT.spacingS16 }) {
-      PageHeader({ title: WorkspaceSpec.title(this.requestedMode), subtitle: WorkspaceSpec.subtitle(this.requestedMode), state: this.connectionState() })
-      this.themeControl()
-      Column({ space: DT.spacingS12 }) {
+      Column({ space: DT.spacingS16 }) {
+        Text(Strings.pairingTitle).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+        Button(this.connectionPreference === 'automatic'
+          ? Strings.autoConnectMac
+          : (this.connectionMode === 'usb' ? Strings.usbConnectMac : Strings.wifiConnectMac))
+      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
+          .width('100%').height(DT.spacingS48)
+          .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
+          .backgroundColor(DT.workspaceAccent(this.darkMode)).fontColor(DT.workspaceOnAccent(this.darkMode))
+          .onClick(() => this.connectToPad())
+        Button(Strings.scanMac).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+          .backgroundColor(DT.workspaceControl(this.darkMode)).fontColor(DT.text(this.darkMode))
+          .borderRadius(DT.radiusSmall).onClick(() => this.startNativePairingScan())
+      }.width('100%').constraintSize({ maxWidth: DT.layoutFormMaxWidth }).padding(DT.spacingS24)
+        .backgroundColor(DT.workspaceSurface(this.darkMode))
+        .border({ width: DT.layoutStroke, color: DT.workspaceRim(this.darkMode), radius: DT.radiusLarge })
+        .borderRadius(DT.radiusLarge)
+      Column({ space: DT.spacingS16 }) {
         Row({ space: DT.spacingS8 }) {
           Button(Strings.automatic)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
@@ -371,26 +363,10 @@ export struct InkWorkspace {
             this.room = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
           })
 
-        Button(Strings.scanMac)
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
-          .width('100%').height(DT.layoutTouchTarget)
-          .fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
-          .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.secondary(this.darkMode))
-          .border({ width: DT.layoutStroke, color: DT.border(this.darkMode) })
-          .borderRadius(DT.radiusSmall)
-          .onClick(() => this.startNativePairingScan())
-
-        Button(this.connectionPreference === 'automatic'
-          ? Strings.autoConnectMac
-          : (this.connectionMode === 'usb' ? Strings.usbConnectMac : Strings.wifiConnectMac))
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
-          .width('100%').height(DT.spacingS48)
-          .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
-          .backgroundColor(DT.accent(this.darkMode)).fontColor(DT.onAccent(this.darkMode))
-          .borderRadius(DT.radiusSmall)
-          .onClick(() => this.connectToPad())
-      }
-      .width('100%').constraintSize({ maxWidth: DT.dimensionsD360 }).margin({ top: DT.spacingS12 })
+      }.width('100%').constraintSize({ maxWidth: DT.layoutFormMaxWidth }).padding(DT.spacingS24)
+        .backgroundColor(DT.workspaceSurface(this.darkMode))
+        .border({ width: DT.layoutStroke, color: DT.workspaceRim(this.darkMode), radius: DT.radiusLarge })
+        .borderRadius(DT.radiusLarge).opacity(DT.opacityWorkspaceDim)
 
       Column({ space: DT.spacingS4 }) {
         Text(this.connectionPreference === 'automatic'
@@ -403,65 +379,8 @@ export struct InkWorkspace {
       Blank(1)
     }
     .width('100%').constraintSize({ maxWidth: DT.layoutPageMax })
-    .padding({ left: DT.layoutPagePadding, right: DT.layoutPagePadding, top: DT.spacingS8, bottom: DT.layoutPagePadding })
-    .backgroundColor(DT.canvas(this.darkMode))
+    .padding({ left: DT.spacingS16, right: DT.spacingS16, bottom: DT.spacingS24 })
     }.width('100%').height('100%').align(Alignment.Top)
-  }
-
-  // ==================== 顶部状态栏 ====================
-  @Builder HeaderRow() {
-    Column({ space: DT.spacingS8 }) {
-      PageHeader({ title: WorkspaceSpec.title(this.appMode), subtitle: WorkspaceSpec.subtitle(this.appMode), state: this.connectionState() })
-      Scroll() {
-        Row({ space: DT.spacingS8 }) {
-          Text(Strings.get('pairingCodeValue', [this.room])).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
-          this.themeControl()
-          if (this.roundTripId.length > 0) {
-            Button(Strings.returnPDF)
-      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.selectRoundTripReturnPDF())
-          }
-          Button(this.screenMirroring ? Strings.stopMirror : Strings.startMirror)
-      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
-            .height(DT.layoutTouchTarget).onClick(() => this.toggleScreenMirror())
-          Button(Strings.collapseTools)
-      .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode)).fontSize(DT.fontBody).borderRadius(DT.radiusSmall)
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget }).height(DT.layoutTouchTarget).onClick(() => this.setTopBarCollapsed(true))
-        }.padding(DT.spacingS8)
-      }.scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off).width('100%')
-    }.width('100%').padding(DT.spacingS16).borderRadius(DT.radiusMedium)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-      .backgroundColor(DT.keyboardGlass(this.darkMode))
-      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
-      .geometryTransition('inkbridge-topbar-roll')
-  }
-
-  @Builder CollapsedHeaderButton() {
-    Button() {
-      Stack({ alignContent: Alignment.Center }) {
-        Text(Strings.productInitial).fontSize(DT.fontCaption).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
-        Circle()
-          .width(DT.spacingS8).height(DT.spacingS8)
-          .fill(this.connected ? DT.success(this.darkMode) : DT.warning(this.darkMode))
-          .position({ x: DT.spacingS36, y: DT.spacingS8 })
-        Text(Strings.glyphExpand).fontSize(DT.fontCaption).fontColor(DT.text(this.darkMode))
-          .position({ x: DT.spacingS32, y: DT.spacingS28 })
-      }
-    }
-      .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
-    .width(DT.spacingS48).height(DT.spacingS48).padding(DT.spacingS0)
-    .backgroundColor(DT.keyboardGlass(this.darkMode))
-      .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
-    .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
-    
-    .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
-    .borderRadius(DT.radiusLarge)
-    .clip(true)
-    .shadow({ radius: DT.radiusSmall, color: DT.keyboardGlass(this.darkMode), offsetX: DT.spacingS0, offsetY: DT.spacingS8 })
-    .geometryTransition('inkbridge-topbar-roll')
-    .accessibilityText(Strings.expandTools)
-    .onClick(() => this.setTopBarCollapsed(false))
   }
 
   // ==================== PDF 批注区域（WebView + 悬停光标） ====================
@@ -490,8 +409,18 @@ export struct InkWorkspace {
         })
       if (this.appMode === 'pdf' && (this.documentName === Strings.source('waitPDFTitle') || this.documentName === Strings.waitPDFTitle)) {
         Column() {
-          EmptyState({ icon: DT.iconPdf(this.darkMode), title: Strings.waitPDFTitle, message: Strings.waitPDFDescription,
-            actionTitle: Strings.pairingTitle, action: () => this.disconnect() })
+          if (this.connected) {
+            Column({ space: DT.spacingS12 }) {
+              Image(DT.iconPdf(this.darkMode)).width(DT.layoutIcon).height(DT.layoutIcon)
+                .accessibilityLevel('no')
+              Text(Strings.waitPDFTitle).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+              Text(Strings.waitPDFDescription).fontSize(DT.fontBody).fontColor(DT.secondary(this.darkMode))
+                .textAlign(TextAlign.Center)
+            }.padding(DT.spacingS24)
+          } else {
+            EmptyState({ icon: DT.iconPdf(this.darkMode), title: Strings.waitPDFTitle, message: Strings.waitPDFDescription,
+              actionTitle: Strings.pairingTitle, action: () => this.disconnect() })
+          }
         }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor(DT.canvas(this.darkMode))
       }
     }
@@ -507,9 +436,9 @@ export struct InkWorkspace {
     .onTouch((event: TouchEvent) => {
       this.handlePenTouch(event);
     })
-    .onAreaChange((_, area) => {
-      this.padAreaWidth = Math.max(1, area.width as number);
-      this.padAreaHeight = Math.max(1, area.height as number);
+    .onSizeChange((_old, size) => {
+      this.padAreaWidth = Math.max(1, Number(size.width));
+      this.padAreaHeight = Math.max(1, Number(size.height));
     })
   }
 
@@ -585,6 +514,14 @@ export struct InkWorkspace {
 
         this.ToolDivider()
 
+        if (this.roundTripId.length > 0) {
+          Button(Strings.returnPDF)
+            .height(DT.layoutTouchTarget).fontSize(DT.fontCaption)
+            .backgroundColor(DT.keyboardKey(this.darkMode)).fontColor(DT.text(this.darkMode))
+            .borderRadius(DT.radiusSmall).onClick(() => { void this.selectRoundTripReturnPDF(); })
+          this.ToolDivider()
+        }
+
         Button(Strings.glyphClear)
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width(DT.layoutTouchTarget).height(DT.layoutTouchTarget).padding(DT.spacingS0).fontSize(DT.fontBody).fontWeight(FontWeight.Medium)
@@ -596,7 +533,7 @@ export struct InkWorkspace {
       .padding({ left: DT.spacingS8, right: DT.spacingS8, top: DT.spacingS4, bottom: DT.spacingS4 })
       .backgroundColor(DT.keyboardGlass(this.darkMode))
       .linearGradient({ angle: 145, colors: [[DT.panelColor0(this.darkMode), 0], [DT.panelColor1(this.darkMode), 0.5], [DT.panelColor2(this.darkMode), 1]] })
-      .backgroundBlurStyle(BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
+      .backgroundBlurStyle(this.resizing ? BlurStyle.NONE : BlurStyle.COMPONENT_REGULAR, { colorMode: this.darkMode ? ThemeColorMode.DARK : ThemeColorMode.LIGHT })
       
       .border({ width: DT.layoutStroke, color: DT.keyboardGlass(this.darkMode) })
       .borderRadius(DT.radiusMedium)
@@ -934,14 +871,6 @@ export struct InkWorkspace {
     return Math.max(0, this.headerWidth - reservedSide * 2);
   }
 
-  private setTopBarCollapsed(collapsed: boolean): void {
-    this.getUIContext().animateTo({
-      duration: this.reduceMotion ? DT.durationNone : DT.durationCollapse,
-      curve: DT.curveStandard()
-    }, () => {
-      this.topBarCollapsed = collapsed;
-    });
-  }
 
   private toolMenuTransition(): TransitionEffect {
     if (this.reduceMotion) return TransitionEffect.IDENTITY;
@@ -1004,6 +933,13 @@ export struct InkWorkspace {
   }
 
   private startScreenMirror(requestId: string): void {
+    const wirelessMic = AppStorage.get<string>('LinkDeskWirelessMicState') ?? 'off';
+    if (wirelessMic !== 'off') {
+      const message = Strings.stopMicBeforeMirror;
+      this.reportScreenMirrorStatus('failed', requestId, message);
+      promptAction.showToast({ message: message });
+      return;
+    }
     if (this.screenMirroring || (screenMirror.isRunning() as boolean)) {
       this.screenMirroring = true;
       this.reportScreenMirrorStatus('started', requestId);
@@ -1071,6 +1007,7 @@ export struct InkWorkspace {
   }
 
   private async startMirrorBackgroundTask(): Promise<void> {
+    const generation = ++this.mirrorBackgroundGeneration;
     const context = this.getUIContext().getHostContext();
     if (!context) return;
     const wantAgentInfo: wantAgent.WantAgentInfo = {
@@ -1084,8 +1021,15 @@ export struct InkWorkspace {
     };
     try {
       const agent: WantAgent = await wantAgent.getWantAgent(wantAgentInfo);
-      await backgroundTaskManager.startBackgroundRunning(context, ['audioRecording'], agent);
+      if (generation !== this.mirrorBackgroundGeneration) return;
+      const id = await startIndependentTask(context, backgroundTaskManager.BackgroundTaskMode.MODE_AUDIO_RECORDING, agent);
+      if (generation !== this.mirrorBackgroundGeneration) {
+        await backgroundTaskManager.stopBackgroundRunning(context, id);
+        return;
+      }
+      this.mirrorBackgroundId = id;
     } catch (error) {
+      if (generation !== this.mirrorBackgroundGeneration) return;
       const failure = error as BusinessError;
       console.error(`Failed to keep screen mirror in background: ${failure.code} ${failure.message}`);
       promptAction.showToast({ message: Strings.mirrorForegroundHint });
@@ -1093,10 +1037,13 @@ export struct InkWorkspace {
   }
 
   private async stopMirrorBackgroundTask(): Promise<void> {
+    ++this.mirrorBackgroundGeneration;
+    const id = this.mirrorBackgroundId;
+    this.mirrorBackgroundId = -1;
     const context = this.getUIContext().getHostContext();
-    if (!context) return;
+    if (!context || id < 0) return;
     try {
-      await backgroundTaskManager.stopBackgroundRunning(context);
+      await backgroundTaskManager.stopBackgroundRunning(context, id);
     } catch (error) {
       const failure = error as BusinessError;
       console.error(`Failed to stop screen mirror background task: ${failure.code} ${failure.message}`);
@@ -1565,6 +1512,7 @@ export struct InkWorkspace {
   }
 
   private scheduleReconnect(delay: number = 400): void {
+    if (this.sidebarDisconnected) return;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
@@ -1573,7 +1521,7 @@ export struct InkWorkspace {
   }
 
   private async attemptBestConnection(): Promise<void> {
-    if (this.connectionAttemptInFlight || !/^[A-Z0-9]{6}$/.test(this.room)) return;
+    if (this.sidebarDisconnected || this.connectionAttemptInFlight || !/^[A-Z0-9]{6}$/.test(this.room)) return;
     if (this.connected && this.showPad) return;
     this.connectionAttemptInFlight = true;
     const generation = this.connectionGeneration;

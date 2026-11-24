@@ -44,7 +44,6 @@ struct ContentView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(DT.canvas)
       }
     }
-    .background(WindowLiquidGlassConfigurator())
     .toolbar {
       if isActive && workspace.isToolbarCollapsed {
         ToolbarItem(placement: .navigation) {
@@ -133,35 +132,6 @@ struct ContentView: View {
       active: MacStatusToastMorphModifier(progress: 0),
       identity: MacStatusToastMorphModifier(progress: 1)
     )
-  }
-}
-
-private struct WindowLiquidGlassConfigurator: NSViewRepresentable {
-  func makeNSView(context: Context) -> WindowLiquidGlassConfigurationView {
-    WindowLiquidGlassConfigurationView()
-  }
-
-  func updateNSView(_ nsView: WindowLiquidGlassConfigurationView, context: Context) {
-    nsView.configureWindow()
-  }
-}
-
-private final class WindowLiquidGlassConfigurationView: NSView {
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
-    configureWindow()
-  }
-
-  func configureWindow() {
-    guard let window else { return }
-    window.styleMask.remove(.fullSizeContentView)
-    window.titlebarAppearsTransparent = false
-    window.titleVisibility = .hidden
-    window.titlebarSeparatorStyle = .none
-    window.toolbar?.showsBaselineSeparator = false
-    window.isMovableByWindowBackground = false
-    window.isOpaque = true
-    window.backgroundColor = NSColor(DT.canvas)
   }
 }
 
@@ -636,9 +606,9 @@ private struct PairingView: View {
           Image(systemName: usbRelay.isReady ? "cable.connector" : "cable.connector.slash")
             .font(.system(size: DT.font.title, weight: .light))
             .foregroundStyle(usbRelay.isReady ? DT.success : DT.secondary)
-          Text(usbRelay.isReady ? L10n.stateUSBConnected : L10n.stateDisconnected)
+          Text(usbRelay.isReady ? L10n.stateUSBConnected : (usbRelay.discoveredDevices.contains { $0.transport == .usb && !$0.isConnected } ? L10n.usbDetectedOffline : L10n.stateDisconnected))
             .font(.system(size: DT.font.label))
-          Text(L10n.usbHint)
+          Text(usbRelay.isReady ? L10n.usbHint : usbRelay.usbStatus)
             .font(.system(size: DT.font.caption))
             .foregroundStyle(DT.secondary)
             .multilineTextAlignment(.center)

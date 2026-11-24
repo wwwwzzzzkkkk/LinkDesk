@@ -6,14 +6,17 @@ import Foundation
 @MainActor
 final class LocalRelayLauncher {
   static let shared = LocalRelayLauncher()
-  private static let requiredRelayVersion = 16
+  private static let requiredRelayVersion = 20
   private var process: Process?
   private var isCheckingExistingService = false
   private var discoveryService: NetService?
+  private var heartbeatTimer: Timer?
+  private var heartbeat: URLSessionDataTask?
 
   private init() {}
 
   func startIfNeeded() {
+    startHeartbeat()
     guard process == nil, !isCheckingExistingService else { return }
     // Start immediately so opening the Finder app never depends on an
     // asynchronous localhost probe completing during SwiftUI initialization.
@@ -65,6 +68,10 @@ final class LocalRelayLauncher {
   }
 
   func stop() {
+    heartbeatTimer?.invalidate()
+    heartbeatTimer = nil
+    heartbeat?.cancel()
+    heartbeat = nil
     discoveryService?.stop()
     discoveryService = nil
     process?.terminationHandler = nil
@@ -78,6 +85,25 @@ final class LocalRelayLauncher {
     task.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
     task.arguments = ["-f", script.path]
     do { try task.run() } catch { /* No relay is already the desired state. */ }
+  }
+
+  private func startHeartbeat() {
+    guard heartbeatTimer == nil else { return }
+    let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+      Task { @MainActor in self?.sendHeartbeat() }
+    }
+    heartbeatTimer = timer
+    RunLoop.main.add(timer, forMode: .common)
+    sendHeartbeat()
+  }
+
+  private func sendHeartbeat() {
+    guard heartbeatTimer != nil, heartbeat?.state != .running else { return }
+    var request = URLRequest(url: URL(string: "http://127.0.0.1:3212/host/heartbeat")!, timeoutInterval: 0.8)
+    request.httpMethod = "POST"
+    request.setValue("1", forHTTPHeaderField: "X-LinkDesk-Finder")
+    heartbeat = URLSession.shared.dataTask(with: request) { _, _, _ in }
+    heartbeat?.resume()
   }
 
   /// A Finder relaunch can otherwise reuse an older orphaned Node process,
@@ -105,6 +131,7 @@ final class LocalRelayLauncher {
     task.arguments = ["-lc", "exec \(shellQuote(node.path)) \(shellQuote(script.path))"]
     var environment = ProcessInfo.processInfo.environment
     environment["LINKDESK_KEYBOARD_KEY"] = KeyboardHost.shared.pairingKey
+    environment["LINKDESK_FINDER_ROOM"] = PDFWorkspace.savedRoomCode()
     task.environment = environment
     task.standardOutput = Pipe()
     task.standardError = Pipe()

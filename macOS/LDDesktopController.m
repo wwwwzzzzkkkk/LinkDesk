@@ -134,6 +134,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     BOOL _standbyProbeInFlight, _backgroundAgent;
     _Atomic(bool) _standbyReady;
     NSString *_standbyTarget;
+    NSUInteger _usbMissingPolls;
 }
 - (void)probeStandbyUSB;
 - (void)startControlListener;
@@ -141,6 +142,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)drainLatestFrame;
 - (void)encoded:(CMSampleBufferRef)sample ticket:(LDFrameTicket *)ticket;
 - (void)encodingFinished:(LDFrameTicket *)ticket status:(OSStatus)status flags:(VTEncodeInfoFlags)flags sample:(CMSampleBufferRef)sample;
+- (void)startWithMicrophone:(BOOL)microphoneEnabled;
 - (void)stop;
 @end
 
@@ -230,13 +232,14 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     _audioSyncSlider = [NSSlider sliderWithValue:delay minValue:0 maxValue:150 target:self action:@selector(changeAudioSync:)];
     [_audio setSyncDelay:delay];
     [self refreshScaleHint];
+    [_microphone start];
     _timer = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(updateStats:) userInfo:nil repeats:YES];
     [self startControlListener];
-    _standbyTimer = [NSTimer scheduledTimerWithTimeInterval:5 target:self selector:@selector(probeStandbyUSB) userInfo:nil repeats:YES];
+    _standbyTimer = [NSTimer scheduledTimerWithTimeInterval:3 target:self selector:@selector(probeStandbyUSB) userInfo:nil repeats:YES];
     [self probeStandbyUSB];
     if ([NSProcessInfo.processInfo.arguments containsObject:@"--start"]) [self toggle:nil];
 }
-- (void)shutdown { [_timer invalidate]; _timer = nil; [_standbyTimer invalidate]; _standbyTimer = nil; [self stopControlListener]; [self stop]; }
+- (void)shutdown { [_timer invalidate]; _timer = nil; [_standbyTimer invalidate]; _standbyTimer = nil; [self stopControlListener]; [self stop]; [_microphone stop]; }
 - (BOOL)active { return _active; }
 - (CGDirectDisplayID)touchDisplayID { return _active && _display ? _display.displayID : kCGNullDirectDisplay; }
 - (BOOL)starting { return _starting; }
@@ -244,11 +247,14 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (NSString *)status { return _status.stringValue ?: _phase; }
 - (NSString *)statusDetail { return _detail.stringValue ?: @""; }
 - (NSString *)audioStatus { return _audioHint.stringValue ?: @""; }
-- (NSString *)microphoneStatus { return _microphoneHint.stringValue ?: @""; }
+- (NSString *)microphoneStatus { return _microphone.status ?: @""; }
+- (BOOL)wirelessMicrophoneActive { return _microphone.wireless; }
 - (NSInteger)scaleIndex { return _scaleIndex; }
 - (NSInteger)targetFPS { return LDFPS; }
 - (double)audioDelay { return _audioSyncSlider.doubleValue; }
-- (BOOL)microphoneEnabled { return _microphoneToggle.state == NSControlStateValueOn; }
+- (BOOL)microphoneEnabled {
+    return _starting ? _microphoneToggle.state == NSControlStateValueOn : _microphone.enabled;
+}
 - (NSInteger)hdrShadows { return atomic_load(&_hdrShadows); }
 - (void)selectHDRShadows:(NSInteger)level {
     level=MAX(0,MIN(2,level)); atomic_store(&_hdrShadows,(int)level);
@@ -275,7 +281,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     if(restart)[self stop];
     _hdrRequested=enabled;
     [NSUserDefaults.standardUserDefaults setBool:enabled forKey:@"LinkDeskHDR"];
-    if(restart){_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];}
+    if(restart)[self startWithMicrophone:resumeMicrophone];
 }
 - (void)toggleDesktop { [self toggle:nil]; }
 - (void)selectScale:(NSInteger)index { _scalePicker.selectedSegment = index; [self changeScale:_scalePicker]; }
@@ -300,7 +306,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     if (restart) [self stop];
     LDFPS = fps; _useHEVC = fps > 60;
     [NSUserDefaults.standardUserDefaults setInteger:fps forKey:@"LinkDeskTargetFPS"];
-    if (restart) {_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];}
+    if (restart) [self startWithMicrophone:resumeMicrophone];
 }
 - (BOOL)applyScaleIndex:(NSInteger)index persist:(BOOL)persist {
     if (!_display || index < 0 || index > 4) return NO;
@@ -521,9 +527,12 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 - (void)probeStandbyUSB {
     if (_standbyProbeInFlight) return;
     _standbyProbeInFlight = YES;
+    NSString *sessionTarget = [_target copy];
+    unsigned sessionGeneration = _generation;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         BOOL ok = NO;
         NSString *listing = [self runHDC:@[@"list", @"targets", @"-v"] success:&ok];
+        BOOL listSucceeded = ok;
         NSMutableArray<NSString *> *targets = [NSMutableArray new];
         if (ok) for (NSString *line in [listing componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
             if ([line containsString:@"USB"] && [line containsString:@"Connected"]) {
@@ -543,6 +552,17 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             self->_standbyProbeInFlight = NO;
+            // Do not tear down a newer session, or treat a failed HDC command as
+            // a physical unplug. Require two successful missing/offline polls.
+            if (listSucceeded && sessionTarget.length && self->_active &&
+                sessionGeneration == self->_generation && [sessionTarget isEqualToString:self->_target]) {
+                if ([targets containsObject:sessionTarget]) self->_usbMissingPolls = 0;
+                else if (++self->_usbMissingPolls >= 2) {
+                    NSLog(@"LinkDesk USB disconnected; stopping virtual display");
+                    [self stop];
+                    [self showStatus:@"USB 已断开" detail:@"扩展屏幕已自动关闭；重新连接并解锁平板后可再次启动。"];
+                }
+            }
             if(![self->_standbyTarget isEqualToString:(forwarded?target:nil)])atomic_store(&self->_tabletHDR10,false);
             self->_standbyTarget = forwarded ? target : nil;
             atomic_store(&self->_standbyReady, forwarded && target != nil);
@@ -585,7 +605,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 if(previous!=supported)dispatch_async(dispatch_get_main_queue(),^{
                     if(self->_hdrRequested&&self->_active&&self->_hdrActive!=supported){
                         BOOL resumeMicrophone=self.microphoneEnabled;[self stop];
-                        self->_microphoneToggle.state=resumeMicrophone?NSControlStateValueOn:NSControlStateValueOff;[self toggle:nil];
+                        [self startWithMicrophone:resumeMicrophone];
                     }
                 });
             }
@@ -610,11 +630,15 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
 }
 - (void)toggle:(id)sender {
     if (_active || _starting) { [self stop]; return; }
+    [self startWithMicrophone:YES];
+}
+- (void)startWithMicrophone:(BOOL)microphoneEnabled {
     if (!CGPreflightScreenCaptureAccess()) {
         CGRequestScreenCaptureAccess();
         [self showStatus:@"需要屏幕录制权限" detail:@"请在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中允许「连屏」，然后退出并重新打开本应用。"];
         return;
     }
+    _microphoneToggle.state = microphoneEnabled ? NSControlStateValueOn : NSControlStateValueOff;
     _starting = YES; [_networkLock lock]; unsigned generation = ++_generation; [_networkLock unlock];
     _toggle.title = @"取消连接";
     [self showStatus:@"检查 USB 连接" detail:@"正在连接已授权的鸿蒙平板。"];
@@ -654,8 +678,8 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 return;
             }
             [self->_audio start];
-            [self->_microphone start];
-            [self->_microphone setEnabled:self->_microphoneToggle.state==NSControlStateValueOn];
+            if (!self->_microphone.running) [self->_microphone start];
+            [self->_microphone setEnabled:microphoneEnabled];
             self->_active = YES; self->_starting = NO; self->_toggle.title = @"停止副屏";
             [self showStatus:@"副屏已创建，等待平板" detail:@"打开平板上的「连屏」，即可显示独立桌面。"];
             // Let WindowServer finish attaching the display before selecting its final mode.
@@ -688,7 +712,7 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
             setsockopt(client, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
             struct timeval timeout = {1, 0}; setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
             BOOL receiptMetrics=[NSProcessInfo.processInfo.arguments containsObject:@"--receipt-metrics"];
-            NSMutableData *header = [NSMutableData dataWithBytes:self->_hdrActive ? "LDQ1" : (self->_useHEVC ? (receiptMetrics?"LDH2":"LDH1") : (receiptMetrics?"LDV2":"LDV1")) length:4];
+            NSMutableData *header = [NSMutableData dataWithBytes:self->_hdrActive ? (receiptMetrics?"LDQ2":"LDQ1") : (self->_useHEVC ? (receiptMetrics?"LDH2":"LDH1") : (receiptMetrics?"LDV2":"LDV1")) length:4];
             append32(header, LDWidth); append32(header, LDHeight); append32(header, LDFPS);
             [self->_networkLock lock];
             if (generation != self->_generation) { close(client); [self->_networkLock unlock]; break; }
@@ -803,7 +827,15 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
                 OSStatus speed = VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, kCFBooleanTrue);
                 NSLog(@"LinkDesk HEVC low-delay setup: delay=%d speed=%d", (int)delay, (int)speed);
             }
-            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(LDFPS > 60 ? LDFPS * 650000 : 26000000));
+            NSInteger bitRate = LDFPS > 60 ? LDFPS * 650000 : 26000000;
+            NSArray *encoderArguments = NSProcessInfo.processInfo.arguments;
+            NSUInteger bitrateIndex = [encoderArguments indexOfObject:@"--test-bitrate-mbps"];
+            if (bitrateIndex != NSNotFound && bitrateIndex + 1 < encoderArguments.count) {
+                NSInteger mbps = [encoderArguments[bitrateIndex + 1] integerValue];
+                if (mbps >= 20 && mbps <= 150) bitRate = mbps * 1000000;
+            }
+            VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFNumberRef)@(bitRate));
+            NSLog(@"MOTION_ENCODER bitrate=%ld", (long)bitRate);
             VTSessionSetProperty(self->_encoder, kVTCompressionPropertyKey_ExpectedFrameRate, (__bridge CFNumberRef)@(LDFPS));
             // A full-resolution IDR every second creates periodic encode/USB stalls.
             // Connections still explicitly force an immediate keyframe for recovery.
@@ -1076,9 +1108,9 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
     _audioSyncLabel.stringValue=[NSString stringWithFormat:@"双端同步：Mac 延后 %.0f 毫秒",delay];
 }
 - (void)updateStats:(NSTimer *)timer {
+    [_microphone updateRoute];
     if (!_active) return;
     [_audio updateRoute]; _audioHint.stringValue = _audio.status;
-    [_microphone updateRoute];
     _microphoneToggle.state = _microphone.enabled ? NSControlStateValueOn : NSControlStateValueOff;
     _microphoneHint.stringValue = _microphone.status;
     [self syncSystemScale];
@@ -1111,10 +1143,12 @@ static void append64(NSMutableData *data, uint64_t n) { n = CFSwapInt64HostToBig
         [NSUserDefaults.standardUserDefaults setObject:@{@"x":@(bounds.origin.x), @"y":@(bounds.origin.y)} forKey:@"LinkDeskDisplayOrigin"];
     }
     [_testTimer invalidate]; _testTimer = nil; [_testWindow close]; _testWindow = nil; _testMarker = nil;
-    [_microphone stop];
+    [_microphone setEnabled:NO];
     _microphoneToggle.state = NSControlStateValueOff;
     [_audio stop];
     _active = NO; _starting = NO;
+    _usbMissingPolls = 0;
+    _target = nil;
     [_networkLock lock]; ++_generation;
     [_pipelineBudget reset:++_clientEpoch];
     if (_listenFD >= 0) { shutdown(_listenFD, SHUT_RDWR); close(_listenFD); _listenFD = -1; }

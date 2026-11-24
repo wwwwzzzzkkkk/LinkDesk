@@ -46,7 +46,8 @@ static BOOL SetInput(AudioDeviceID d){if(!d)return NO;AudioObjectPropertyAddress
 static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1]<<16|(uint32_t)p[2]<<8|p[3];}
 @interface LDMicrophoneBridge (){
     NSLock *_lock; NSString *_message;
-    _Atomic(bool) _running,_enabled;
+    _Atomic(bool) _running,_enabled,_wireless;
+    BOOL _wirelessUSB;
     int _listener,_client;
     dispatch_group_t _worker;
     AudioDeviceID _device,_fallback,_lastInput;
@@ -62,12 +63,19 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
 - (void)restoreInput{if(_device&&InputDevice()==_device)SetInput(_fallback);}
 - (BOOL)enabled { return atomic_load(&_enabled); }
 - (BOOL)running { return atomic_load(&_running); }
+- (BOOL)wireless { return atomic_load(&_wireless); }
 - (void)updateRoute {
     if (!atomic_load(&_running) || !_device) return;
     AudioDeviceID input = InputDevice();
     if (input == _lastInput) return;
     AudioDeviceID previous = _lastInput;
     _lastInput = input;
+    if (self.wireless) {
+        if (previous == _device && input != _device) {
+            [self controlReplyForCommand:"LDWMOFF1" length:8];
+        }
+        return;
+    }
     if (input == _device && !self.enabled) {
         [_lock lock];
         if (previous && previous != _device) _fallback = previous;
@@ -78,6 +86,28 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
 }
 - (char)controlReplyForCommand:(const char *)command length:(size_t)length {
     if (length != 8) return 'E';
+    BOOL wired = !memcmp(command, "LDWMUSB1", 8);
+    BOOL startWireless = wired || !memcmp(command, "LDWMON01", 8);
+    if (startWireless || !memcmp(command, "LDWMOFF1", 8)) {
+        [_lock lock];
+        if (!self.running) { [_lock unlock]; return 'E'; }
+        _wirelessUSB = wired;
+        if (atomic_exchange(&_wireless, startWireless) != startWireless) {
+            atomic_store(&_ring->enabled, false);
+            if (startWireless) {
+                AudioDeviceID input = InputDevice();
+                if (input != _device) _fallback = input;
+            } else {
+                atomic_store(&_enabled, false);
+                [self restoreInput];
+            }
+            if (_client >= 0) shutdown(_client, SHUT_RDWR);
+            _message = startWireless ? @"平板麦克风：等待音频" : @"平板麦克风：已关闭";
+        }
+        [_lock unlock];
+        return startWireless ? '1' : '0';
+    }
+    if (self.wireless) return '0';
     if (!memcmp(command, "LDMICON1", 8)) [self setEnabled:YES];
     else if (!memcmp(command, "LDMICOFF", 8)) [self setEnabled:NO];
     else if (memcmp(command, "LDMICGET", 8)) return 'E';
@@ -86,7 +116,9 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
 - (void)setEnabled:(BOOL)enabled{
     [_lock lock];
     if ((enabled && !atomic_load(&_running)) || atomic_load(&_enabled) == enabled) { [_lock unlock]; return; }
-    atomic_store(&_enabled,enabled);atomic_store(&_ring->enabled,false);
+    atomic_store(&_enabled,enabled);
+    if (self.wireless) { [_lock unlock]; return; }
+    atomic_store(&_ring->enabled,false);
     if (enabled) { AudioDeviceID input = InputDevice(); if (input != _device) _fallback = input; }
     else [self restoreInput];
     if(_client>=0)shutdown(_client,SHUT_RDWR);[_lock unlock];
@@ -121,32 +153,39 @@ static uint32_t Read32(const uint8_t *p){return (uint32_t)p[0]<<24|(uint32_t)p[1
     while(atomic_load(&_running)){
         int fd=accept(listener,NULL,NULL);if(fd<0){if(errno==EINTR)continue;break;}
         [_lock lock];_client=fd;[_lock unlock];int one=1;setsockopt(fd,SOL_SOCKET,SO_NOSIGPIPE,&one,sizeof(one));struct timeval timeout={2,0};setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
-        uint8_t header[16];BOOL valid=[self read:header size:16 fd:fd]&&!memcmp(header,"LDMI",4)&&Read32(header+4)==48000&&Read32(header+8)==1&&Read32(header+12)==1;
-        uint8_t request=valid&&atomic_load(&_enabled)?1:0;
+        uint8_t header[16];
+        BOOL readHeader = [self read:header size:16 fd:fd];
+        BOOL wireless = readHeader && !memcmp(header, "LDMW", 4);
+        BOOL valid = readHeader && (wireless || !memcmp(header, "LDMI", 4))
+            && Read32(header+4)==48000 && Read32(header+8)==1 && Read32(header+12)==1;
+        uint8_t request=valid && (wireless ? self.wireless : self.enabled && !self.wireless);
         if(valid&&send(fd,&request,1,0)==1&&request){
-            while(atomic_load(&_running)&&atomic_load(&_enabled)){
+            while(self.running && (wireless ? self.wireless : self.enabled && !self.wireless)){
                 uint8_t length[4],pcm[1920];if(![self read:length size:4 fd:fd])break;uint32_t bytes=Read32(length);
                 if(bytes>sizeof(pcm)||bytes%2)break;
                 if(bytes&&![self read:pcm size:bytes fd:fd])break;
-                if(!atomic_load(&_enabled))break;
+                if(!(wireless ? self.wireless : self.enabled && !self.wireless))break;
                 uint64_t h=atomic_load_explicit(&_ring->head,memory_order_relaxed),t=atomic_load_explicit(&_ring->tail,memory_order_acquire);unsigned frames=bytes/2;
                 if(h-t+frames>MIC_CAPACITY)continue;
                 for(unsigned i=0;i<frames;i++){int16_t value=(int16_t)((uint16_t)pcm[i*2]|((uint16_t)pcm[i*2+1]<<8));_ring->samples[(h+i)%MIC_CAPACITY]=value/32768.0f;}
                 atomic_store_explicit(&_ring->head,h+frames,memory_order_release);
                 [_lock lock];
-                if(frames&&atomic_load(&_enabled)&&atomic_load(&_running)&&!atomic_exchange(&_ring->enabled,true)){
-                    BOOL selected=SetInput(_device);_message=selected?@"平板麦克风：已设为 Mac 输入":@"平板麦克风：请在声音输入中选择 MatePad";
+                if(frames && self.running && (wireless ? self.wireless : self.enabled && !self.wireless)
+                    && !atomic_exchange(&_ring->enabled,true)){
+                    BOOL selected=SetInput(_device);
+                    _message=selected ? (wireless ? (_wirelessUSB ? @"平板麦克风 · USB" : @"平板麦克风 · Wi-Fi") : @"平板麦克风：已设为 Mac 输入")
+                        : @"请在声音输入中选择 MatePad";
                 }
                 [_lock unlock];
             }
         }
         [_lock lock];atomic_store(&_ring->enabled,false);[self restoreInput];
         close(fd);_client=-1;[_lock unlock];
-        if(atomic_load(&_enabled))[self message:@"平板麦克风：等待平板连接或授权"];
+        if(!self.wireless && self.enabled)[self message:@"平板麦克风：等待平板连接或授权"];
     }
 }
 - (void)stop{
-    atomic_store(&_running,false);atomic_store(&_enabled,false);atomic_store(&_ring->enabled,false);
+    atomic_store(&_running,false);atomic_store(&_enabled,false);atomic_store(&_wireless,false);atomic_store(&_ring->enabled,false);
     [_lock lock];if(_client>=0)shutdown(_client,SHUT_RDWR);int listener=_listener;_listener=-1;[_lock unlock];
     if(listener>=0){shutdown(listener,SHUT_RDWR);close(listener);}
     dispatch_group_wait(_worker,DISPATCH_TIME_FOREVER);[self restoreInput];
