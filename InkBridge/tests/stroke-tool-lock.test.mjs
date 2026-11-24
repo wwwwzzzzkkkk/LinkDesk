@@ -241,14 +241,15 @@ test("Mac search outside-click monitor is bounded and cleaned up", () => {
   assert.match(content, /return event/);
 });
 
-test("HarmonyOS uses native Scan Kit pairing and hands the result to automatic transport selection", () => {
+test("HarmonyOS scans secure Wi-Fi invitations while preserving automatic and USB connection options", () => {
   const arkTS = source("../HarmonyOS/entry/src/main/ets/pages/InkWorkspace.ets");
 
   assert.match(arkTS, /import \{ scanBarcode, scanCore \} from '@kit\.ScanKit'/);
   assert.match(arkTS, /startScanForResult\(context, \{[\s\S]*scanCore\.ScanType\.QR_CODE/);
   assert.match(arkTS, /parseScannedPairingLink[\s\S]*\[\?&\]room=/);
   assert.match(arkTS, /port !== '3210'/);
-  assert.match(arkTS, /applyScannedPairingLink[\s\S]*connectionPreference = 'automatic'/);
+  assert.match(arkTS, /SecureFilePeer\.pair\(context, pairing\.host/);
+  assert.match(arkTS, /applyScannedPairingLink[\s\S]*connectionPreference = secure \? 'wifi' : 'automatic'/);
   assert.match(arkTS, /discoveredWirelessHost = pairing\.host/);
   assert.match(arkTS, /candidates\.push\(\{ host: '127\.0\.0\.1', mode: 'usb' \}\)[\s\S]*discoveredWirelessHost/);
 });

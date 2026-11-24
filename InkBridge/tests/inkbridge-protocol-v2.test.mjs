@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import WebSocket from "ws";
+import { openPacket, sealPacket } from "../file-security.mjs";
 import {
   boundedCanvasPixelRatio,
   createProtocolClient,
@@ -25,7 +26,7 @@ test("portable SHA-256 keeps PDF verification available without WebCrypto", asyn
 });
 
 const room = "P1TEST";
-const relayVersion = 20;
+const relayVersion = 21;
 let relay;
 let baseURL;
 const dataDirectory = mkdtempSync(join(tmpdir(), "inkbridge-phase5-"));
@@ -51,11 +52,11 @@ async function waitUntilReady(url) {
   throw new Error("relay did not start");
 }
 
-function makeClient(role, id, roomCode = room) {
+function makeClient(role, id, roomCode = room, url = baseURL) {
   let sequence = 0;
   const messages = [];
   const waiters = [];
-  const socket = new WebSocket(baseURL.replace("http", "ws") + "/ws");
+  const socket = new WebSocket(url.replace("http", "ws") + "/ws");
   socket.on("message", (raw) => {
     const message = JSON.parse(raw.toString());
     messages.push(message);
@@ -1406,6 +1407,113 @@ test("tablet observes a stopped Mac app while its relay is still running", async
     assert.equal((await fetch(privateURL, heartbeat)).status, 204);
     assert.equal(await online(), true);
   } finally {
+    child.kill("SIGTERM");
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("one-use Wi-Fi pairing protects file lists, contents and annotation returns while USB remains usable", async () => {
+  const port = await unusedPort();
+  let localPort = await unusedPort();
+  while (localPort === port) localPort = await unusedPort();
+  const url = `http://127.0.0.1:${port}`;
+  const privateURL = `http://127.0.0.1:${localPort}`;
+  const directory = mkdtempSync(join(tmpdir(), "linkdesk-file-security-"));
+  const room = "INVITE";
+  const keyboardKey = randomBytes(32).toString("hex");
+  const child = spawn(process.execPath, ["local-server.mjs"], {
+    cwd: process.cwd(),
+    env: { ...process.env, PORT: String(port), INKBRIDGE_DATA_DIR: directory,
+      LINKDESK_FINDER_ROOM: room, LINKDESK_FINDER_PORT: String(localPort), LINKDESK_KEYBOARD_KEY: keyboardKey },
+    stdio: "ignore",
+  });
+  let mac;
+  const privateHeaders = { "X-LinkDesk-Finder": "1" };
+  const finderAction = (path, options) => fetch(privateURL + path, {
+    ...options, headers: { ...options?.headers, ...privateHeaders },
+  });
+  const authorize = (key, path, method, details = {}) => {
+    const context = `LinkDesk/File/1\n${method}\n${path}`;
+    const proof = sealPacket(key, context + "\nrequest", Buffer.from(JSON.stringify({ time: Date.now(), ...details })));
+    return { context, proof, headers: { "X-LinkDesk-File-Proof": proof.toString("base64") } };
+  };
+  const plain = async (key, auth, response) => openPacket(key,
+    auth.context + `\nresponse\n${auth.proof.subarray(0, 12).toString("hex")}\n${response.status}`,
+    Buffer.from(await response.arrayBuffer()));
+  try {
+    await waitUntilReady(url);
+    mac = makeClient("desktop", "secure-file-host", room, url);
+    await mac.join();
+    const tabletInbox = `/api/files/${room}/tablet`;
+    const macInbox = `/api/files/${room}/mac`;
+    assert.equal((await fetch(url + "/file-pairing/invite", { method: "POST" })).status, 404);
+    const invitationResponse = await finderAction("/file-pairing/invite", { method: "POST" });
+    assert.equal(invitationResponse.status, 201);
+    const { id, secret } = await invitationResponse.json();
+    const invitation = Buffer.from(secret, "hex");
+    const pairContext = `LinkDesk/Pair/1\n${room}\n${id}`;
+    const device = randomBytes(32);
+    const claim = (key, proof) => fetch(url + "/api/file-pairing", {
+      method: "POST", body: JSON.stringify({ id, room, proof: (proof ?? sealPacket(invitation,
+        pairContext + "\nclaim", Buffer.from(JSON.stringify({ key: key.toString("hex") })))).toString("base64") }),
+    });
+    const proof = sealPacket(invitation, pairContext + "\nclaim",
+      Buffer.from(JSON.stringify({ key: device.toString("hex") })));
+    const paired = await claim(device, proof);
+    assert.equal(paired.status, 200);
+    const answer = await paired.json();
+    assert.equal(JSON.parse(openPacket(invitation, pairContext + "\naccepted",
+      Buffer.from(answer.proof, "base64"))).keyboardKey, keyboardKey);
+    assert.deepEqual(await (await claim(device, proof)).json(), answer);
+    assert.equal((await claim(randomBytes(32))).status, 403);
+
+    const fileID = randomUUID();
+    const original = Buffer.from("PDF fixture for private sharing");
+    assert.equal((await finderAction("/share/" + fileID, {
+      method: "PUT", headers: { "X-File-Name": "sample.pdf", "X-File-Purpose": "annotate" }, body: original,
+    })).status, 201);
+
+    const wrong = authorize(randomBytes(32), tabletInbox, "GET");
+    assert.equal((await fetch(url + tabletInbox, { headers: wrong.headers })).status, 401);
+    const lan = Object.values(networkInterfaces()).flat().find(addr => addr && addr.family === "IPv4" && !addr.internal);
+    if (lan) {
+      assert.equal((await fetch(`http://${lan.address}:${port}${tabletInbox}`)).status, 401);
+    }
+    const auth = authorize(device, tabletInbox, "GET");
+    const listing = await fetch(url + tabletInbox, { headers: auth.headers });
+    assert.match(listing.headers.get("content-type"), /octet-stream/);
+    assert.equal(JSON.parse(await plain(device, auth, listing))[0].annotationID, fileID);
+    assert.equal((await fetch(url + tabletInbox, { headers: auth.headers })).status, 401);
+    const filePath = tabletInbox + "/" + fileID;
+    const download = authorize(device, filePath, "GET");
+    assert.deepEqual(await plain(device, download, await fetch(url + filePath, { headers: download.headers })), original);
+
+    const annotated = Buffer.from("Annotated PDF fixture");
+    const returnPath = macInbox + "/" + randomUUID();
+    const upload = authorize(device, returnPath, "PUT", { name: "sample-marked.pdf", annotationID: fileID });
+    const corrupt = sealPacket(device, upload.context + "\ncontent", annotated);
+    corrupt[12] ^= 1;
+    assert.equal((await fetch(url + returnPath, { method: "PUT", headers: upload.headers, body: corrupt })).status, 422);
+    assert.deepEqual(await (await fetch(url + macInbox)).json(), []);
+    const retry = authorize(device, returnPath, "PUT", { name: "sample-marked.pdf", annotationID: fileID });
+    const uploaded = await fetch(url + returnPath, {
+      method: "PUT", headers: retry.headers, body: sealPacket(device, retry.context + "\ncontent", annotated),
+    });
+    assert.equal(uploaded.status, 201);
+    assert.equal(JSON.parse(await plain(device, retry, uploaded)).annotationID, fileID);
+    assert.deepEqual(Buffer.from(await (await fetch(url + returnPath)).arrayBuffer()), annotated);
+    const usb = await fetch(url + tabletInbox);
+    assert.equal(usb.status, 200);
+    assert.equal((await usb.json())[0].id, fileID);
+
+    assert.deepEqual(await (await finderAction("/file-pairing/device")).json(), { paired: true });
+    assert.equal((await finderAction("/file-pairing/device", { method: "DELETE" })).status, 204);
+    assert.deepEqual(await (await finderAction("/file-pairing/device")).json(), { paired: false });
+    assert.equal((await claim(device, proof)).status, 403);
+    const revoked = authorize(device, tabletInbox, "GET");
+    assert.equal((await fetch(url + tabletInbox, { headers: revoked.headers })).status, 401);
+  } finally {
+    mac?.close();
     child.kill("SIGTERM");
     rmSync(directory, { recursive: true, force: true });
   }

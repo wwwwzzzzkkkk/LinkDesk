@@ -379,7 +379,7 @@ struct Index {
                   Text(item.name).fontSize(DT.fontBody).fontColor(DT.text(this.darkMode))
                     .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
                   Row({ space: DT.spacingS8 }) {
-                    if (item.annotationID) {
+                    if (item.annotationID || item.name.toLowerCase().endsWith('.pdf')) {
                       Button(Strings.annotateInHuaweiNotes).height(DT.layoutTouchTarget)
                         .backgroundColor(DT.workspaceAccent(this.darkMode)).fontColor(DT.workspaceOnAccent(this.darkMode))
                         .onClick(() => { void FileTransferClient.receive(item, true); })

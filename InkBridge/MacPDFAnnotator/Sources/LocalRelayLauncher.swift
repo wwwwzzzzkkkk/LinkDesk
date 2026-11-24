@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 final class LocalRelayLauncher {
   static let shared = LocalRelayLauncher()
-  private static let requiredRelayVersion = 20
+  private static let requiredRelayVersion = 21
   private var process: Process?
   private var isCheckingExistingService = false
   private var discoveryService: NetService?

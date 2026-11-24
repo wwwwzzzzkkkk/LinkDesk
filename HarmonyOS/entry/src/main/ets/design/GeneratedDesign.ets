@@ -217,6 +217,15 @@ export class Strings {
   static source(key: string): string { return Strings.value(key, false); }
   private static value(key: string, english: boolean = Strings.language.startsWith("en")): string {
     switch (key) {
+      case "secureFileForget": return english ? "Remove Wi-Fi File Access" : "移除 Wi-Fi 文件授权";
+      case "secureFileForgetDetail": return english ? "The tablet will need to scan a new QR code before sending or receiving files over Wi-Fi." : "平板需要重新扫码才能通过 Wi-Fi 收发文件。";
+      case "secureFileForgetFailed": return english ? "Access could not be removed. Try again." : "无法移除授权，请重试。";
+      case "secureFileScanHint": return english ? "Join the same Wi-Fi network and scan the code on your Mac. USB is also available below." : "两台设备连到同一 Wi-Fi，然后扫描 Mac 上的二维码。USB 仍可在下方选择。";
+      case "secureFilePairingFailed": return english ? "Secure pairing failed. Check that both devices are on the same Wi-Fi network, then refresh the code on Mac." : "未能完成安全配对。确认两端在同一 Wi-Fi，再刷新 Mac 上的二维码重试。";
+      case "secureFilePairingRequired": return english ? "Wi-Fi file transfer requires secure pairing. Scan the connection QR code on your Mac again." : "Wi-Fi 文件传送需要安全配对，请重新扫描 Mac 上的连接二维码。";
+      case "secureFileCodeHint": return english ? "Scan with LinkDesk on the tablet. The code is valid for two minutes and can pair one device." : "用平板上的 LinkDesk 扫码。二维码两分钟内有效，每个二维码只能配对一次。";
+      case "secureFileCodeRefresh": return english ? "Refresh QR Code" : "刷新二维码";
+      case "secureFileCodeUnavailable": return english ? "Could not generate a code. Check that the Mac and tablet are on the same Wi-Fi and try again." : "无法生成二维码，请确认 Mac 和平板在同一 Wi-Fi 后重试。";
       case "micInputActiveMarker": return english ? "Set as Mac input" : "已设为 Mac 输入";
       case "finderSendUnavailable": return english ? "Choose a file or wait for the current transfer to finish." : "请选择文件，或等待当前传输完成。";
       case "stopMicBeforeMirror": return english ? "Turn off the wireless microphone before starting tablet mirroring" : "请先关闭无线麦克风，再开启平板投屏";
@@ -595,6 +604,15 @@ export class Strings {
       default: return key;
     }
   }
+  static get secureFileForget(): string { return Strings.value("secureFileForget"); }
+  static get secureFileForgetDetail(): string { return Strings.value("secureFileForgetDetail"); }
+  static get secureFileForgetFailed(): string { return Strings.value("secureFileForgetFailed"); }
+  static get secureFileScanHint(): string { return Strings.value("secureFileScanHint"); }
+  static get secureFilePairingFailed(): string { return Strings.value("secureFilePairingFailed"); }
+  static get secureFilePairingRequired(): string { return Strings.value("secureFilePairingRequired"); }
+  static get secureFileCodeHint(): string { return Strings.value("secureFileCodeHint"); }
+  static get secureFileCodeRefresh(): string { return Strings.value("secureFileCodeRefresh"); }
+  static get secureFileCodeUnavailable(): string { return Strings.value("secureFileCodeUnavailable"); }
   static get micInputActiveMarker(): string { return Strings.value("micInputActiveMarker"); }
   static get finderSendUnavailable(): string { return Strings.value("finderSendUnavailable"); }
   static get stopMicBeforeMirror(): string { return Strings.value("stopMicBeforeMirror"); }

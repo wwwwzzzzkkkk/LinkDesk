@@ -581,10 +581,23 @@ private struct PDFCanvasRepresentable: NSViewRepresentable {
 }
 
 private struct PairingView: View {
+  private struct FilePeerStatus: Decodable { let paired: Bool }
+
+  private struct Invitation: Decodable {
+    let id: String
+    let secret: String
+  }
+
   let link: String
   let room: String
   @ObservedObject var usbRelay: USBRelayManager
   @Environment(\.dismiss) private var dismiss
+  @State private var invitation: Invitation?
+  @State private var invitationFailed = false
+  @State private var refreshCode = UUID()
+  @State private var hasFilePeer = false
+  @State private var confirmingRemoval = false
+  @State private var removalFailed = false
 
   var body: some View {
     VStack(spacing: DT.spacing.s16) {
@@ -615,14 +628,32 @@ private struct PairingView: View {
         }
         .frame(height: DT.dimensions.d220)
       } else {
-        Image(nsImage: qrImage(for: link + "#keyboardKey=" + KeyboardHost.shared.pairingKey))
-          .interpolation(.none)
-          .resizable()
-          .scaledToFit()
-          .frame(width: DT.dimensions.d220, height: DT.dimensions.d220)
-        Text(L10n.scanHint)
+        Group {
+          if let invitation {
+            Image(nsImage: qrImage(for: link + "#fileInvite=" + invitation.id + "." + invitation.secret))
+              .interpolation(.none)
+              .resizable()
+              .scaledToFit()
+              .accessibilityLabel(L10n.scanMac)
+          } else if invitationFailed {
+            Text(L10n.secureFileCodeUnavailable).multilineTextAlignment(.center)
+          } else {
+            ProgressView()
+          }
+        }
+        .frame(width: DT.dimensions.d220, height: DT.dimensions.d220)
+        Text(L10n.secureFileCodeHint)
           .font(.system(size: DT.font.caption))
           .foregroundStyle(DT.secondary)
+        HStack(spacing: DT.spacing.s12) {
+          Button(L10n.secureFileCodeRefresh) { refreshCode = UUID() }
+          if hasFilePeer {
+            Button(L10n.secureFileForget) { confirmingRemoval = true }
+          }
+        }
+        if removalFailed {
+          Text(L10n.secureFileForgetFailed).font(.system(size: DT.font.caption)).foregroundStyle(DT.secondary)
+        }
       }
 
       Text(L10n.format("pairingCodeValue", room)).font(.system(size: DT.font.body, design: .monospaced).weight(.semibold))
@@ -647,6 +678,74 @@ private struct PairingView: View {
     }
     .padding(DT.spacing.s28)
     .frame(width: DT.dimensions.d420)
+    .task(id: "\(usbRelay.preference.rawValue):\(refreshCode)") { await loadInvitation() }
+    .onDisappear {
+      if let invitation { Task { await cancel(invitation) } }
+    }
+    .confirmationDialog(L10n.secureFileForget, isPresented: $confirmingRemoval, titleVisibility: .visible) {
+      Button(L10n.secureFileForget, role: .destructive) { Task { await removeFilePeer() } }
+    } message: {
+      Text(L10n.secureFileForgetDetail)
+    }
+  }
+
+  private func loadInvitation() async {
+    if let invitation { await cancel(invitation) }
+    invitation = nil
+    invitationFailed = false
+    guard usbRelay.preference != .usb else { return }
+    let statusRequest = invitationRequest(path: "/file-pairing/device", method: "GET")
+    if let (data, _) = try? await URLSession.shared.data(for: statusRequest),
+       let status = try? JSONDecoder().decode(FilePeerStatus.self, from: data) {
+      hasFilePeer = status.paired
+    }
+    guard !Task.isCancelled else { return }
+    guard LocalNetwork.ipv4Address != nil else { invitationFailed = true; return }
+    var request = invitationRequest(path: "/file-pairing/invite", method: "POST")
+    request.cachePolicy = .reloadIgnoringLocalCacheData
+    for attempt in 0..<3 {
+      do {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 201 else {
+          if attempt < 2 { try await Task.sleep(for: .milliseconds(300)); continue }
+          break
+        }
+        let value = try JSONDecoder().decode(Invitation.self, from: data)
+        if Task.isCancelled { await cancel(value); return }
+        invitation = value
+        return
+      } catch is CancellationError { return }
+      catch {
+        if Task.isCancelled { return }
+        if attempt < 2 { try? await Task.sleep(for: .milliseconds(300)) }
+      }
+    }
+    if !Task.isCancelled { invitationFailed = true }
+  }
+
+  private func removeFilePeer() async {
+    let request = invitationRequest(path: "/file-pairing/device", method: "DELETE")
+    guard let (_, response) = try? await URLSession.shared.data(for: request),
+          (response as? HTTPURLResponse)?.statusCode == 204 else {
+      removalFailed = true
+      return
+    }
+    removalFailed = false
+    hasFilePeer = false
+    invitation = nil
+    refreshCode = UUID()
+  }
+
+  private func cancel(_ invitation: Invitation) async {
+    let request = invitationRequest(path: "/file-pairing/invite/" + invitation.id, method: "DELETE")
+    _ = try? await URLSession.shared.data(for: request)
+  }
+
+  private func invitationRequest(path: String, method: String) -> URLRequest {
+    var request = URLRequest(url: URL(string: "http://127.0.0.1:3212" + path)!, timeoutInterval: 2)
+    request.httpMethod = method
+    request.setValue("1", forHTTPHeaderField: "X-LinkDesk-Finder")
+    return request
   }
 
   private func qrImage(for text: String) -> NSImage {

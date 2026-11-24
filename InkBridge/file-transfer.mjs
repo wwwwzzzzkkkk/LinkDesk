@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Transform } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
 const maxBytes = 64 * 1024 * 1024;
@@ -24,17 +24,29 @@ function filename(value) {
   return name;
 }
 
-export function createFileTransfer(root, hasRoom) {
+export function createFileTransfer(root, hasRoom, security) {
   const uploads = new Set();
+  const secureDownloads = new Set();
   return async function handle(request, response, url) {
     const match = route.exec(url.pathname);
     if (!match) return false;
     const [, room, destination, id] = match;
     const method = request.method;
     const fromMac = method === "PUT" ? destination === "tablet" : destination === "mac";
-    const finish = (status, value) => { json(response, status, value); return true; };
+    const local = isLocal(request.socket.remoteAddress);
+    const wantsSecure = request.headers["x-linkdesk-file-proof"] !== undefined;
+    const channel = !fromMac && wantsSecure ? security.authenticate(request, url.pathname, room) : undefined;
+    const finish = (status, value) => {
+      if (channel) channel.send(response, status, Buffer.from(JSON.stringify(value)));
+      else json(response, status, value);
+      return true;
+    };
     const error = (status, reason) => finish(status, { error: reason });
-    if (!hasRoom(room) || (fromMac && !isLocal(request.socket.remoteAddress))) {
+    if ((!local || wantsSecure) && !channel) {
+      request.resume();
+      return error(401, "secure-pairing-required");
+    }
+    if ((!channel && request.headers.origin) || !hasRoom(room)) {
       request.resume();
       return error(404, "pairing-not-available");
     }
@@ -62,6 +74,16 @@ export function createFileTransfer(root, hasRoom) {
       if (method === "GET" && id) {
         const item = await existing();
         if (!item || item.received) return error(404, "file-not-available");
+        if (channel) {
+          if (secureDownloads.has(room)) return error(409, "download-in-progress");
+          secureDownloads.add(room);
+          response.once("close", () => secureDownloads.delete(room));
+          const data = await readFile(dataPath);
+          if (response.destroyed) return true;
+          if (!channel.current()) return error(401, "secure-pairing-required");
+          channel.send(response, 200, data);
+          return true;
+        }
         response.writeHead(200, { "content-type": "application/octet-stream", "content-length": item.size,
           "cache-control": "no-store" });
         const stream = createReadStream(dataPath);
@@ -73,7 +95,8 @@ export function createFileTransfer(root, hasRoom) {
       if (method === "DELETE" && id) {
         const item = await existing();
         if (item && !item.received) {
-          await writeFile(recordPath + ".ack", JSON.stringify({ ...item, received: true }));
+          if (channel && !channel.current()) return error(401, "secure-pairing-required");
+          await writeFile(recordPath + ".ack", JSON.stringify({ ...item, received: true }), { mode: 0o600 });
           await rename(recordPath + ".ack", recordPath);
           await rm(dataPath, { force: true });
         }
@@ -87,10 +110,10 @@ export function createFileTransfer(root, hasRoom) {
         const previous = await existing();
         if (previous) { request.resume(); return finish(200, previous); }
         let name;
-        try { name = filename(request.headers["x-file-name"]); }
+        try { name = filename(channel ? channel.metadata.name : request.headers["x-file-name"]); }
         catch { request.resume(); return error(422, "invalid-name"); }
         const length = Number(request.headers["content-length"]);
-        if (Number.isFinite(length) && length > maxBytes) {
+        if (!channel && Number.isFinite(length) && length > maxBytes) {
           request.resume();
           return error(413, "file-too-large");
         }
@@ -105,7 +128,7 @@ export function createFileTransfer(root, hasRoom) {
           await rm(receipts[0].path, { force: true });
         }
         const purpose = request.headers["x-file-purpose"];
-        const requested = request.headers["x-annotation-id"];
+        const requested = channel ? channel.metadata.annotationID : request.headers["x-annotation-id"];
         const annotationID = destination === "tablet" && purpose === "annotate" && /\.pdf$/i.test(name) ? id :
           (destination === "mac" && typeof requested === "string" && validId.test(requested) ? requested : null);
         await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -121,14 +144,20 @@ export function createFileTransfer(root, hasRoom) {
         });
         const temp = dataPath + ".part";
         try {
-          // Keep the request separate from the write pipeline so the relay can report an upload error.
-          request.on("error", (cause) => counter.destroy(cause));
-          request.on("aborted", () => counter.destroy(new Error("upload-interrupted")));
-          request.pipe(counter);
-          await pipeline(counter, createWriteStream(temp, { mode: 0o600 }));
-          if (Number.isFinite(length) && size !== length) throw new Error("size-mismatch");
+          if (channel) {
+            const bytes = await channel.read(maxBytes);
+            await pipeline(Readable.from([bytes]), counter, createWriteStream(temp, { mode: 0o600 }));
+            if (!channel.current()) return error(401, "secure-pairing-required");
+          } else {
+            // Keep the request separate so a failed upload can still report an error.
+            request.on("error", (cause) => counter.destroy(cause));
+            request.on("aborted", () => counter.destroy(new Error("upload-interrupted")));
+            request.pipe(counter);
+            await pipeline(counter, createWriteStream(temp, { mode: 0o600 }));
+            if (Number.isFinite(length) && size !== length) throw new Error("size-mismatch");
+          }
           const item = { id, name, size, sha256: hash.digest("hex"), annotationID,
-            transport: isLocal(request.socket.remoteAddress) && destination === "mac" ? "USB" :
+            transport: local && destination === "mac" ? "USB" :
               (destination === "mac" ? "Wi‑Fi" : null), createdAt: Date.now() };
           await rename(temp, dataPath);
           await writeFile(recordPath + ".part", JSON.stringify(item), { mode: 0o600 });
@@ -144,6 +173,7 @@ export function createFileTransfer(root, hasRoom) {
       request.resume();
       if (response.destroyed || response.headersSent) return true;
       if (cause.message === "file-too-large") return error(413, "file-too-large");
+      if (cause.message === "invalid-content") return error(422, "invalid-content");
       return error(500, "transfer-failed");
     }
   };

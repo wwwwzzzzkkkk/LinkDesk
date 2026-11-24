@@ -110,6 +110,9 @@ final class ShareViewController: NSViewController {
     let nameCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
     request.setValue(file.lastPathComponent.addingPercentEncoding(withAllowedCharacters: nameCharacters),
       forHTTPHeaderField: "X-File-Name")
+    if file.pathExtension.lowercased() == "pdf" {
+      request.setValue("annotate", forHTTPHeaderField: "X-File-Purpose")
+    }
     let (_, response) = try await session.upload(for: request, fromFile: file)
     switch (response as? HTTPURLResponse)?.statusCode {
     case 200, 201: return

@@ -8,6 +8,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { http, mdns } from '@kit.NetworkKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { KeyboardClient } from '../keyboard/KeyboardClient';
+import { SecureFilePeer } from '../roundtrip/SecureFilePeer';
 import { accessibility } from '@kit.AccessibilityKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { Want, common, wantAgent, WantAgent, wantConstant } from '@kit.AbilityKit';
@@ -77,7 +78,7 @@ export struct InkWorkspace {
   @StorageLink('LinkDeskSidebarDisconnected') @Watch('sidebarConnectionChanged') sidebarDisconnected: boolean = false;
   @StorageLink('LinkDeskShowPairing') @Watch('showPairingRequested') showPairing: boolean = false;
   @State connectionMode: string = 'wifi';
-  @State connectionPreference: string = 'automatic';
+  @State connectionPreference: string = 'wifi';
   @State appMode: string = 'pdf';
   @State showPad: boolean = false;
   @State @Watch('publishConnection') connected: boolean = false;
@@ -178,7 +179,7 @@ export struct InkWorkspace {
       // choices made after this release remain persistent.
       const migrated = store.getSync('automaticDiscoveryV1', false) as boolean;
       if (!migrated) {
-        this.connectionPreference = 'automatic';
+        this.connectionPreference = this.room ? 'automatic' : 'wifi';
         store.putSync('connectionPreference', this.connectionPreference);
         store.putSync('automaticDiscoveryV1', true);
         store.flushSync();
@@ -289,17 +290,19 @@ export struct InkWorkspace {
     Column({ space: DT.spacingS16 }) {
       Column({ space: DT.spacingS16 }) {
         Text(Strings.pairingTitle).fontSize(DT.fontSection).fontWeight(FontWeight.Bold).fontColor(DT.text(this.darkMode))
+        Button(Strings.scanMac).height(DT.layoutTouchTarget).width('100%')
+          .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
+          .backgroundColor(DT.workspaceAccent(this.darkMode)).fontColor(DT.workspaceOnAccent(this.darkMode))
+          .borderRadius(DT.radiusSmall).onClick(() => { void this.startNativePairingScan(); })
+        Text(Strings.secureFileScanHint).fontSize(DT.fontCaption).fontColor(DT.secondary(this.darkMode))
         Button(this.connectionPreference === 'automatic'
           ? Strings.autoConnectMac
           : (this.connectionMode === 'usb' ? Strings.usbConnectMac : Strings.wifiConnectMac))
       .constraintSize({ minWidth: DT.layoutTouchTarget, minHeight: DT.layoutTouchTarget })
           .width('100%').height(DT.spacingS48)
-          .fontSize(DT.fontBody).fontWeight(FontWeight.Bold)
-          .backgroundColor(DT.workspaceAccent(this.darkMode)).fontColor(DT.workspaceOnAccent(this.darkMode))
-          .onClick(() => this.connectToPad())
-        Button(Strings.scanMac).height(DT.layoutTouchTarget).fontSize(DT.fontBody)
+          .fontSize(DT.fontBody)
           .backgroundColor(DT.workspaceControl(this.darkMode)).fontColor(DT.text(this.darkMode))
-          .borderRadius(DT.radiusSmall).onClick(() => this.startNativePairingScan())
+          .onClick(() => this.connectToPad())
       }.width('100%').constraintSize({ maxWidth: DT.layoutFormMaxWidth }).padding(DT.spacingS24)
         .backgroundColor(DT.workspaceSurface(this.darkMode))
         .border({ width: DT.layoutStroke, color: DT.workspaceRim(this.darkMode), radius: DT.radiusLarge })
@@ -1425,13 +1428,25 @@ export struct InkWorkspace {
         enableAlbum: true
       });
       const pairing = this.parseScannedPairingLink(result.originalValue);
-      const keyboardKey = result.originalValue.match(/[#&]keyboardKey=([0-9a-f]{64})(?:&|$)/);
-      if (pairing && keyboardKey) await KeyboardClient.importPairing(keyboardKey[1], pairing.host);
       if (!pairing) {
         promptAction.showToast({ message: Strings.scanInvalid });
         return;
       }
-      this.applyScannedPairingLink(pairing);
+      const invitation = result.originalValue.match(/[#&]fileInvite=([0-9a-f-]{36})\.([0-9a-f]{64})(?:&|$)/);
+      if (invitation) {
+        try {
+          const keyboardKey = await SecureFilePeer.pair(context, pairing.host, pairing.room, invitation[1], invitation[2]);
+          if (keyboardKey) await KeyboardClient.importPairing(keyboardKey, pairing.host);
+        } catch (_) {
+          promptAction.showToast({ message: Strings.secureFilePairingFailed });
+          return;
+        }
+      } else {
+        // An earlier Mac version may still offer its legacy keyboard QR.
+        const legacy = result.originalValue.match(/[#&]keyboardKey=([0-9a-f]{64})(?:&|$)/);
+        if (legacy) await KeyboardClient.importPairing(legacy[1], pairing.host);
+      }
+      this.applyScannedPairingLink(pairing, !!invitation);
     } catch (reason) {
       const error = reason as BusinessError;
       if (error.code !== 1000500002) {
@@ -1472,7 +1487,7 @@ export struct InkWorkspace {
     return { host: normalizedHost, room: normalizedRoom };
   }
 
-  private applyScannedPairingLink(pairing: ScannedPairingLink): void {
+  private applyScannedPairingLink(pairing: ScannedPairingLink, secure: boolean): void {
     this.connectionGeneration += 1;
     this.connectionAttemptInFlight = false;
     if (this.showPad) this.disconnect();
@@ -1480,7 +1495,7 @@ export struct InkWorkspace {
     this.host = pairing.host;
     this.discoveredWirelessHost = pairing.host;
     this.connectionMode = 'wifi';
-    this.connectionPreference = 'automatic';
+    this.connectionPreference = secure ? 'wifi' : 'automatic';
     this.connectedHost = '';
     this.connectedRoom = '';
     this.connected = false;
@@ -1492,7 +1507,7 @@ export struct InkWorkspace {
         store.putSync('host', pairing.host);
         store.putSync('room', pairing.room);
         store.putSync('connectionMode', 'wifi');
-        store.putSync('connectionPreference', 'automatic');
+        store.putSync('connectionPreference', this.connectionPreference);
         store.putSync('automaticDiscoveryV1', true);
         store.flushSync();
       }

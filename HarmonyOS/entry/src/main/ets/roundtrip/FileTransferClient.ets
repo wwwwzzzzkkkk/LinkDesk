@@ -6,6 +6,8 @@ import { preferences, uniformTypeDescriptor } from '@kit.ArkData';
 import { promptAction } from '@kit.ArkUI';
 import { util } from '@kit.ArkTS';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
+import { Strings } from '../design/GeneratedDesign';
+import { SecureFilePeer } from './SecureFilePeer';
 import { IncomingFileNotifications } from './IncomingFileNotifications';
 import { RoundTripLiveViewController } from './RoundTripLiveViewController';
 
@@ -132,24 +134,34 @@ export class FileTransferClient {
       item !== USB && /^http:\/\/(?:[A-Za-z0-9.-]+|\[[A-Fa-f0-9:]+\]):3210$/.test(item))));
   }
 
-  private static async tryOrigins(origins: string[], path: string,
-    options: http.HttpRequestOptions): Promise<http.HttpResponse | undefined> {
+  private static fetch(client: http.HttpRequest, origin: string, path: string, options: http.HttpRequestOptions,
+    context?: common.Context, name?: string, annotationID?: string): Promise<http.HttpResponse> {
+    if (origin === USB) return client.request(origin + path, options);
+    if (!context) return Promise.reject(new Error('secure-pairing-required'));
+    return SecureFilePeer.request(client, origin, path, path.split('/')[3], options, context, name, annotationID);
+  }
+
+  private static async tryOrigins(origins: string[], path: string, options: http.HttpRequestOptions,
+    context?: common.Context, name?: string, annotationID?: string): Promise<http.HttpResponse | undefined> {
+    let rejected: http.HttpResponse | undefined;
     for (const origin of origins) {
       const client = http.createHttp();
       try {
         if (options.method === http.RequestMethod.PUT) {
           const inbox = path.slice(0, path.indexOf('/mac/')) + '/tablet';
-          const pair = await client.request(origin + inbox, {
+          const pair = await FileTransferClient.fetch(client, origin, inbox, {
             method: http.RequestMethod.GET, connectTimeout: 800, readTimeout: 1200
-          });
+          }, context);
+          if (pair.responseCode === 401) rejected = pair;
           if (pair.responseCode !== 200) continue;
         }
-        let response = await client.request(origin + path, options);
+        let response = await FileTransferClient.fetch(client, origin, path, options, context, name, annotationID);
         if (response.responseCode === 409 && options.method === http.RequestMethod.PUT) {
           // A lost USB response can leave the same upload finishing on the Mac.
           await new Promise<void>((resolve) => { setTimeout(resolve, 200); });
-          response = await client.request(origin + path, options);
+          response = await FileTransferClient.fetch(client, origin, path, options, context, name, annotationID);
         }
+        if (response.responseCode === 401) { rejected = response; continue; }
         if ([404, 409, 500, 502, 503].includes(response.responseCode)) continue;
         FileTransferClient.relayPrefix = origin;
         return response;
@@ -157,24 +169,32 @@ export class FileTransferClient {
         // The ID stays the same on Wi-Fi even if USB was disconnected during the upload.
       } finally { client.destroy(); }
     }
-    return undefined;
+    return rejected;
   }
 
   private static async request(path: string, options: http.HttpRequestOptions,
-    context: common.Context | undefined = FileTransferClient.context): Promise<http.HttpResponse> {
-    const tried = [USB, ...FileTransferClient.knownWireless(context)];
-    const response = await FileTransferClient.tryOrigins(tried, path, options);
-    if (response) return response;
-    if (context && Date.now() - FileTransferClient.lastDiscovery > 8000) {
+    context: common.Context | undefined = FileTransferClient.context, name?: string, annotationID?: string):
+    Promise<http.HttpResponse> {
+    const room = path.split('/')[3];
+    const hasPairing = context ? SecureFilePeer.hasPairing(context, room) : false;
+    const wireless = FileTransferClient.knownWireless(context);
+    const preferWiFi = FileTransferClient.saved('connectionPreference', context) === 'wifi';
+    const tried = preferWiFi ? wireless : [USB, ...wireless];
+    const response = await FileTransferClient.tryOrigins(tried, path, options, context, name, annotationID);
+    if (response && response.responseCode !== 401) return response;
+    if (context && hasPairing && Date.now() - FileTransferClient.lastDiscovery > 8000) {
       FileTransferClient.lastDiscovery = Date.now();
-      const origin = await FileTransferClient.discoverWireless(context, FileTransferClient.room(context));
+      const origin = await FileTransferClient.discoverWireless(context, room);
       if (origin && !tried.includes(origin)) {
-        const found = await FileTransferClient.tryOrigins([origin], path, options);
-        if (found) {
+        const found = await FileTransferClient.tryOrigins([origin], path, options, context, name, annotationID);
+        if (found && found.responseCode !== 401) {
           FileTransferClient.save('fileTransferWireless', origin, context);
           return found;
         }
       }
+    }
+    if (!hasPairing || response?.responseCode === 401) {
+      throw new Error(Strings.secureFilePairingRequired);
     }
     throw new Error('连不上 Mac，请检查 LinkDesk、USB 或同一 Wi-Fi');
   }
@@ -397,7 +417,7 @@ export class FileTransferClient {
       extraData: buffer,
       expectDataType: http.HttpDataType.STRING,
       connectTimeout: 1000, readTimeout: 120000
-    }, context);
+    }, context, encodeURIComponent(name), annotationID);
     if (response.responseCode !== 200 && response.responseCode !== 201) {
       throw new Error(response.responseCode === 429 ? 'Mac 待接收文件太多' : `发送失败（${response.responseCode}）`);
     }

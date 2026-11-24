@@ -20,7 +20,7 @@ swift build -c "$CONFIGURATION" --package-path "$ROOT" --jobs 2
 BIN="$(swift build -c "$CONFIGURATION" --package-path "$ROOT" --show-bin-path)"
 cp "$BIN/LinkDesk" "$APP/Contents/MacOS/LinkDesk"
 mkdir -p "$APP/Contents/Resources/public"
-cp "$ROOT/InkBridge/local-server.mjs" "$ROOT/InkBridge/file-transfer.mjs" "$ROOT/InkBridge/wireless-mic-relay.mjs" "$APP/Contents/Resources/"
+cp "$ROOT/InkBridge/local-server.mjs" "$ROOT/InkBridge/file-transfer.mjs" "$ROOT/InkBridge/file-security.mjs" "$ROOT/InkBridge/wireless-mic-relay.mjs" "$APP/Contents/Resources/"
 cp "$ROOT/InkBridge/keyboard-relay.mjs" "$APP/Contents/Resources/keyboard-relay.mjs"
 rsync -a --delete "$ROOT/InkBridge/public/" "$APP/Contents/Resources/public/"
 # A self-contained app does not depend on a separately installed Node or npm tree.

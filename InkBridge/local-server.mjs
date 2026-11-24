@@ -13,6 +13,7 @@ import { homedir, networkInterfaces } from "node:os";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWirelessMicRelay } from './wireless-mic-relay.mjs';
+import { createFileSecurity } from "./file-security.mjs";
 import { createFileTransfer } from './file-transfer.mjs';
 import { createKeyboardRelay } from './keyboard-relay.mjs';
 import {
@@ -27,7 +28,7 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(directory, "public");
 const port = Number.parseInt(process.env.PORT ?? "3210", 10);
 const finderPort = Number.parseInt(process.env.LINKDESK_FINDER_PORT ?? "3212", 10);
-const relayVersion = 20;
+const relayVersion = 21;
 const managedHost = /^[A-Z0-9]{6}$/.test(process.env.LINKDESK_FINDER_ROOM ?? "");
 const hostHeartbeatMaxAge = 5500;
 let hostHeartbeatAt = Number.NEGATIVE_INFINITY;
@@ -38,7 +39,8 @@ const serverSourceId = "inkbridge-relay";
 const rooms = new Map();
 const persistenceDirectory = process.env.INKBRIDGE_DATA_DIR
   || join(homedir(), "Library", "Application Support", "InkBridge");
-const fileTransfer = createFileTransfer(join(persistenceDirectory, "file-transfer"), (room) => rooms.has(room));
+const fileSecurity = createFileSecurity(persistenceDirectory, process.env.LINKDESK_FINDER_ROOM, process.env.LINKDESK_KEYBOARD_KEY);
+const fileTransfer = createFileTransfer(join(persistenceDirectory, "file-transfer"), (room) => rooms.has(room), fileSecurity);
 const projectDirectory = join(persistenceDirectory, "projects");
 const roomDirectory = join(persistenceDirectory, "rooms");
 const roundTripDirectory = join(persistenceDirectory, "roundtrip");
@@ -596,6 +598,7 @@ function storedWhiteboardViewport(viewport) {
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   if (await keyboardRelay.handle(request, response, url)) return;
+  if (await fileSecurity.claim(request, response, url)) return;
   if (await fileTransfer(request, response, url)) return;
   if (url.pathname === "/config") {
     const localAddresses = addresses();
@@ -1316,6 +1319,7 @@ server.listen(port, "0.0.0.0", () => {
         response.writeHead(204).end();
         return;
       }
+      if (fileSecurity.privateRequest(request, response, path)) { request.resume(); return; }
       const upload = new RegExp("^/share/([a-f0-9-]{36})$").exec(path);
       if (path === "/share" && request.method === "GET") {
         response.writeHead(rooms.has(finderRoom) ? 204 : 503).end();
