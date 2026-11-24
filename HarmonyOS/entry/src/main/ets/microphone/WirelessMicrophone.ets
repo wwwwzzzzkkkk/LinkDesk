@@ -13,6 +13,10 @@ import { startIndependentTask } from '../BackgroundTask';
 import { DisplayContext } from '../DisplayContext';
 import { KeyboardClient } from '../keyboard/KeyboardClient';
 
+interface MicHostHealth {
+  hostOnline?: boolean;
+}
+
 interface MicHandshake {
   challenge?: string;
   proof?: string;
@@ -21,6 +25,7 @@ interface MicHandshake {
 const NOTICE_ID: number = 24838;
 const PCM_FRAME_BYTES: number = 1920;
 const USB_HOST: string = '127.0.0.1';
+const MAC_DISCONNECTED = 'Mac 连接已断开，麦克风已关闭';
 const MIC_SOURCE: audio.AudioCapturerInfo = { source: audio.SourceType.SOURCE_TYPE_MIC, capturerFlags: 0 };
 const MIC_INPUT_SOURCES: audio.SourceType[] = [
   audio.SourceType.SOURCE_TYPE_MIC, audio.SourceType.SOURCE_TYPE_VOICE_RECOGNITION,
@@ -57,6 +62,8 @@ export class WirelessMicrophone {
   private attachedHost: string = '';
   private hosts: string[] = [];
   private noticeRequested: boolean = false;
+  private checkingHost: boolean = false;
+  private missedHostChecks: number = 0;
   private noticeUpdatedAt: number = 0;
   private noticeToken: string = '';
   private stopSubscriber: commonEventManager.CommonEventSubscriber | undefined;
@@ -147,6 +154,10 @@ export class WirelessMicrophone {
     const state = this.state;
     const active = state !== 'off' && state !== 'stopping';
     const transport = this.transportLabel();
+    let detail = '已关闭 · USB 或同一 Wi-Fi 下可开启';
+    if (state === 'paused') detail = '已暂停 · 麦克风空闲后自动恢复';
+    else if (active) detail = this.attachedHost ? `正在发送到 Mac · ${transport}` : '正在连接 Mac…';
+    else if (AppStorage.get<string>('LinkDeskWirelessMicDetail') === MAC_DISCONNECTED) detail = MAC_DISCONNECTED;
     try {
       const agent = await this.agent(!active);
       const button = active && this.stopSubscriber ? await wantAgent.getWantAgent({
@@ -155,13 +166,13 @@ export class WirelessMicrophone {
         actionFlags: [wantAgent.WantAgentFlags.CONSTANT_FLAG]
       }) : agent;
       if (state !== this.state || transport !== this.transportLabel()) return;
+      if (!active) await notificationManager.cancel(NOTICE_ID).catch(() => {});
+      if (state !== this.state || transport !== this.transportLabel()) return;
       await notificationManager.publish({
         id: NOTICE_ID,
         slotType: notification.SlotType.SERVICE_INFORMATION,
         content: { notificationContentType: notificationManager.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
-          normal: { title: 'LinkDesk 无线麦克风',
-            text: state === 'paused' ? '已暂停 · 麦克风空闲后自动恢复' :
-              active ? `正在发送到 Mac · ${transport}` : '已关闭 · USB 或同一 Wi-Fi 下可开启' } },
+          normal: { title: 'LinkDesk 无线麦克风', text: detail } },
         wantAgent: agent,
         actionButtons: [{ title: active ? '关闭麦克风' : '开启麦克风', wantAgent: button }],
         isAlertOnce: true, tapDismissed: false,
@@ -254,6 +265,7 @@ export class WirelessMicrophone {
         }
       }, 500);
       this.routeTimer = setInterval(() => {
+        void this.checkHost();
         void this.probeUSB();
         if (this.noticeRequested && Date.now() - this.noticeUpdatedAt >= 10000) void this.publishNotification();
       }, 2500);
@@ -401,6 +413,7 @@ export class WirelessMicrophone {
     this.sending = false;
     this.switching = false;
     this.attachedHost = '';
+    this.missedHostChecks = 0;
     const capture = this.capturer;
     this.capturer = undefined;
     if (capture) {
@@ -410,11 +423,12 @@ export class WirelessMicrophone {
     const context = this.context;
     const id = this.backgroundId;
     this.backgroundId = -1;
+    // Replace the recording notification before giving up background execution.
+    await this.publishNotification();
     if (context && id >= 0) {
       try { await backgroundTaskManager.stopBackgroundRunning(context, id); } catch (_) {}
     }
     this.showState('off', detail);
-    await this.publishNotification();
   }
 
   private closeSocket(): void {
@@ -444,7 +458,10 @@ export class WirelessMicrophone {
       if (generation !== this.generation || Date.now() >= deadline) return errorMessage;
       try {
         await this.connect(host, generation);
-        if (generation === this.generation) this.attachedHost = host;
+        if (generation === this.generation) {
+          this.attachedHost = host;
+          this.missedHostChecks = 0;
+        }
         return '';
       } catch (error) {
         if (generation !== this.generation) return errorMessage;
@@ -453,6 +470,35 @@ export class WirelessMicrophone {
       }
     }
     return errorMessage;
+  }
+
+  private async checkHost(): Promise<void> {
+    const host = this.attachedHost;
+    if (!host || this.switching || this.checkingHost || (this.state !== 'on' && this.state !== 'paused')) return;
+    this.checkingHost = true;
+    const generation = this.generation;
+    const address = host.includes(':') ? '[' + host + ']' : host;
+    const client = http.createHttp();
+    let online: boolean | undefined;
+    try {
+      const response = await client.request(`http://${address}:3210/api/appearance`, {
+        method: http.RequestMethod.GET, expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 650, readTimeout: 800, usingCache: false
+      });
+      if (response.responseCode === 200 && typeof response.result === 'string') {
+        const health = JSON.parse(response.result) as MicHostHealth;
+        online = health.hostOnline !== false;
+      }
+    } catch (_) {
+      // A lost health request can be the USB cable disappearing. Give Wi-Fi a chance.
+    } finally {
+      client.destroy();
+      this.checkingHost = false;
+    }
+    if (generation !== this.generation || host !== this.attachedHost || this.switching) return;
+    if (online === false) await this.stop(MAC_DISCONNECTED);
+    else if (online === true) this.missedHostChecks = 0;
+    else if (++this.missedHostChecks >= 2) await this.reconnect();
   }
 
   private async probeUSB(): Promise<void> {
@@ -482,7 +528,7 @@ export class WirelessMicrophone {
     await this.tryRoutes(generation);
     if (generation !== this.generation) return;
     this.switching = false;
-    if (!this.attachedHost) { await this.stop('Mac 连接已断开，麦克风已关闭'); return; }
+    if (!this.attachedHost) { await this.stop(MAC_DISCONNECTED); return; }
     this.updateTransport();
     void this.publishNotification();
     if (!this.sending && this.queue.length) void this.flush(generation);
@@ -503,7 +549,7 @@ export class WirelessMicrophone {
         if (this.socket !== socket || generation !== this.generation) return;
         if (!proved) reject(new Error(this.challenge ? '音频认证未完成' : '网络连接失败'));
         else if (this.state === 'on' || this.state === 'paused') void this.reconnect();
-        else void this.stop('Mac 连接已断开，麦克风已关闭');
+        else void this.stop(MAC_DISCONNECTED);
       };
       socket.on('message', (_error, raw: string | ArrayBuffer) => {
         if (typeof raw !== 'string' || proved || this.socket !== socket || generation !== this.generation) return;
